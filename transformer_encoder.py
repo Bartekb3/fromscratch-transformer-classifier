@@ -39,7 +39,7 @@ class MultiheadSelfAttentionBlock(nn.Module):
         self.layer_norm = nn.LayerNorm(
             normalized_shape=embedding_dim, eps=LN_EPS)
 
-    def forward(self, x, key_padding_mask):
+    def forward(self, x, key_padding_mask=None):
         """
         Args:
             x (Tensor): Input tensor of shape (B, N, D)
@@ -86,7 +86,7 @@ class MLPBlock(nn.Module):
             x (Tensor): Input tensor of shape (B, N, D)
                B = batch size, N = sequence length, D = embedding_dim.
         Returns:
-            y (Tensor): = LayerNorm(x + Dropout(MultiheadSelfAttention(x))), (B,N,D)
+            y (Tensor): = LayerNorm(x + Dropout(FFN(x))), (B,N,D)
         """
         y = self.mlp(x)
         return self.layer_norm(x + y)
@@ -108,6 +108,7 @@ class TransformerEncoderBlock(nn.Module):
         mha_projection_bias (bool, optional): If True, adds learnable biases to input/output
             projection layers.
     """
+
     def __init__(self,
                  embedding_dim: int = 768,
                  num_heads: int = 12,
@@ -129,7 +130,7 @@ class TransformerEncoderBlock(nn.Module):
                                   mlp_size=mlp_size,
                                   dropout=mlp_dropout)
 
-    def forward(self, x, key_padding_mask = None):
+    def forward(self, x, key_padding_mask=None):
         """
         Args:
             x (Tensor): Input tensor of shape (B, N, D)
@@ -146,5 +147,3 @@ class TransformerEncoderBlock(nn.Module):
         x = self.msa_block(x, key_padding_mask)
         x = self.mlp_block(x)
         return x
-
-
