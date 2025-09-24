@@ -2,10 +2,9 @@ import torch
 from torch import nn
 import torch.nn.functional as F
 import multihead_self_attention as mha
+from consts import LN_EPS
 
-LN_EPS = 1e-12
-
-
+print(LN_EPS)
 class MultiheadSelfAttentionBlock(nn.Module):
     """
     Sublayer: Multihead Self Attention + Residual + Norm 
@@ -16,7 +15,7 @@ class MultiheadSelfAttentionBlock(nn.Module):
         projection_bias (bool, optional): If True, adds learnable biases to input/output
             projection layers.
         attn_dropout (float, optional): Dropout probability on attention output weights (after softmax).
-        out_dropout (float, optional): Dropout probability on output projection.
+        out_dropout (float, optional): Dropout probability on MHSA output projection.
     """
 
     def __init__(self,
@@ -104,7 +103,7 @@ class TransformerEncoderBlock(nn.Module):
         mlp_size (int): Hidden size of the FFN (typically 4*D).
         mlp_dropout (float): Dropout prob after FFN second linear (residual dropout).
         attn_dropout (float, optional): Dropout probability on attention output weights (after softmax).
-        out_dropout (float, optional): Dropout probability on output projection.
+        mha_out_dropout (float, optional): Dropout probability on MHSA output projection.
         mha_projection_bias (bool, optional): If True, adds learnable biases to input/output
             projection layers.
     """
@@ -114,7 +113,7 @@ class TransformerEncoderBlock(nn.Module):
                  num_heads: int = 12,
                  mlp_size: int = 3072,
                  mlp_dropout: float = 0.1,
-                 out_dropout: float = 0.1,
+                 mha_out_dropout: float = 0.1,
                  attn_dropout: float = 0.0,
                  mha_projection_bias: bool = True):
         super().__init__()
@@ -123,7 +122,7 @@ class TransformerEncoderBlock(nn.Module):
                                                      num_heads=num_heads,
                                                      projection_bias=mha_projection_bias,
                                                      attn_dropout=attn_dropout,
-                                                     out_dropout=out_dropout
+                                                     out_dropout=mha_out_dropout
                                                      )
 
         self.mlp_block = MLPBlock(embedding_dim=embedding_dim,
