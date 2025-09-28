@@ -4,7 +4,7 @@ import torch.nn.functional as F
 import multihead_self_attention as mha
 from consts import LN_EPS
 
-print(LN_EPS)
+
 class MultiheadSelfAttentionBlock(nn.Module):
     """
     Sublayer: Multihead Self Attention + Residual + Norm 

@@ -26,7 +26,7 @@ class MultiheadSelfAttention(nn.Module):
                 B = batch size,
                 N = sequence length,
                 D = embedding dimension (must match embed_dim).
-            - key_padding_mask (B, N) -  boolean mask, 
+            - key_padding_mask: (B, N) -  boolean mask, 
                 where True marks positions that should be masked (PAD tokens).
                 Must be of dtype bool. If provided, masked keys are ignored
                 in attention computation.
