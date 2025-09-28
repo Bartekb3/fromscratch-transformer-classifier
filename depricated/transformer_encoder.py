@@ -89,7 +89,7 @@ class MLPBlock(nn.Module):
         """
         y = self.mlp(x)
         return self.layer_norm(x + y)
-
+ 
 
 class TransformerEncoderBlock(nn.Module):
     """    
