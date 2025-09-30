@@ -1,18 +1,30 @@
 import torch
 from torch import nn
-from ..consts import LN_EPS
+from typing import Literal
 
 class SequenceClassificationHead(nn.Module):
     """
     Classification head for sequence-level tasks.
 
-    Architecture (BERT-like):
-        pooled = tanh(Dense(D -> D))   [optional]
-        logits = Dropout -> Dense(D -> num_labels)
+    Architectures:
+      - pooler_type="bert":     Dense(D -> D) + Tanh  -> Dropout -> Dense(D -> num_labels)
+      - pooler_type="roberta":  Dropout -> Dense(D -> D) + Tanh -> Dropout -> Dense(D -> num_labels)
+      - pooler_type=None:       Dropout -> Dense(D -> num_labels)
 
     Initialization:
-        - All `nn.Linear` layers are Xavier-uniform initialized.
-        - Biases are zero-initialized.
+      - All nn.Linear weights: Xavier uniform
+      - All nn.Linear biases: zeros
+
+    Args:
+        embedding_dim (int): Hidden dimension `D`.
+        num_labels (int): Number of target classes.
+        dropout (float, optional): Dropout probability applied before the classifier 
+            (or before pooling as well if pooler_type is roberta).
+        pooler_type ({"bert", "roberta"} or None, optional): 
+            Which architecture of pooler to use:
+              * "bert" -> (BERT-style).
+              * "roberta" -> (RoBERTa-style).
+              * None -> no pooler (use pooled_hidden directly).
     """
 
     def __init__(
@@ -20,25 +32,30 @@ class SequenceClassificationHead(nn.Module):
         embedding_dim: int,
         num_labels: int,
         dropout: float = 0.1,
-        use_pooler: bool = True,
+        pooler_type: Literal["bert", "roberta"] | None = None,
     ):
-        """
-        Args:
-            embedding_dim (int): Hidden dimension `D`.
-            num_labels (int): Number of target classes.
-            dropout (float): Dropout probability applied before the classifier.
-            use_pooler (bool): If True, apply a Dense+tanh pooler (BERT-style);
-                otherwise use identity (no nonlinearity prior to classification).
-        """
+       
         super().__init__()
-        self.use_pooler = use_pooler
-        if use_pooler:
+
+        if pooler_type is None:
+            self.pooler = nn.Identity()
+        elif pooler_type == "bert":
             self.pooler = nn.Sequential(
                 nn.Linear(embedding_dim, embedding_dim),
-                nn.Tanh()
+                nn.Tanh(),
+            )
+        elif pooler_type == "roberta":
+            self.pooler = nn.Sequential(
+                nn.Dropout(p=dropout),
+                nn.Linear(embedding_dim, embedding_dim),
+                nn.Tanh(),
             )
         else:
-            self.pooler = nn.Identity()
+            raise ValueError(
+                f"Unknown pooler_type '{pooler_type}'. "
+                "Valid options are: None, 'bert', 'roberta'."
+            )
+
 
         self.dropout = nn.Dropout(dropout)
         self.classifier = nn.Linear(embedding_dim, num_labels)
@@ -47,15 +64,11 @@ class SequenceClassificationHead(nn.Module):
 
     def _reset_parameters(self):
         """Apply Xavier-uniform to Linear weights and set all biases to zero."""
-        if self.use_pooler:
-            lin = self.pooler[0]
-            nn.init.xavier_uniform_(lin.weight)
-            if lin.bias is not None:
-                nn.init.zeros_(lin.bias)
-
-        nn.init.xavier_uniform_(self.classifier.weight)
-        if self.classifier.bias is not None:
-            nn.init.zeros_(self.classifier.bias)
+        for m in self.modules():
+            if isinstance(m, nn.Linear):
+                nn.init.xavier_uniform_(m.weight)
+                if m.bias is not None:
+                    nn.init.zeros_(m.bias)
 
     def forward(self, pooled_hidden: torch.Tensor):
         """

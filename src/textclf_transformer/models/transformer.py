@@ -17,7 +17,7 @@ class Transformer(nn.Module):
 
     Composition:
         - Embeddings: token + positional (learned or sinusoidal) + optional token type
-        - `num_layers` × `TransformerEncoderBlock` (your implementation)
+        - `num_layers` x `TransformerEncoderBlock`
         - Sequence pooling head (cls/mean/max/min)
         - Optional task heads: sequence classification and/or MLM
 
@@ -59,7 +59,7 @@ class Transformer(nn.Module):
         attn_dropout: float = 0.0,
         mha_projection_bias: bool = True,
         pos_encoding: str = "learned",
-        type_vocab_size: int = 2,
+        type_vocab_size: int = 0,
         embedding_dropout: float = 0.1,
         pad_token_id: int | None = None,
         pooling: POOL_KIND = "cls",
@@ -129,42 +129,6 @@ class Transformer(nn.Module):
         if self.mlm is not None and tie_mlm_weights:
             self.mlm.tie_to(self.embeddings.word_embeddings.weight)
 
-    @staticmethod
-    def _to_key_padding_mask(
-        input_ids: torch.LongTensor,
-        attention_mask: Optional[torch.Tensor],
-        pad_token_id: Optional[int],
-    ):
-        """
-        Normalize an input mask into a boolean key padding mask consumed by attention.
-
-        The returned mask follows the convention expected by attention layers:
-        `True` indicates PAD (to be masked/ignored), `False` indicates valid tokens.
-
-        Priority:
-            1) If `attention_mask` is provided: interpret `1` as keep and `0` as PAD.
-               If it is boolean, invert (`True` -> keep) to obtain PAD==True.
-            2) Else if `pad_token_id` is provided: derive the mask from `input_ids == pad_token_id`.
-            3) Else: return `None` (no mask).
-
-        Args:
-            input_ids (LongTensor): Tensor of shape `(B, N)` with token ids.
-            attention_mask (Tensor | None): Tensor of shape `(B, N)`; either integer
-                with `1` for tokens and `0` for PAD, or boolean with `True` meaning keep.
-            pad_token_id (int | None): PAD token id to use if `attention_mask` is `None`.
-
-        Returns:
-            Tensor | None: Boolean key padding mask `(B, N)` with `True` for PAD,
-                or `None` if no mask can be constructed.
-        """
-        if attention_mask is not None:
-            # Common convention: attention_mask==1 for tokens, 0 for PAD -> convert to bool True for PAD
-            if attention_mask.dtype != torch.bool:
-                return attention_mask == 0
-            return ~attention_mask  # if boolean passed as True=keep -> invert
-        if pad_token_id is not None:
-            return (input_ids == pad_token_id)
-        return None
 
     def forward(
         self,
@@ -204,12 +168,10 @@ class Transformer(nn.Module):
                 - `mlm_logits`: `(B, N, vocab)` MLM logits, if MLM head exists.
                 - `loss`: Scalar loss combining available head losses (classification/MLM), if labels provided.
         """
-        key_padding_mask = self._to_key_padding_mask(input_ids, attention_mask, self.pad_token_id)
-
         x = self.embeddings(input_ids, token_type_ids=token_type_ids, position_ids=position_ids)
 
         for layer in self.layers:
-            x = layer(x, key_padding_mask=key_padding_mask)
+            x = layer(x, key_padding_mask=attention_mask)
 
         outputs = {}
 
@@ -217,7 +179,7 @@ class Transformer(nn.Module):
             outputs["sequence_output"] = x
 
         if return_pooled or self.classifier is not None:
-            pooled = self.pooler(x, key_padding_mask=key_padding_mask)
+            pooled = self.pooler(x, key_padding_mask=attention_mask)
             outputs["pooled_output"] = pooled
 
         # Classification

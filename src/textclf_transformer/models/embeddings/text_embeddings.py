@@ -39,14 +39,13 @@ class TransformerTextEmbeddings(nn.Module):
         type_vocab_size: int = 2,
         pos_encoding: str = "learned",
         embedding_dropout: float = 0.1,
-        pad_token_id: int | None = None,
+        pad_token_id: int | None = 0,
     ):
         super().__init__()
-        self.word_embeddings = nn.Embedding(vocab_size, embedding_dim)
-        self.pad_token_id = pad_token_id
+        self.word_embeddings = nn.Embedding(vocab_size, embedding_dim, padding_idx=pad_token_id)
 
         # Token type embeddings (opcjonalnie)
-        self.use_token_type = type_vocab_size and type_vocab_size > 0
+        self.use_token_type = bool(type_vocab_size)
         if self.use_token_type:
             self.token_type_embeddings = nn.Embedding(type_vocab_size, embedding_dim)
         else:
@@ -74,9 +73,6 @@ class TransformerTextEmbeddings(nn.Module):
         if self.use_token_type:
             nn.init.xavier_uniform_(self.token_type_embeddings.weight)
 
-        if self.pad_token_id is not None:
-            with torch.no_grad():
-                self.word_embeddings.weight[self.pad_token_id].zero_()
 
     def forward(
         self,
@@ -114,20 +110,12 @@ class TransformerTextEmbeddings(nn.Module):
             pos_emb = pos.unsqueeze(0).expand(B, N, -1)
 
         # Segmenty
+        x = word_emb + pos_emb
         if self.use_token_type:
             if token_type_ids is None:
-                token_type_ids = torch.zeros((B, N), dtype=torch.long, device=device)
-            type_emb = self.token_type_embeddings(token_type_ids)
-        else:
-            type_emb = 0.0
+                token_type_ids = torch.zeros((B, N), dtype=torch.long)
+            x = x + self.token_type_embeddings(token_type_ids)
 
-        x = word_emb + pos_emb + (type_emb if isinstance(type_emb, torch.Tensor) else 0.0)
         x = self.layer_norm(x)
         x = self.dropout(x)
-
-        # (opcjonalnie) wyzeruj PAD reprezentacje — kosmetycznie; maska atencji i tak maskuje w attention
-        if self.pad_token_id is not None:
-            pad_mask = (input_ids == self.pad_token_id).unsqueeze(-1)  # (B,N,1)
-            x = x.masked_fill(pad_mask, 0.0)
-
         return x

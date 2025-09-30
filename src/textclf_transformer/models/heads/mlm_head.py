@@ -19,11 +19,9 @@ class MaskedLanguageModelingHead(nn.Module):
     Args:
         embedding_dim (int): Hidden dimension `D`.
         vocab_size (int): Vocabulary size `V`.
-        tie_weights (bool): If True, calling `tie_to()` will tie `decoder.weight`
-            to the provided token embedding weight.
     """
 
-    def __init__(self, embedding_dim: int, vocab_size: int, tie_weights: bool = True):
+    def __init__(self, embedding_dim: int, vocab_size: int):
         super().__init__()
         self.transform = nn.Sequential(
             nn.Linear(embedding_dim, embedding_dim),
@@ -31,9 +29,6 @@ class MaskedLanguageModelingHead(nn.Module):
             nn.LayerNorm(embedding_dim, eps=LN_EPS),
         )
         self.decoder = nn.Linear(embedding_dim, vocab_size, bias=True)
-
-        self._tied_to: nn.Parameter | None = None
-        self.tie_weights = tie_weights
 
         self._reset_parameters()
 
@@ -47,8 +42,7 @@ class MaskedLanguageModelingHead(nn.Module):
             nn.init.zeros_(proj.bias)
 
         # decoder Linear (only if NOT tied)
-        if self._tied_to is None:
-            nn.init.xavier_uniform_(self.decoder.weight)
+        nn.init.xavier_uniform_(self.decoder.weight)
         if self.decoder.bias is not None:
             nn.init.zeros_(self.decoder.bias)
 
@@ -60,9 +54,7 @@ class MaskedLanguageModelingHead(nn.Module):
             embedding_weight (nn.Parameter): Tensor of shape `(V, D)` corresponding to
                 the token embedding weights (e.g., `word_embeddings.weight`).
         """
-        if self.tie_weights:
-            self.decoder.weight = embedding_weight
-            self._tied_to = embedding_weight
+        self.decoder.weight = embedding_weight
 
     def forward(self, hidden: torch.Tensor):
         """
