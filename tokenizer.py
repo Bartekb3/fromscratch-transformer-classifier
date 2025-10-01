@@ -124,7 +124,7 @@ class WordPieceTokenizerWrapper:
                     Boolean mask where True marks a padding position and False
                     marks a real token. ( Note: this is different from Hugging Face's
                     default convention where 1 = token, 0 = padding).
-                - labels: (N,)
+                - labels: (N,) (if provided in args)
                     The provided labels, converted to a tensor.
         """
 
@@ -148,6 +148,12 @@ class WordPieceTokenizerWrapper:
                       add_special_tokens=True)
         encoded['attention_mask'] = encoded['attention_mask'] == 0
 
-        return TensorDataset(encoded["input_ids"],
-                             encoded["attention_mask"],
-                             torch.tensor(labels))
+        input_ids = encoded["input_ids"]
+        attention_mask = encoded["attention_mask"]
+
+        if labels is not None:  # labels is optional
+            labels = torch.tensor(labels)
+            ds = TensorDataset(input_ids, attention_mask, labels)
+        else:
+            ds = TensorDataset(input_ids, attention_mask)
+        return ds
