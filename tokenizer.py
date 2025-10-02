@@ -4,7 +4,6 @@ import torch
 from torch.utils.data import TensorDataset
 from pathlib import Path
 from typing import Sequence
-import numpy as np
 from tokenizers.processors import TemplateProcessing
 
 
@@ -105,13 +104,13 @@ class WordPieceTokenizerWrapper:
     def encode(self,
                tokenizer_dir: str,
                input: str | list[str],
-               labels: Sequence[int],
-               max_length: int) -> TensorDataset:
+               max_length: int,
+               labels: Sequence[int] | None = None) -> TensorDataset:
         """
         Encode text files into a `TensorDataset` suitable for PyTorch models.
 
         Args:
-            tokenizer_dir (str): Path to the tokenizer directory.
+            tokenizer_dir (str): Path to the tokenizer directory including `vocab.txt` and `tokenizer.json`.
             input (str | list[str]): Path or list of paths to text files. Each line is treated as one example.
             labels (Sequence[int]): Labels aligned with the input texts.
             max_length (int): Maximum sequence length for padding/truncation.
@@ -125,7 +124,7 @@ class WordPieceTokenizerWrapper:
                     marks a real token. ( Note: this is different from Hugging Face's
                     default convention where 1 = token, 0 = padding).
                 - labels: (N,) (if provided in args)
-                    The provided labels, converted to a tensor.
+                    The provided labels (used in fine-tuning), converted to a tensor.
         """
 
         if self.tokenizer is None:
@@ -157,3 +156,66 @@ class WordPieceTokenizerWrapper:
         else:
             ds = TensorDataset(input_ids, attention_mask)
         return ds
+
+    def mask_input_for_mlm(self,
+                   input_ids: torch.LongTensor,
+                   mask_p: float = 0.15,
+                   mask_token_p: float = 0.8,
+                   random_token_p: float = 0.1
+                   ):
+        """
+        Create masked inputs and labels for Masked Language Modeling (MLM).
+        Applies the standard BERT masking recipe: draw `mask_p` of the tokens to
+        predict, replace a fraction of the selected positions with `[MASK]`, swap a
+        smaller portion with random vocabulary tokens, and leave the rest unchanged.
+        Args:
+            input_ids (torch.LongTensor): Tensor of token ids shaped `(B, N)` where
+                `B` is the batch size and `N` is the sequence length.
+            mask_p (float): Overall probability of selecting a token for prediction.
+            mask_token_p (float): Probability of replacing a selected token with
+                the `[MASK]` token.
+            random_token_p (float): Probability of replacing a selected token with a
+                random token sampled from the vocabulary. The remainder is left as-is.
+        Returns:
+            tuple[torch.LongTensor, torch.LongTensor]:
+                - Masked `input_ids` tensor shaped `(B, N)` to feed into the model.
+                - Labels tensor shaped `(B, N)` where tokens not chosen for masking
+                  are set to `-100` to be ignored by the loss function.
+        ## Note:
+            The tokenizer must be loaded - meaning you have to use `self.encode()` fuction first.
+            Otherwise, the tokenizer will not know which input ids correspond to which tokens.
+        """
+        assert mask_token_p + random_token_p <= 1.0
+        assert self.tokenizer is not None, "`self.encode()` must be used before masking input."
+
+        labels = input_ids.clone()
+
+        probability_matrix = torch.full(labels.shape, mask_p)
+
+        special_tokens_mask = [
+            self.tokenizer.get_special_tokens_mask(
+                val, already_has_special_tokens=True)
+            for val in labels.tolist()
+        ]
+        special_tokens_mask = torch.tensor(
+            special_tokens_mask, dtype=torch.bool)
+        probability_matrix.masked_fill_(special_tokens_mask, value=0.0)
+
+        masked_indices = torch.bernoulli(probability_matrix).bool()
+        labels[~masked_indices] = -100
+
+        input_ids_masked = input_ids.clone()
+
+        indices_replaced = torch.bernoulli(torch.full(
+            labels.shape, mask_token_p)).bool() & masked_indices
+        input_ids_masked[indices_replaced] = self.tokenizer.convert_tokens_to_ids(
+            self.tokenizer.mask_token)
+
+        p = random_token_p / (1 - mask_token_p)
+        indices_random = torch.bernoulli(torch.full(
+            labels.shape, p)).bool() & masked_indices & ~indices_replaced
+        random_words = torch.randint(
+            len(self.tokenizer), labels.shape, dtype=torch.long)
+        input_ids_masked[indices_random] = random_words[indices_random]
+
+        return input_ids_masked, labels
