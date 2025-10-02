@@ -1,0 +1,24 @@
+architecture:
+  vocab_size: 30000 #Vocabulary size.
+  max_sequence_length: 256 #Maximum supported sequence length.
+  embedding_dim: 384 #Hidden size `D`.
+  num_layers: 8 #Number of encoder blocks.
+  num_heads: 6 #Number of attention heads per block.
+  mlp_size: 1024 #Hidden size of the feed-forward sublayer.
+  mlp_dropout: 0.1 #Dropout after FFN second linear in mlp block of encoder.
+  mha_out_dropout: 0.1 #Dropout on the MHSA output projection.
+  attn_dropout: 0.0 #Dropout on attention weights (after softmax).
+  mha_projection_bias: True #Whether (Q/K/V)/out MHSA projections include bias.
+  pos_encoding: learned #'learned' or 'sinusoidal' positional scheme.
+  type_vocab_size: 0 #Segment (token-type) vocabulary size; 0 or None disables segments.
+  embedding_dropout: 0.1 #Dropout applied to input embeddings.
+  pad_token_id: 0 #PAD token id;
+  attention_kind: mha #Type of attention. Currently only `'mha'` TODO
+  tie_mlm_weights: True #If True, ties MLM decoder weights to the input token embedding weights.
+training:
+  learning_rate: 2e-5 #lr
+  warmup_ratio: 0.1 #fraction of all steps for lr warmup
+  weight_decay: 0.01 #penalty term for weights in AdamW
+  max_grad_norm: 1.0 #maximum cumulated gradint norm - for clipping gradient
+  grad_accum_steps: 1 #steps for accumulation of gradinent
+  use_amp: True #whether to use mixed precision
