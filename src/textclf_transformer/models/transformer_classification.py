@@ -29,8 +29,7 @@ class TransformerForSequenceClassification(Transformer):
         pos_encoding (str): `'learned'` or `'sinusoidal'` positional scheme.
         type_vocab_size (int | None): Segment (token-type) vocabulary size; 0 or None disables segments.
         embedding_dropout (float): Dropout applied to input embeddings.
-        pad_token_id (int | None): PAD token id; if provided, enables automatic
-            key padding mask creation when `attention_mask` is `None`.
+        pad_token_id (int | None): [PAD] token id.
         attention_kind (ATTN_KIND): Type of attention. Currently only `'mha'` TODO
             (classic Multi-Head Self-Attention) is implemented; others raise `NotImplementedError`. 
         num_labels (int | None): Number of labels for classification.
@@ -82,9 +81,9 @@ class TransformerForSequenceClassification(Transformer):
             input_ids (LongTensor): `(B, N)` token ids. If `pooling='cls'`, the input
                 is expected to include a `[CLS]` token at position 0.
             token_type_ids (LongTensor, optional): `(B, N)` segment ids (e.g., 0/1).
-            attention_mask (Tensor, optional): Boolean mask of shape (B, N),
+            attention_mask (Tensor): Boolean mask of shape (B, N),
                 where True marks positions that should be masked (PAD tokens).
-                Must be of dtype bool. If provided, masked keys are ignored
+                Must be of dtype bool. Masked keys are ignored
                 in attention computation.
             position_ids (LongTensor, optional): `(B, N)` explicit position indices
                 (used for learned positional embeddings), if `None`, positions default to `arange(N)`.
@@ -100,7 +99,7 @@ class TransformerForSequenceClassification(Transformer):
 
         out = {}
 
-        x = self.forward_base(kw['input_ids'], **kw)
+        x = self.forward_base(**kw)
         if return_sequence:
             out["sequence_output"] = x
 
