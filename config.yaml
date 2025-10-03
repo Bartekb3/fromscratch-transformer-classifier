@@ -1,10 +1,10 @@
 architecture:
-  vocab_size: 30000 #Vocabulary size.
-  max_sequence_length: 256 #Maximum supported sequence length.
-  embedding_dim: 384 #Hidden size `D`.
-  num_layers: 8 #Number of encoder blocks.
-  num_heads: 6 #Number of attention heads per block.
-  mlp_size: 1024 #Hidden size of the feed-forward sublayer.
+  vocab_size: 229 #Vocabulary size.
+  max_sequence_length: 24 #Maximum supported sequence length.
+  embedding_dim: 32 #Hidden size `D`.
+  num_layers: 4 #Number of encoder blocks.
+  num_heads: 4 #Number of attention heads per block.
+  mlp_size: 128 #Hidden size of the feed-forward sublayer.
   mlp_dropout: 0.1 #Dropout after FFN second linear in mlp block of encoder.
   mha_out_dropout: 0.1 #Dropout on the MHSA output projection.
   attn_dropout: 0.0 #Dropout on attention weights (after softmax).
