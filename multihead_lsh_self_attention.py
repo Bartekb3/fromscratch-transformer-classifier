@@ -5,6 +5,7 @@ from torch import Tensor
 
 BUCKET_PAD_ID = -1
 
+
 class LSHAttention(nn.Module):
     def __init__(
         self,
@@ -78,7 +79,8 @@ class LSHAttention(nn.Module):
             pad_tensor = x.new_zeros(B, total_pad, D)
             x = torch.cat([x, pad_tensor], dim=1)
 
-            mask_pad = torch.ones(B, total_pad, device=x.device, dtype=torch.bool)
+            mask_pad = torch.ones(
+                B, total_pad, device=x.device, dtype=torch.bool)
             mask = torch.cat([mask, mask_pad], dim=1)
 
         return x, mask, total_pad
@@ -92,7 +94,6 @@ class LSHAttention(nn.Module):
             device=x.device, dtype=x.dtype
         )
         R = R / torch.norm(R, dim=2, keepdim=True)
-        # inne pstwo ze bliskie wektory wpadna do tego samego bucketa - sprawdzic w R
 
         # x: (B,H#,H,N,dk)
         # R: (H#,H,dk,n_buckets)
@@ -102,7 +103,7 @@ class LSHAttention(nn.Module):
         hash_values = torch.argmax(
             torch.cat([projections, -projections], dim=-1), dim=-1
         )
-
+        # hash: (B,H#,H,N)
         return hash_values
 
     def get_permutation_from_hash(self, hash_codes: torch.Tensor):
@@ -128,9 +129,9 @@ class LSHAttention(nn.Module):
         q: Tensor,
         k: Tensor,
         v: Tensor,
-        buckets: Tensor, 
+        buckets: Tensor,
         valid_mask: Tensor,
-        mask_within_chunks: bool  
+        mask_within_chunks: bool
     ) -> Tensor:
         """
         Compute local self-attention over sorted LSH chunks, with optional masking
@@ -169,9 +170,9 @@ class LSHAttention(nn.Module):
         q_chunks = q.view(B, num_hashes, num_heads, n_chunks, chunk_size, dk)
         k_chunks = k.view(B, num_hashes, num_heads, n_chunks, chunk_size, dk)
         v_chunks = v.view(B, num_hashes, num_heads, n_chunks, chunk_size, dk)
-        b_chunks = buckets.view(B, num_hashes, num_heads, n_chunks, chunk_size) 
-        valid_chunks = valid_mask.view(B, num_hashes, num_heads, n_chunks, chunk_size)
-        
+        b_chunks = buckets.view(B, num_hashes, num_heads, n_chunks, chunk_size)
+        valid_chunks = valid_mask.view(
+            B, num_hashes, num_heads, n_chunks, chunk_size)
 
         def get_next_and_previous_chunk(x_chunks: Tensor, padding_value: int | float | bool) -> Tensor:
             """
@@ -211,12 +212,12 @@ class LSHAttention(nn.Module):
         v_both = get_next_and_previous_chunk(v_chunks, 0.0)
         b_both = get_next_and_previous_chunk(b_chunks, BUCKET_PAD_ID)
         valid_both = get_next_and_previous_chunk(valid_chunks, False)
-       
+
         # Compute attention scores: (B,H#,H, n_chunks, chunk_size, 3*chunk_size)
         scores = torch.matmul(
             q_chunks, k_both.transpose(-2, -1)) / (dk ** 0.5)
 
-        pad_keys  = (b_both == BUCKET_PAD_ID).unsqueeze(4).expand_as(scores)
+        pad_keys = (b_both == BUCKET_PAD_ID).unsqueeze(4).expand_as(scores)
         key_invalid = (~valid_both).unsqueeze(4).expand_as(scores)
         if mask_within_chunks:
             diff_mask = (b_chunks.unsqueeze(-1) != b_both.unsqueeze(4))
@@ -227,7 +228,6 @@ class LSHAttention(nn.Module):
         # prevent each token from attending to itself TODO only if lot to attend
         idx = torch.arange(chunk_size, device=mask.device)
         mask[:, :, :, :, idx, chunk_size + idx] = True
-
 
         # make mask additive
         dtype = scores.dtype
@@ -241,7 +241,7 @@ class LSHAttention(nn.Module):
         out = torch.matmul(attn_weights, v_both)
 
         # force zeros for padded tokens
-        out = out * valid_chunks.unsqueeze(-1).to(out.dtype) 
+        out = out * valid_chunks.unsqueeze(-1).to(out.dtype)
 
         return out  # [B, H#, H, n_chunks, chunk_size, dk]
 
@@ -249,7 +249,7 @@ class LSHAttention(nn.Module):
                 x: Tensor,
                 mask_within_chunks: bool,
                 padding_mask: Tensor
-            ) -> Tensor:
+                ) -> Tensor:
         """
         Compute Reformer-style LSH self-attention with chunked local windows
         and 1-back/1-forward context.
@@ -316,10 +316,10 @@ class LSHAttention(nn.Module):
         mask_float = valid_mask.to(dtype=q.dtype).unsqueeze(-1)
         q = q * mask_float
         v = v * mask_float
-       
+
         # hashing queries
         n_buckets = N // self.chunk_size
-        hash_codes = self.random_hash(q, n_buckets)  #(B,H#,H,N)
+        hash_codes = self.random_hash(q, n_buckets)  # (B,H#,H,N)
         # set padding bucket to -1
         hash_codes = hash_codes.masked_fill(~valid_mask, BUCKET_PAD_ID)
 
@@ -349,7 +349,7 @@ class LSHAttention(nn.Module):
 
         # mean over hash rounds
         ctx_unsorted = ctx_unsorted.transpose(
-            2, 3).view(B, self.num_hashes, N, D)
+            2, 3).reshape(B, self.num_hashes, N, D)
         ctx_mean = ctx_unsorted.mean(dim=1)
 
         # Final output projection
