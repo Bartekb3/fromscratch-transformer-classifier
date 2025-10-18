@@ -1,0 +1,137 @@
+_wandb:
+    value:
+        cli_version: 0.22.2
+        e:
+            hrrj8e7v2m55hbvid308ykbmvpv7yhl3:
+                args:
+                    - test_finetuning_222
+                codePath: finetune.py
+                codePathLocal: finetune.py
+                cpu_count: 8
+                cpu_count_logical: 16
+                cudaVersion: "12.8"
+                disk:
+                    /:
+                        total: "510669090816"
+                        used: "395670409216"
+                email: 01180691@pw.edu.pl
+                executable: C:\Users\bartekb\Desktop\inzynierka\fromscratch-transformer-classifier\.venv\Scripts\python.exe
+                git:
+                    commit: 29ca4d7f949989bc6b2501e876fbcb03844fd7bc
+                    remote: https://github.com/Bartekb3/fromscratch-transformer-classifier.git
+                gpu: NVIDIA GeForce RTX 4050 Laptop GPU
+                gpu_count: 1
+                gpu_nvidia:
+                    - architecture: Ada
+                      cudaCores: 2560
+                      memoryTotal: "6439305216"
+                      name: NVIDIA GeForce RTX 4050 Laptop GPU
+                      uuid: GPU-3743570a-034c-b4cc-b4d5-1f533d6f3811
+                host: DESKTOP-TSQROF0
+                memory:
+                    total: "16369225728"
+                os: Windows-11-10.0.26100-SP0
+                program: C:\Users\bartekb\Desktop\inzynierka\fromscratch-transformer-classifier\finetune.py
+                python: CPython 3.12.2
+                root: C:\Users\bartekb\Desktop\inzynierka\fromscratch-transformer-classifier\experiments\finetuning\test_finetuning_222
+                startedAt: "2025-10-18T16:33:08.661869Z"
+                writerId: hrrj8e7v2m55hbvid308ykbmvpv7yhl3
+        m: []
+        python_version: 3.12.2
+        t:
+            "1":
+                - 1
+                - 11
+                - 49
+            "2":
+                - 1
+                - 11
+                - 49
+            "3":
+                - 2
+                - 13
+                - 16
+                - 61
+            "4": 3.12.2
+            "5": 0.22.2
+            "6": 4.57.0
+            "8":
+                - 3
+            "12": 0.22.2
+            "13": windows-amd64
+architecture:
+    value:
+        attention:
+            kind: mha
+            mha:
+                attn_dropout: 0
+                mha_out_dropout: 0.1
+                num_heads: 1
+                projection_bias: true
+        embedding_dim: 1
+        embedding_dropout: 0.1
+        max_sequence_length: 1000
+        mlp_dropout: 0.1
+        mlp_size: 128
+        num_layers: 1
+        pad_token_id: 0
+        pos_encoding: learned
+classification_head:
+    value:
+        classifier_dropout: 0.1
+        num_labels: 2
+        pooler_type: bert
+        pooling: cls
+data:
+    value:
+        test:
+            dataset_path: data/tokenized/IMDB/test_dataset.pt
+        train:
+            dataset_path: data/tokenized/IMDB/train_dataset.pt
+        val:
+            dataset_path: data/tokenized/IMDB/val_dataset.pt
+experiment:
+    value:
+        kind: finetuning
+        name: test_finetuning_222
+        output_dir: experiments\finetuning\test_finetuning_222
+        seed: 420
+logging:
+    value:
+        csv_eval_metrics_path: metrics/eval/metrics.csv
+        csv_train_metrics_path: metrics/train/metrics.csv
+        log_eval_metrics: true
+        log_train_grad_norm: true
+        log_train_loss: true
+        log_train_lr: true
+        use_wandb: true
+        wandb:
+            entity: praca-inzynierska
+            project: text_classification
+            run_name: test_finetuning_222
+pretrained_experiment:
+    value:
+        checkpoint: model.ckpt
+        inherit:
+            - architecture
+            - tokenizer
+        name: test_pretraining_222
+        path: experiments\pretraining\test_pretraining_222
+tokenizer:
+    value:
+        max_length: 1000
+        vocab_dir: src/textclf_transformer/tokenizer/BERT_original
+        vocab_path: src/textclf_transformer/tokenizer/BERT_original/vocab.txt
+        wrapper_path: src/textclf_transformer/tokenizer/wordpiece_tokenizer_wrapper.py
+training:
+    value:
+        batch_size: 16
+        device: auto
+        epochs: 1
+        grad_accum_steps: 1
+        learning_rate: 2e-05
+        loss: cross_entropy
+        max_grad_norm: 1
+        use_amp: true
+        warmup_ratio: 0.1
+        weight_decay: 0.01

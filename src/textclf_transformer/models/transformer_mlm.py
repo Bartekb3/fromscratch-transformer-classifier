@@ -1,4 +1,4 @@
-from transformer import Transformer
+from .transformer import Transformer
 from .heads.mlm_head import MaskedLanguageModelingHead
 
 class TransformerForMaskedLM(Transformer):

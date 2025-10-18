@@ -1,1 +1,7 @@
-# requirements
+--extra-index-url https://download.pytorch.org/whl/cu121
+pandas
+torch==2.4.1+cu121
+transformers
+tokenizers
+scikit-learn
+wandb

@@ -8,6 +8,8 @@ from .embeddings.positional_encodings import SinusoidalPositionalEncoding, Learn
 from .pooling.pooling import ClsTokenPooling, MeanPooling, MaxPooling, MinPooling
 from .heads.classifier_head import SequenceClassificationHead
 from .heads.mlm_head import MaskedLanguageModelingHead
+from .transformer_classification import TransformerForSequenceClassification
+from .transformer_mlm import TransformerForMaskedLM
 
 __all__ = [
     "Transformer",
@@ -24,4 +26,6 @@ __all__ = [
     "MinPooling",
     "SequenceClassificationHead",
     "MaskedLanguageModelingHead",
+    "TransformerForSequenceClassification",
+    "TransformerForMaskedLM"
 ]

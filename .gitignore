@@ -29,4 +29,15 @@ env/
 logs/
 *.log
 
+# helper scripts
+dump.py
+project_paths.txt
+
+
+# data
+data/raw/*
+!data/raw/.gitkeep
+
+data/tokenized/*
+!data/tokenized/.gitkeep
 
