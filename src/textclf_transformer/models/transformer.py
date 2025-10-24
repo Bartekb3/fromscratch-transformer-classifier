@@ -5,7 +5,7 @@ from torch import nn
 from .blocks.transformer_encoder_block import TransformerEncoderBlock
 from .embeddings.text_embeddings import TransformerTextEmbeddings
 
-ATTN_KIND = Literal["mha", "performer", "reformer"]
+ATTN_KIND = Literal["mha", "lsh", "favor"]
 
 class Transformer(nn.Module):
     """
@@ -52,17 +52,11 @@ class Transformer(nn.Module):
         embedding_dropout: float = 0.1,
         pad_token_id: int | None = 0,
         attention_kind: ATTN_KIND = "mha",
+        # attention_args: dict TODO
     ):
         super().__init__()
         self.pad_token_id = pad_token_id
         self.attention_kind = attention_kind
-
-        if attention_kind != "mha": #TODO
-            # We keep configurability now; actual alt attention to be implemented later.
-            raise NotImplementedError(
-                f"attention_kind='{attention_kind}' selected, "
-                "but only 'mha' (classic Multi-Head Self-Attention) is implemented right now."
-            )
 
         # Embeddings
         self.embeddings = TransformerTextEmbeddings(
@@ -85,6 +79,7 @@ class Transformer(nn.Module):
                 mha_out_dropout=mha_out_dropout,
                 attn_dropout=attn_dropout,
                 mha_projection_bias=mha_projection_bias,
+                attention_kind=attention_kind
             )
             for _ in range(num_layers)
         ])

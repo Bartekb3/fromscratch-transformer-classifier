@@ -4,7 +4,7 @@ import torch.nn.functional as F
 from ..attention import multihead_self_attention as mha
 from ..consts import LN_EPS
 
-class MultiheadSelfAttentionBlock(nn.Module):
+class AttentionBlock(nn.Module):
     """
     Sublayer: Multihead Self Attention + Residual + Norm 
 
@@ -22,17 +22,28 @@ class MultiheadSelfAttentionBlock(nn.Module):
                  num_heads: int = 12,
                  projection_bias: bool = True,
                  attn_dropout: float = 0.0,
-                 out_dropout: float = 0.0
+                 out_dropout: float = 0.0,
+                 attention_kind: str = 'mha'
                  ):
 
         super().__init__()
 
-        self.multihead_attn = mha.MultiheadSelfAttention(embed_dim=embedding_dim,
+        if attention_kind == "mha": 
+            self.attention_mechanism = mha.MultiheadSelfAttention(embed_dim=embedding_dim,
                                                          num_heads=num_heads,
                                                          bias=projection_bias,
                                                          attn_dropout=attn_dropout,
                                                          out_dropout=out_dropout
                                                          )
+        elif attention_kind == "lsh":
+            #TODO
+            return
+        elif attention_kind == "favor":
+            #TODO
+            return
+        else:
+            return
+            
 
         self.layer_norm = nn.LayerNorm(
             normalized_shape=embedding_dim, eps=LN_EPS)
@@ -46,5 +57,5 @@ class MultiheadSelfAttentionBlock(nn.Module):
         Returns:
             y (Tensor): = LayerNorm(x + Dropout(MultiheadSelfAttention(x))), (B,N,D)
         """
-        attn_output, _ = self.multihead_attn(x, key_padding_mask)
+        attn_output, _ = self.attention_mechanism(x, key_padding_mask)
         return self.layer_norm(x + attn_output)

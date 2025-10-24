@@ -9,6 +9,5 @@
   "mask_token": "[MASK]",
   "clean_text": true,
   "handle_chinese_chars": true,
-  "strip_accents": true,
   "tokenizer_class": "BertTokenizerFast"
 }

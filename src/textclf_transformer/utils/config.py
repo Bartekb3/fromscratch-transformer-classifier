@@ -123,24 +123,33 @@ def arch_kwargs_from_cfg(arch_cfg: Dict[str, Any], hf_tok) -> Dict[str, Any]:
     vocab_size, pad_id_from_tok = vocab_and_pad_from_tokenizer(hf_tok)
     attn = arch_cfg.get("attention", {})
     kind = attn.get("kind", "mha")
+
     mha = attn.get("mha", {})
+    lsh = attn.get("lsh", {})
+    favor = attn.get("favor", {})
 
     pad_token_id = arch_cfg.get("pad_token_id", pad_id_from_tok)
-
-    kw = dict(
-        vocab_size=vocab_size,
-        max_sequence_length=arch_cfg["max_sequence_length"],
-        embedding_dim=arch_cfg["embedding_dim"],
-        num_layers=arch_cfg["num_layers"],
-        mlp_size=arch_cfg["mlp_size"],
-        mlp_dropout=arch_cfg["mlp_dropout"],
-        pos_encoding=arch_cfg["pos_encoding"],
-        embedding_dropout=arch_cfg["embedding_dropout"],
-        pad_token_id=pad_token_id,
-        attention_kind=kind,
-        num_heads=mha.get("num_heads", 8),
-        attn_dropout=mha.get("attn_dropout", 0.0),
-        mha_out_dropout=mha.get("mha_out_dropout", 0.1),
-        mha_projection_bias=mha.get("projection_bias", True),
-    )
+    if kind == 'mha':
+        kw = dict(
+            vocab_size=vocab_size,
+            max_sequence_length=arch_cfg["max_sequence_length"],
+            embedding_dim=arch_cfg["embedding_dim"],
+            num_layers=arch_cfg["num_layers"],
+            mlp_size=arch_cfg["mlp_size"],
+            mlp_dropout=arch_cfg["mlp_dropout"],
+            pos_encoding=arch_cfg["pos_encoding"],
+            embedding_dropout=arch_cfg["embedding_dropout"],
+            pad_token_id=pad_token_id,
+            attention_kind=kind,
+            num_heads=mha.get("num_heads", 8),
+            attn_dropout=mha.get("attn_dropout", 0.0),
+            mha_out_dropout=mha.get("mha_out_dropout", 0.1),
+            mha_projection_bias=mha.get("projection_bias", True),
+        )
+    elif kind == 'lsh':
+        kw=dict(#TODO
+            )
+    elif kind =='favor':
+        kw=dict(#TODO
+            )
     return kw
