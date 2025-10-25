@@ -1,7 +1,8 @@
 import importlib.util
 from pathlib import Path
 from typing import Dict, Any, Tuple
-import random, os
+import random
+import os
 import numpy as np
 import torch
 
@@ -38,7 +39,8 @@ def _import_module_from_path(py_path: str):
         ImportError: If the module spec or loader cannot be created.
     """
     py_path = str(py_path)
-    spec = importlib.util.spec_from_file_location("user_tokenizer_wrapper", py_path)
+    spec = importlib.util.spec_from_file_location(
+        "user_tokenizer_wrapper", py_path)
     if spec is None or spec.loader is None:
         raise ImportError(f"Nie mogę załadować modułu z pliku: {py_path}")
     module = importlib.util.module_from_spec(spec)
@@ -79,7 +81,8 @@ def load_tokenizer_wrapper_from_cfg(tok_cfg: Dict[str, Any]):
     wrapper.load(vocab_dir)
     hf_tok = wrapper.tokenizer
     if hf_tok is None:
-        raise RuntimeError("Wrapper nie ustawił atrybutu `tokenizer` po `load()`.")
+        raise RuntimeError(
+            "Wrapper nie ustawił atrybutu `tokenizer` po `load()`.")
     return wrapper, hf_tok
 
 
@@ -121,35 +124,28 @@ def arch_kwargs_from_cfg(arch_cfg: Dict[str, Any], hf_tok) -> Dict[str, Any]:
         A dictionary of keyword arguments suitable for initializing the model.
     """
     vocab_size, pad_id_from_tok = vocab_and_pad_from_tokenizer(hf_tok)
-    attn = arch_cfg.get("attention", {})
-    kind = attn.get("kind", "mha")
-
-    mha = attn.get("mha", {})
-    lsh = attn.get("lsh", {})
-    favor = attn.get("favor", {})
+    attn = arch_cfg['attention']
+    kind = attn['kind']
 
     pad_token_id = arch_cfg.get("pad_token_id", pad_id_from_tok)
-    if kind == 'mha':
-        kw = dict(
-            vocab_size=vocab_size,
-            max_sequence_length=arch_cfg["max_sequence_length"],
-            embedding_dim=arch_cfg["embedding_dim"],
-            num_layers=arch_cfg["num_layers"],
-            mlp_size=arch_cfg["mlp_size"],
-            mlp_dropout=arch_cfg["mlp_dropout"],
-            pos_encoding=arch_cfg["pos_encoding"],
-            embedding_dropout=arch_cfg["embedding_dropout"],
-            pad_token_id=pad_token_id,
-            attention_kind=kind,
-            num_heads=mha.get("num_heads", 8),
-            attn_dropout=mha.get("attn_dropout", 0.0),
-            mha_out_dropout=mha.get("mha_out_dropout", 0.1),
-            mha_projection_bias=mha.get("projection_bias", True),
-        )
-    elif kind == 'lsh':
-        kw=dict(#TODO
-            )
-    elif kind =='favor':
-        kw=dict(#TODO
-            )
+
+    kw = dict(
+        vocab_size=vocab_size,
+        max_sequence_length=arch_cfg["max_sequence_length"],
+        embedding_dim=arch_cfg["embedding_dim"],
+        num_layers=arch_cfg["num_layers"],
+        mlp_size=arch_cfg["mlp_size"],
+        mlp_dropout=arch_cfg["mlp_dropout"],
+        pos_encoding=arch_cfg["pos_encoding"],
+        embedding_dropout=arch_cfg["embedding_dropout"],
+        pad_token_id=pad_token_id,
+        attention_kind=kind,
+        num_heads=attn["num_heads"],
+        attn_dropout=attn["attn_dropout"],
+        mha_out_dropout=attn["attn_out_dropout"],
+        mha_projection_bias=attn["projection_bias"]
+    )
+
+    kw['attention_params'] = attn[f"{kind}"]
+
     return kw

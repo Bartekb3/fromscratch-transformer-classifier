@@ -21,7 +21,7 @@ logging:
 pretrained_experiment:
   name: __WILL_BE_FILLED__
   path: experiments/pretraining/__WILL_BE_FILLED__
-  checkpoint: model.ckpt
+  checkpoint: checkpoints/model.ckpt
   inherit:
     - architecture
     - tokenizer
@@ -43,14 +43,18 @@ architecture:
   pad_token_id: 0
 
   attention:
-    kind: mha
+    num_heads: 4
+    projection_bias: true # (Q/K/V/out) bias
+    attn_out_dropout: 0.1 # dropout na projekcji wyjściowej
+    attn_dropout: 0.0 # dropout na wagach atencji (po softmax)
+
+    kind: lsh # 'mha' | 'lsh' | 'favor'
     mha:
-      num_heads: 4
-      projection_bias: true
-      mha_out_dropout: 0.1
-      attn_dropout: 0.0
-    lsh: {}
-    favor: {}
+    lsh: 
+      num_hashes: 4
+      chunk_size: 64
+    favor: 
+      #TODO add params
 
 classification_head:
   num_labels: 2

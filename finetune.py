@@ -82,8 +82,9 @@ def main() -> None:
     pre_ckpt = Path(pre["path"]) / pre["checkpoint"]
     if not pre_ckpt.exists():
         raise FileNotFoundError(f"Brak checkpointu pretrainingu: {pre_ckpt}")
-    state = torch.load(pre_ckpt, map_location="cpu")
-    missing, unexpected = model.load_state_dict(state, strict=False)
+    state = torch.load(pre_ckpt, map_location="cpu", weights_only=False)
+    state_dict = state["model_state"]
+    missing, unexpected = model.load_state_dict(state_dict, strict=False)
     if missing:
         print("[WARN] Brakujące klucze:", missing)
     if unexpected:
@@ -124,7 +125,7 @@ def main() -> None:
         )
         loop.evaluate(test_loader)
 
-    ckpt = exp_dir / "model.ckpt"
+    ckpt = Path(f"{exp_dir}/checkpoints/model.ckpt")
     torch.save(model.state_dict(), ckpt)
     logger.finish()
     print(f"[OK] Zapisano checkpoint: {ckpt}")

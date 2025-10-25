@@ -72,26 +72,21 @@ class WandbRun:
 
     def log_train(
         self,
+        metrics: Dict[str, float], 
         step: Optional[int] = None,
-        loss: Optional[float] = None,
-        lr: Optional[float] = None,
-        grad_norm: Optional[float] = None,
     ) -> None:
         """Log training metrics to W&B (if enabled) and CSV.
 
         Args:
+            metrics: Mapping of metric names to values (without the ``train/`` prefix).
             step: Global step to associate with the metrics.
-            loss: Training loss value to log when available.
-            lr: Current learning rate to log when available.
-            grad_norm: Gradient norm to log when available.
         """
-        data: Dict[str, Any] = {}
-        if self.log_train_loss and loss is not None:
-            data["train/loss"] = loss
-        if self.log_train_lr and lr is not None:
-            data["train/lr"] = lr
-        if self.log_train_grad_norm and grad_norm is not None:
-            data["train/grad_norm"] = grad_norm
+        prefixed = {f"train/{k}": v for k, v in metrics.items()}
+
+        data = {
+            k: v for k, v in prefixed.items()
+            if v is not None and getattr(self, f"log_{k.replace('/', '_')}", True)
+        }
 
         if not data:
             return

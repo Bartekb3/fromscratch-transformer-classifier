@@ -35,14 +35,18 @@ architecture:
   pad_token_id: 0
 
   attention:
-    kind: mha # 'mha' | 'lsh' | 'favor'
+    num_heads: 4
+    projection_bias: true # (Q/K/V/out) bias
+    attn_out_dropout: 0.1 # dropout na projekcji wyjściowej
+    attn_dropout: 0.0 # dropout na wagach atencji (po softmax)
+
+    kind: lsh # 'mha' | 'lsh' | 'favor'
     mha:
-      num_heads: 4
-      projection_bias: true # (Q/K/V/out) bias
-      mha_out_dropout: 0.1 # dropout na projekcji wyjściowej MHSA
-      attn_dropout: 0.0 # dropout na wagach atencji (po softmax)
-    lsh: {}
-    favor: {}
+    lsh:
+      num_hashes: 4
+      chunk_size: 64
+    favor:
+      #TODO add params
 
 mlm_head:
   tie_mlm_weights: true
@@ -61,6 +65,14 @@ training:
   use_amp: true
   loss: cross_entropy
   device: auto # 'gpu' | 'cpu' | 'auto'
+
+  resume:
+    is_resume: true
+    checkpoint_path: checkpoints/model.ckpt
+    strict: true
+    load_optimizer: true
+    load_scheduler: true
+    load_scaler: true
 
 data:
   train:

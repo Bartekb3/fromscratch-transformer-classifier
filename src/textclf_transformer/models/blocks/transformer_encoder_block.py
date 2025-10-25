@@ -30,7 +30,8 @@ class TransformerEncoderBlock(nn.Module):
                  mha_out_dropout: float = 0.1,
                  attn_dropout: float = 0.0,
                  mha_projection_bias: bool = True,
-                 attention_kind: str = 'mha'):
+                 attention_kind: str = 'mha',
+                 attention_params: dict | None = None):
         super().__init__()
 
         self.attention_block = AttentionBlock(embedding_dim=embedding_dim,
@@ -38,7 +39,8 @@ class TransformerEncoderBlock(nn.Module):
                                               projection_bias=mha_projection_bias,
                                               attn_dropout=attn_dropout,
                                               out_dropout=mha_out_dropout,
-                                              attention_kind=attention_kind
+                                              attention_kind=attention_kind,
+                                              attention_params = attention_params
                                               )
 
         self.mlp_block = MLPBlock(embedding_dim=embedding_dim,

@@ -52,7 +52,7 @@ class Transformer(nn.Module):
         embedding_dropout: float = 0.1,
         pad_token_id: int | None = 0,
         attention_kind: ATTN_KIND = "mha",
-        # attention_args: dict TODO
+        attention_params: dict | None = None
     ):
         super().__init__()
         self.pad_token_id = pad_token_id
@@ -79,7 +79,8 @@ class Transformer(nn.Module):
                 mha_out_dropout=mha_out_dropout,
                 attn_dropout=attn_dropout,
                 mha_projection_bias=mha_projection_bias,
-                attention_kind=attention_kind
+                attention_kind=attention_kind,
+                attention_params = attention_params
             )
             for _ in range(num_layers)
         ])

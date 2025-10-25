@@ -1,4 +1,7 @@
 from __future__ import annotations
+from types import MethodType
+
+from textclf_transformer.logging.wandb_logger import WandbRun
 """Unified training loop for MLM and classification with AMP, grad accumulation, and cosine scheduling.
 
 This module defines a configurable training loop that supports:
@@ -12,8 +15,9 @@ The loop logs metrics via a user-provided logger object that may expose ``log_tr
 """
 
 from dataclasses import dataclass
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, Tuple
 import math
+from pathlib import Path
 
 import torch
 from torch import nn
@@ -55,8 +59,8 @@ class TrainingLoop:
     def __init__(
         self,
         model: nn.Module,
-        optimizer_cfg: Dict[str, Any], 
-        logger,
+        optimizer_cfg: Dict[str, Any],
+        logger: WandbRun,
         is_mlm: bool,
         mlm_cfg: Optional[Dict[str, Any]] = None,
         tokenizer_wrapper=None,
@@ -76,7 +80,8 @@ class TrainingLoop:
             self.device = "cpu"
         elif wanted in ("gpu", "cuda"):
             if not cuda_avail:
-                raise RuntimeError("Config wymusza GPU (`device: gpu/cuda`), ale CUDA nie jest dostępne.")
+                raise RuntimeError(
+                    "Config wymusza GPU (`device: gpu/cuda`), ale CUDA nie jest dostępne.")
             self.device = "cuda"
         else:
             self.device = "cuda" if cuda_avail else "cpu"
@@ -86,7 +91,8 @@ class TrainingLoop:
         loss_name = (optimizer_cfg.get("loss") or "cross_entropy").lower()
         if self.is_mlm:
             if loss_name not in ("cross_entropy", "ce"):
-                raise ValueError(f"MLM wspiera tylko cross_entropy, dostałem: {loss_name}")
+                raise ValueError(
+                    f"MLM wspiera tylko cross_entropy, dostałem: {loss_name}")
             self.criterion = nn.CrossEntropyLoss(ignore_index=-100)
             if self.tok_wrapper is None or not hasattr(self.tok_wrapper, "mask_input_for_mlm"):
                 raise RuntimeError(
@@ -103,7 +109,7 @@ class TrainingLoop:
         try:
             self.scaler = torch.amp.GradScaler(enabled=use_amp)
         except Exception:
-            
+
             self.scaler = CudaGradScaler(enabled=use_amp)
 
         self.optimizer = AdamW(
@@ -133,8 +139,6 @@ class TrainingLoop:
             )
             return
 
-        
-
         def lr_lambda(current_step: int):
             if current_step < warmup_steps:
                 return float(current_step) / float(max(1, warmup_steps))
@@ -143,9 +147,10 @@ class TrainingLoop:
             )
             return 0.5 * (1.0 + math.cos(math.pi * progress))
 
-        self.scheduler = torch.optim.lr_scheduler.LambdaLR(self.optimizer, lr_lambda)
+        self.scheduler = torch.optim.lr_scheduler.LambdaLR(
+            self.optimizer, lr_lambda)
 
-    def _train_step(self, batch, state: _State) -> float:
+    def _train_step(self, batch, state: _State) -> Tuple[float, float, int]:
         """Perform a single training step with optional AMP, accumulation, and clipping.
 
         For MLM:
@@ -162,17 +167,22 @@ class TrainingLoop:
         steps, scaler updates, gradients are zeroed, and the scheduler (if any) steps.
 
         Returns:
-            float: The unnormalized loss value (before dividing by accumulation steps).
+            Tuple[float, float, int]: Unnormalized loss value (before dividing by accumulation steps),
+            gradient norm prior to clipping (``nan`` if not computed), and weighting factor used for
+            averaging (number of examples for classification, valid tokens for MLM).
         """
         self.model.train()
 
         device_type = "cuda" if self.device == "cuda" else "cpu"
         use_autocast = self.scaler.is_enabled()
+        grad_norm_before_clip = float("nan")
 
         if self.is_mlm:
             if len(batch) < 2:
-                raise ValueError("Batch dla MLM musi mieć co najmniej (input_ids, attention_mask).")
-            input_ids, attn_mask = batch[0].to(self.device), batch[1].to(self.device)
+                raise ValueError(
+                    "Batch dla MLM musi mieć co najmniej (input_ids, attention_mask).")
+            input_ids, attn_mask = batch[0].to(
+                self.device), batch[1].to(self.device)
 
             masked_ids, labels = self.tok_wrapper.mask_input_for_mlm(
                 input_ids=input_ids,
@@ -192,9 +202,12 @@ class TrainingLoop:
                     logits.view(-1, logits.size(-1)),
                     labels.view(-1),
                 )
+            num_tok = (labels.view(-1) != -100).sum().item()
+            effective_count = max(1, int(num_tok))
         else:
             if len(batch) != 3:
-                raise ValueError("Batch dla klasyfikacji musi mieć (input_ids, attention_mask, labels).")
+                raise ValueError(
+                    "Batch dla klasyfikacji musi mieć (input_ids, attention_mask, labels).")
             input_ids, attn_mask, labels = batch
             input_ids = input_ids.to(self.device)
             attn_mask = attn_mask.to(self.device)
@@ -209,14 +222,18 @@ class TrainingLoop:
                 )
                 logits = out["logits"]
                 loss = self.criterion(logits, labels)
+            batch_size = labels.size(0)
+            effective_count = max(1, int(batch_size))
 
+        loss_value = loss.item()
         loss = loss / self.grad_accum_steps
         self.scaler.scale(loss).backward()
 
         if (state.step + 1) % self.grad_accum_steps == 0:
             if self.max_grad_norm and self.max_grad_norm > 0:
                 self.scaler.unscale_(self.optimizer)
-                torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.max_grad_norm)
+                grad_norm_before_clip = torch.nn.utils.clip_grad_norm_(
+                    self.model.parameters(), self.max_grad_norm).item()
 
             self.scaler.step(self.optimizer)
             self.scaler.update()
@@ -226,40 +243,115 @@ class TrainingLoop:
                 self.scheduler.step()
 
         state.step += 1
-        return float(loss.item() * self.grad_accum_steps)
+        return float(loss_value), grad_norm_before_clip, effective_count
 
-    def fit(self, train_loader: DataLoader, epochs: int, val_loader: Optional[DataLoader] = None) -> None:
+    def fit(
+        self,
+        train_loader: DataLoader,
+        epochs: int,
+        val_loader: Optional[DataLoader] = None,
+        start_epoch: int = 0,
+        start_step: int = 0,
+        optimizer_state: Optional[Dict[str, Any]] = None,
+        scheduler_state: Optional[Dict[str, Any]] = None,
+        scaler_state: Optional[Dict[str, Any]] = None,
+        best_val_loss: Optional[float] = None,
+    ) -> Dict[str, Any]:
         """Train the model for a number of epochs, optionally validating after each epoch.
 
         Args:
             train_loader: DataLoader yielding training batches.
             epochs: Number of epochs to train.
             val_loader: Optional DataLoader for validation; if provided, metrics are logged after each epoch.
+            start_epoch: Epoch index to resume from (0-based). Training continues until ``epochs``.
+            start_step: Global optimizer step to resume from; used only for logging counters.
+            optimizer_state: Optional optimizer state dict to restore before training.
+            scheduler_state: Optional scheduler state dict to restore (applied after scheduler creation).
+            scaler_state: Optional AMP GradScaler state dict to restore.
+            best_val_loss: Best validation loss observed so far; defaults to ``inf`` when ``None``.
+
+        Returns:
+            Dict[str, Any]: Summary with final ``epoch``, ``step``, and ``best_val_loss``.
         """
-        total_steps = max(1, epochs * len(train_loader) // max(1, self.grad_accum_steps))
+        total_steps = max(1, epochs * len(train_loader) //
+                          max(1, self.grad_accum_steps))
         self._build_scheduler(total_steps)
 
-        self.model.train()
-        state = _State(step=0, epoch=0)
-        for ep in range(epochs):
-            state.epoch = ep
-            for batch in train_loader:
-                loss = self._train_step(batch, state)
+        if optimizer_state:
+            self.optimizer.load_state_dict(optimizer_state)
 
-                lr = self.optimizer.param_groups[0]["lr"]
-                if hasattr(self.logger, "log_train"):
-                    self.logger.log_train(step=state.step, loss=float(loss), lr=float(lr))
-                elif hasattr(self.logger, "log"):
-                    self.logger.log({"step": state.step, "epoch": ep, "train/loss": float(loss), "train/lr": float(lr)})
+        if scaler_state:
+            try:
+                self.scaler.load_state_dict(scaler_state)
+            except Exception as exc:
+                print(f"[WARN] Pominięto odtworzenie stanu GradScaler: {exc}")
+
+        if scheduler_state and self.scheduler is not None:
+            try:
+                self.scheduler.load_state_dict(scheduler_state)
+            except Exception as exc:
+                print(f"[WARN] Pominięto odtworzenie stanu scheduler'a: {exc}")
+
+        self.model.train()
+        state = _State(step=start_step, epoch=start_epoch)
+        best_val = float("inf") if best_val_loss is None else float(
+            best_val_loss)
+
+        last_epoch = start_epoch - 1
+        for ep in range(start_epoch, epochs):
+            state.epoch = ep
+            total_loss = 0.0
+            total_count = 0
+            for batch in train_loader:
+                loss, grad_norm_before_clip, effective_count = self._train_step(
+                    batch, state)
+
+                metrics = {
+                    'loss': loss,
+                    'lr': self.optimizer.param_groups[0]["lr"],
+                    'grad_norm': grad_norm_before_clip,
+                }
+
+                self.logger.log_train(metrics=metrics, step=state.step)
+                total_loss += loss * float(effective_count)
+                total_count += effective_count
+
+            avg_epoch_loss = total_loss / max(1, total_count)
+            self.logger.log_train(
+                metrics={'avg_epoch_loss': float(avg_epoch_loss)}, step=state.step)
 
             if val_loader is not None:
                 metrics = self._eval_impl(val_loader)
-                if hasattr(self.logger, "log_eval"):
-                    self.logger.log_eval(metrics, step=state.step)
-                elif hasattr(self.logger, "log"):
-                    out = {"epoch": ep}
-                    out.update({f"val/{k}": v for k, v in metrics.items()})
-                    self.logger.log(out)
+                self.logger.log_eval(metrics=metrics, step=state.step)
+                val_loss = metrics['loss']
+
+                if val_loss < best_val:
+                    best_val = val_loss
+                    best_payload = {
+                        "model_state": self.model.state_dict(),
+                        "optimizer_state": self.optimizer.state_dict(),
+                        "scheduler_state": self.scheduler.state_dict() if self.scheduler is not None else None,
+                        "scaler_state": self.scaler.state_dict(),
+                        "epoch": ep,
+                        "step": state.step,
+                        "val_loss": val_loss,
+                        "best_val_loss": val_loss,
+                        "is_mlm": self.is_mlm,
+                    }
+                    best_path = Path(self.logger.exp_dir) / \
+                        "checkpoints" / "best-model.ckpt"
+                    best_path.parent.mkdir(parents=True, exist_ok=True)
+                    torch.save(best_payload, best_path)
+            last_epoch = ep
+
+        final_epoch = last_epoch if last_epoch >= start_epoch else max(
+            start_epoch - 1, 0)
+
+        return {
+            "epoch": final_epoch,
+            "step": state.step,
+            "best_val_loss": best_val,
+        }
 
     @torch.no_grad()
     def _eval_impl(self, loader: DataLoader) -> Dict[str, float]:
@@ -277,23 +369,27 @@ class TrainingLoop:
             for batch in loader:
                 if len(batch) < 2:
                     continue
-                input_ids, attn_mask = batch[0].to(self.device), batch[1].to(self.device)
+                input_ids, attn_mask = batch[0].to(
+                    self.device), batch[1].to(self.device)
                 masked_ids, labels = self.tok_wrapper.mask_input_for_mlm(
                     input_ids=input_ids,
                     mask_p=float(self.mlm_cfg.get("mask_p", 0.15)),
                     mask_token_p=float(self.mlm_cfg.get("mask_token_p", 0.8)),
-                    random_token_p=float(self.mlm_cfg.get("random_token_p", 0.1)),
+                    random_token_p=float(
+                        self.mlm_cfg.get("random_token_p", 0.1)),
                 )
                 with torch.amp.autocast(device_type=device_type, enabled=use_autocast):
-                    out = self.model(input_ids=masked_ids, attention_mask=attn_mask, return_sequence=True)
+                    out = self.model(
+                        input_ids=masked_ids, attention_mask=attn_mask, return_sequence=True)
                     logits = out["logits"]
-                    loss = self.criterion(logits.view(-1, logits.size(-1)), labels.view(-1))
+                    loss = self.criterion(
+                        logits.view(-1, logits.size(-1)), labels.view(-1))
                 num_tok = (labels.view(-1) != -100).sum().item()
                 total_loss += loss.item() * max(1, num_tok)
                 total_tokens += max(1, num_tok)
             self.model.train()
             avg_loss = total_loss / max(1, total_tokens)
-            return {"mlm_loss": float(avg_loss)}
+            return {"loss": float(avg_loss)}
 
         self.model.eval()
         total, correct, total_loss = 0, 0, 0.0
@@ -324,7 +420,7 @@ class TrainingLoop:
         return {"loss": float(avg_loss), "accuracy": float(acc)}
 
     @torch.no_grad()
-    def evaluate(self, loader: DataLoader) -> Dict[str, float]:
+    def evaluate(self, loader: DataLoader) -> None:
         """Public evaluation method that logs via the provided logger (if available).
 
         Args:
@@ -334,8 +430,4 @@ class TrainingLoop:
             Dict[str, float]: Metrics as produced by ``_eval_impl``.
         """
         metrics = self._eval_impl(loader)
-        if hasattr(self.logger, "log_eval"):
-            self.logger.log_eval(metrics)
-        elif hasattr(self.logger, "log"):
-            self.logger.log({f"test/{k}": v for k, v in metrics.items()})
-        return metrics
+        self.logger.log_eval(metrics)

@@ -1,0 +1,383 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[polish]{babel}
+\usepackage{microtype}
+\usepackage{geometry}
+\usepackage{tabularx}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{graphicx} % w preambule
+
+
+\geometry{margin=2.5cm}
+\setlist{nosep}
+\hypersetup{
+  colorlinks=true,
+  linkcolor=black,
+  urlcolor=blue!50!black,
+  citecolor=black,
+  pdfauthor={Bartłomiej Borycki, Michał Iwaniuk},
+  pdftitle={Implementacja transformera oraz eksperymenty z wariantami mechanizmu uwagi}
+}
+
+\title{Implementacja transformera oraz eksperymenty z wariantami mechanizmu uwagi (Performer, Reformer) w zadaniach klasyfikacji tekstu\\[2mm]Dokumentacja projektu — część I}
+\author{Bartłomiej Borycki, Michał Iwaniuk}
+\date{21.10.2025}
+
+\begin{document}
+\maketitle
+
+
+
+\section{Cel biznesowy}
+Projekt ma na celu opracowanie modelu językowego opartego na architekturze enkodera transformera, który łączy rozwiązania z BERT-a i RoBERTy z nowoczesnymi mechanizmami uwagi.
+
+Celem biznesowym projektu jest opracowanie efektywnego kosztowo rozwiązania do klasyfikacji tekstu, które umożliwi wykorzystanie nowoczesnych metod przetwarzania języka naturalnego (NLP) również przy ograniczonych zasobach obliczeniowych. Projekt ma na celu potencjalne obniżenie kosztów trenowania modeli językowych przy zachowaniu jakości wymaganej w zastosowaniach produkcyjnych.  
+
+Rozwiązanie ma zastosowanie w zadaniach takich jak moderacja treści, analiza opinii klientów, automatyczna kategoryzacja dokumentów oraz innych zadaniach opartych na klasyfikacji tekstu. Projekt ma również znaczenie badawcze i rozwojowe – pozwala testować różne warianty mechanizmów uwagi i architektur transformera, wspierając rozwój modeli NLP.  
+
+Podstawową hipotezą biznesową projektu jest założenie, że poprzez przemyślany dobór alternatywnych mechanizmów uwagi oraz właściwą konfigurację architektury można osiągnąć istotną redukcję kosztu rozwiązania przy jednoczesnym zachowaniu jakości predykcji wymaganej w zastosowaniach produkcyjnych. Całkowity koszt obejmuje zarówno bezpośrednie nakłady finansowe na infrastrukturę i energię elektryczną, jak również czas potrzebny na trening i inferencję.
+
+
+
+\section{Wizja systemu}
+
+\subsection*{Architektura rozwiązania}
+Projekt jest realizowany w języku Python z wykorzystaniem frameworka PyTorch. Implementacje są wykonane bez użycia wysokopoziomowych skrótów takich jak \texttt{nn.TransformerEncoder}. 
+
+\subsection*{Komponenty systemu}
+\begin{enumerate}[label=\arabic*.]
+\item \textbf{Mechanizmy uwagi} – zaimplementowane od zera mechanizmy uwagi: scaled\_dot\_product o złożoności obliczeniowej $O(n^2)$, reformer\_lsh o złożoności obliczeniowej $O(n\log n)$ oraz performer\_favor o złożoności $O(n)$.
+
+\item \textbf{Rdzeń modelu} – pełna implementacja bloku enkodera z wymiennym mechanizmem uwagi. Każdy blok obejmuje wielogłowicową uwagę, warstwę MLP, normalizację oraz połączenia rezydualne.
+\item \textbf{Warstwa klasyfikacyjna} – pooling reprezentacji tokenów (CLS/mean/max) oraz projekcja liniowa do przestrzeni klas z funkcją softmax.
+\item \textbf{Głowica MLM} – moduł pretreningowy rekonstruujący zamaskowane tokeny w stylu BERT/RoBERTa.
+\item \textbf{Tryby uczenia} – pretrening (MLM) oraz fine-tuning (klasyfikacja).
+\item \textbf{Interfejs treningowy} – skrypty \texttt{pretrain.py}, \texttt{finetune.py}, \texttt{eval.py} z pełną integracją z Weights \& Biases, checkpointowaniem i wznowieniem treningu.
+\item \textbf{Konfiguracja YAML} – zarządzanie parametrami modelu i treningu (architektura modelu, rodzaj uwagi, optymalizator, scheduler, hiperparametry treningu)
+\item \textbf{Tokenizacja WordPiece} – obsługa tokenów specjalnych (\texttt{[CLS]}, \texttt{[SEP]}, \texttt{[MASK]}, \texttt{[PAD]}), dynamiczny padding i przycinanie sekwencji.
+\item \textbf{Reproduktywność} – deterministyczne ziarna, zapisy konfiguracji, wersji bibliotek i raportów z przebiegu eksperymentów.
+\end{enumerate}
+
+
+
+
+
+\section{Wymagania funkcjonalne}
+
+\subsection*{WF-1 — Pretrening i fine-tuning}
+\paragraph{Opis} System umożliwia pełny cykl uczenia: pretrening z maskowanym modelowaniem języka (MLM), a następnie fine-tuning do klasyfikacji na danych docelowych z wykorzystaniem checkpointu z pretreningu. Proces jest wznawialny, wersjonowany i logowany.
+
+\paragraph{Wejście/Wyjście}
+\begin{itemize}
+  \item \textbf{Wejście:} korpusy tekstowe (zbiory docelowe + zbiory zewnętrzne), plik YAML z konfiguracją, losowe ziarno, tryb \texttt{pretrain} lub \texttt{finetune}.
+  \item \textbf{Wyjście:} kompletne checkpointy \texttt{.pt} obejmujące stan modelu, optymalizatora, schedulera i tokenizera; logi i metryki (CSV/JSON); artefakty W\&B; finalne wagi głowicy klasyfikacyjnej.
+\end{itemize}
+
+\paragraph{Kryteria akceptacji}
+\begin{enumerate}[label=\arabic*.]
+  \item Uruchomienie \texttt{pretrain.py} z poprawną konfiguracją generuje co najmniej jeden checkpoint co N epok lub M kroków (parametry konfigurowalne) i zapisuje historię strat oraz metryk walidacyjnych.
+  \item Uruchomienie \texttt{finetune.py} wczytuje stan z pretreningu i poprawnie inicjalizuje głowicę klasyfikacyjną zgodnie z konfiguracją.
+  \item Skrypt \texttt{eval.py} wylicza \texttt{accuracy}, \texttt{macro\_F1}, \texttt{weighted\_F1}, a dla zadań \\binarnych/wieloklasowych (one-vs-rest) także \texttt{AUROC}; wyniki są logowane do W\&B.
+
+\end{enumerate}
+
+% =========================================
+\subsection*{WF-2 — Wymienne mechanizmy uwagi}
+\paragraph{Opis} Każdy blok enkodera może używać jednego z mechanizmów: \texttt{scaled\_dot\_product}, \\ \texttt{reformer\_lsh}, \texttt{performer\_favor}. Wybór odbywa się deklaratywnie w YAML dla całego modelu.
+
+\paragraph{Wejście/Wyjście}
+\begin{itemize}
+  \item \textbf{Wejście:} \texttt{model.attention\_type} $\in$ \{\texttt{sdpa}, \texttt{reformer\_lsh}, \texttt{performer\_favor}\}; parametry specyficzne (np. liczba hashy LSH, rozmiar projekcji random features).
+  \item \textbf{Wyjście:} tensor o kształcie \texttt{[B, N, D]} oraz raport czasu na krok i zużycia pamięci dla wybranego wariantu.
+\end{itemize}
+
+\paragraph{Kryteria akceptacji}
+\begin{enumerate}[label=\arabic*.]
+  \item Zmiana \texttt{model.attention\_type} umożliwia trening i inferencję bez modyfikacji kodu bloku enkodera.
+  \item Maski \texttt{key\_padding\_mask} i \texttt{attn\_mask} są respektowane przez wszystkie trzy warianty uwagi.
+  \item Dla losowego wejścia \texttt{[B, N, D]} każdy wariant zwraca \texttt{[B, N, D]}; 
+\end{enumerate}
+
+% =========================================
+\subsection*{WF-3 — Obsługa długich sekwencji}
+\paragraph{Opis} Model przyjmuje wejścia o długości do 16\,k tokenów (konfigurowalne) i wspiera schematy pozycjonowania: sinusoidalne, uczone, względne oraz RoPE. Mechanizmy działają zarówno z pełną, jak i aproksymacyjną uwagą.
+
+\paragraph{Wejście/Wyjście}
+\begin{itemize}
+  \item \textbf{Wejście:} \texttt{max\_seq\_len} $\in [1, 16\mathrm{k}]$; \texttt{position\_embedding} $\in$ \{\texttt{sin}, \texttt{learned}, \texttt{relative}, \texttt{rope}\}
+  \item \textbf{Wyjście:} poprawnie zastosowane osadzenia pozycyjne; wyjątek z komunikatem diagnostycznym przy próbie przekroczenia limitu długości.
+\end{itemize}
+
+\paragraph{Kryteria akceptacji}
+\begin{enumerate}[label=\arabic*.]
+  \item Dla długości z zakresu 4k–16k tokenów przetwarzanie partii kończy się sukcesem bez błędów OOM przy parametrach zasobów z konfiguracji.
+  \item RoPE i pozycje względne działają z \texttt{sdpa}, \texttt{reformer\_lsh} i \texttt{performer\_favor}, a maski są stosowane prawidłowo.
+  \item Test długich sekwencji raportuje metryki walidacyjne oraz czas i zużycie pamięci 
+\end{enumerate}
+
+% =========================================
+\subsection*{WF-4 — Pipeline danych}
+\paragraph{Opis} Dane są przetwarzane przez tokenizację WordPiece ze wsparciem tokenów specjalnych i dynamicznego przygotowania partii (przycinanie w \texttt{DataLoader}); implementacja MLM stosuje reguły BERT/RoBERTa.
+
+\paragraph{Wejście/Wyjście}
+\begin{itemize}
+  \item \textbf{Wejście:} surowe rekordy tekstowe, słownik WordPiece
+  \item \textbf{Wyjście:} tensory \texttt{input\_ids}, \texttt{attention\_mask}, \texttt{labels}
+\end{itemize}
+
+\paragraph{Kryteria akceptacji}
+\begin{enumerate}[label=\arabic*.]
+  \item Przycinanie paddingu do najdłuższej sekwencji w partii redukuje średnie zużycie pamięci względem statycznego paddingu.
+  \item Maskowanie MLM jest zgodne z regułą 80\% \texttt{[MASK]} / 10\% losowy token / 10\% oryginalny token.
+\end{enumerate}
+
+\subsection*{WF-5 — Konfiguracja i CLI}
+
+\paragraph{Opis}
+System wykorzystuje generator konfiguracji pretreningu, który z szablonu tworzy katalog \texttt{pretrain/<nazwa\_eksperymentu>/} z plikiem \texttt{config.yaml} gotowym do ewentualnych modyfikacji. Trening wstępny uruchamia się, podając wyłącznie nazwę eksperymentu; wszystkie artefakty (logi, metryki, checkpointy) trafiają do tego katalogu. Podczas fine-tuningu podaje się \emph{dwie} nazwy: nazwę eksperymentu fine-tuningowego oraz nazwę eksperymentu pretreningowego, z którego mają zostać odziedziczone ustawienia architektury (backbone). W fine-tuningu można zmieniać wyłącznie głowicę klasyfikacyjną (np. \texttt{num\_classes}, \texttt{pooling}), pozostawiając resztę architektury zgodną z pretreningiem.
+
+\paragraph{Wejście/Wyjście}
+\begin{itemize}
+  \item \textbf{Wejście (generator pretrain):} nazwa eksperymentu \texttt{<EXP>}; opcjonalnie ścieżka do szablonu. Efekt: \texttt{pretrain/<EXP>/config.yaml}.
+  \item \textbf{Wejście (pretrain):} nazwa eksperymentu \texttt{<EXP>} (odwołanie do \\ \texttt{pretrain/<EXP>/config.yaml}).
+  \item \textbf{Wejście (finetune):} nazwa eksperymentu FT \texttt{<FT\_EXP>} oraz nazwa eksperymentu pretrain \texttt{<PRE\_EXP>}; konfiguracja FT automatycznie dziedziczy architekturę z \\ \texttt{pretrain/<PRE\_EXP>/config.yaml}, dopuszczając zmianę wyłącznie parametrów głowicy i ustawień treningu klasyfikacji.
+  \item \textbf{Wyjście (pretrain):} \texttt{pretrain/<EXP>/\{config.yaml, logs, metrics.csv, events.jsonl, ckpt\_*.pt\}}.
+  \item \textbf{Wyjście (finetune):} \texttt{finetune/<FT\_EXP>/\{resolved\_config.yaml, logs, metrics.csv, events.jsonl, ckpt\_*.pt\}}; w \texttt{resolved\_config.yaml} architektura jest \emph{spłaszczona} (po dziedziczeniu) i zawiera referencję do \texttt{<PRE\_EXP>}.
+\end{itemize}
+
+\paragraph{Kryteria akceptacji}
+\begin{enumerate}[label=\arabic*.]
+  \item Uruchomienie generatora z \texttt{<EXP>} tworzy \texttt{pretrain/<EXP>/config.yaml} na podstawie szablonu oraz podstawia wartości domyślne (ścieżki danych, hiperparametry, nazwy artefaktów).
+  \item \texttt{python pretrain.py --exp <EXP>} wczytuje \texttt{pretrain/<EXP>/config.yaml}, zapisuje checkpointy i metryki w \texttt{pretrain/<EXP>/}, a \texttt{--resume} w tym katalogu wznawia trening bez utraty postępu (różnica kroków $\leq 1$).
+  \item \texttt{python finetune.py --exp <FT\_EXP> --pretrain <PRE\_EXP>}:
+    \begin{enumerate}[label*=\alph*.]
+      \item odczytuje architekturę (wymiary, warstwy, typ uwagi, pozycjonowanie itp.) z \\ \texttt{pretrain/<PRE\_EXP>/config.yaml},
+      \item pozwala zmienić wyłącznie parametry głowicy klasyfikacyjnej (\texttt{num\_classes}, \texttt{pooling}, \texttt{dropout}) oraz ustawienia treningu FT,
+      \item zapisuje \texttt{finetune/<FT\_EXP>/resolved\_config.yaml} z \emph{pełną}, rozstrzygniętą konfiguracją (po dziedziczeniu) i referencją do \texttt{<PRE\_EXP>}.
+    \end{enumerate}
+  
+  \item Załadowanie wag w FT odbywa się z najlepszego (lub wskazanego) checkpointu z \\ \texttt{pretrain/<PRE\_EXP>/}; w przypadku niezgodności wymiarów głowicy model automatycznie inicjalizuje nową głowicę i emituje stosowne ostrzeżenie w logach.
+\end{enumerate}
+
+
+
+% =========================================
+\subsection*{WF-6 — Raporty porównawcze}
+\paragraph{Opis} System generuje raporty porównujące warianty uwagi i konfiguracje (jakość, czas/epoka, przepustowość, zużycie pamięci) oraz umożliwia replikację wyników. 
+\paragraph{Wejście/Wyjście}
+\begin{itemize}
+  \item \textbf{Wejście:} co najmniej dwa zakończone przebiegi z różnymi konfiguracjami; ścieżki do katalogów eksperymentów lub identyfikatory W\&B; wyniki baseline'u TF-IDF+LogReg.
+  \item \textbf{Wyjście:} tabela \texttt{results.csv} (model, metryki, parametry modelu/treningu), inne tabele i wykresy zbiorcze (CSV/PNG/HTML/W\&B) z rankingiem według wybranej metryki i kosztów oraz kolumną \texttt{PASS\_WNF}.
+\end{itemize}
+
+\paragraph{Kryteria akceptacji}
+\begin{enumerate}[label=\arabic*.]
+  \item Uruchomienie \texttt{eval.py --compare runs/\*} generuje raport zawierający najlepszą \texttt{macro\_F1} z odchyleniem standardowym, \texttt{accuracy}, \texttt{AUROC} (jeśli dotyczy), \texttt{time\_per\_epoch}, \texttt{tokens/s} oraz \texttt{max\_gpu\_mem\_MiB}.
+  \item Raport zawiera metadane konfiguracji (parametry architektury oraz treningu) oraz skrypt \texttt{reproduce.sh} umożliwiający replikację.
+  \item Nieudane przebiegi (np. OOM, NaN loss, przerwanie) są oznaczane, opisane przyczyną i wykluczane z rankingów.
+  \item Plan testów akceptacyjnych: uruchomienia z \texttt{sdpa}, \texttt{performer\_favor}, \texttt{reformer\_lsh}; baseline TF-IDF+LogReg trenowany na tych samych danych; raport PASS/FAIL względem WNF.
+  \item Tabela \texttt{SDPA vs Performer vs Reformer vs TF-IDF+LR} z oznaczeniem PASS WNF oraz wykres jakość (np. macro-F1) vs koszt (czas/VRAM).
+\end{enumerate}
+
+
+
+
+
+
+
+
+
+
+\section{Wymagania niefunkcjonalne}
+
+\subsection*{WNF-1 — Wydajność i efektywność zasobowa}
+System powinien umożliwiać uruchomienie i trenowanie modeli w środowisku Google Colab przy zachowaniu akceptowalnych czasów treningu i niższego zużycia pamięci względem pełnej uwagi.  
+\begin{itemize}
+  \item \textbf{Środowisko GPU (Colab):} docelowo \emph{NVIDIA V100 16\,GB HBM2} (Tensor Cores, FP16); alternatywnie \emph{A100 40\,GB HBM2e} (jeśli dostępna) lub \emph{T4 16\,GB}. 
+  \item \textbf{Pomiar kosztu:} raportowane są \texttt{time\_per\_epoch} [s], \texttt{tokens/s} oraz \texttt{max\_gpu\_mem\_MiB}, mierzone przy \texttt{seq\_len=512}, zadanym \texttt{batch\_size}.
+  \item \textbf{Wymóg kosztowy (Performer):} \(time/epoch \leq \) \textbf{SDPA} $-20\%$ lub \(\max VRAM \leq \) \textbf{SDPA} $-30\%$ przy spadku jakości $\leq 1$ pp macro-F1.
+  \item \textbf{Wymóg kosztowy (Reformer):} \(time/epoch \leq \) \textbf{SDPA} $-15\%$ lub \(\max VRAM \leq \) \textbf{SDPA} $-25\%$ przy spadku jakości $\leq 1$ pp macro-F1.
+  \item Wykorzystywana jest mieszana precyzja obliczeń (FP16/BF16) oraz techniki optymalizacji pamięci, takie jak gradient checkpointing i akumulacja gradientów.
+\end{itemize}
+
+\subsection*{WNF-2 — Jakość, niezawodność i testowalność}
+System powinien być odporny na błędy w danych oraz zapewniać stabilność procesu uczenia.  
+\begin{itemize}
+  \item \textbf{Jakość (SDPA):} macro-F1 (walidacja) \(\geq\) \textbf{TF-IDF+LogReg} $+5$ pp, mierzone na AG News i/lub IMDb, \texttt{seq\_len=512}, \texttt{batch}/tokenizer jak w konfiguracji.
+  \item \textbf{Jakość (Performer):} macro-F1 \(\geq\) \textbf{TF-IDF+LogReg} $+3$ pp oraz w odległości \(\leq 1\) pp od SDPA przy tej samej konfiguracji.
+  \item \textbf{Jakość (Reformer):} macro-F1 \(\geq\) \textbf{TF-IDF+LogReg} $+3$ pp oraz w odległości \(\leq 1\) pp od SDPA przy tej samej konfiguracji.
+  \item \textbf{Stabilność:} brak \texttt{NaN}/OOM; 3 różne seedy; rozrzut macro-F1 (max–min) \(\leq 1\) pp. Raport zawiera GPU, batch, \texttt{seq\_len=512}.
+  \item Kluczowe komponenty (uwaga, maski, pozycjonowanie, tokenizacja) są objęte testami; logowane są błędy i ostrzeżenia diagnostyczne.
+  \item Model nie generuje wartości \texttt{NaN}/\texttt{Inf}; w razie naruszenia przebieg jest oznaczany jako nieudany i wykluczany z rankingów.
+\end{itemize}
+
+\subsection*{WNF-3 — Użyteczność i utrzymanie}
+System powinien być łatwy w konfiguracji, rozbudowie i ponownym uruchomieniu eksperymentów.  
+\begin{itemize}
+  \item Dokumentacja opisuje sposób przygotowania danych, pretreningu i fine-tuningu krok po kroku.
+  \item Struktura katalogów i plików jest spójna i hierarchiczna.
+  \item Kod jest zgodny ze standardem PEP~8, a kluczowe moduły są opatrzone docstringami.
+  \item Wszystkie hiperparametry są definiowane w pliku YAML, bez konieczności modyfikacji kodu źródłowego.
+  \item README zawiera komende do uruchomienia przebiegu reprodukcji (wykorzystując \texttt{config.yaml} i \texttt{reproduce.sh}).
+\end{itemize}
+
+\subsection*{WNF-4 — Skalowalność i elastyczność architektury}
+\begin{itemize}
+  \item Architektura systemu umożliwia dodawanie nowych wariantów mechanizmów uwagi bez ingerencji w istniejące komponenty.
+  \item System wspiera równoległe uruchamianie wielu eksperymentów z różnymi konfiguracjami.
+  \item Konfiguracja modeli powinna być przenośna pomiędzy różnymi środowiskami (Colab, serwer GPU, lokalny PC).
+\end{itemize}
+
+
+\subsection*{WNF-5 — Przenośność i kompatybilność}
+\begin{itemize}
+  \item Kod działa w środowiskach Python~$\geq$~3.10 oraz z frameworkiem PyTorch~$\geq$~2.2 (CUDA 11.8/12.x); obsługa AMP (FP16/BF16).
+  \item Biblioteki: scikit-learn (baseline TF-IDF+LogReg), NumPy, PyYAML, HuggingFace (datasets/tokenizer narzędziowo), Weights\&Biases.
+  \item Konfiguracja zawiera ustawienia \texttt{seed}, \texttt{dtype} (FP16/BF16/FP32), informacje o GPU/VRAM i wersjach (Python, PyTorch, CUDA).
+\end{itemize}
+
+\subsection*{WNF-6 — Monitorowanie i obserwowalność}
+\begin{itemize}
+  \item Wszystkie metryki (loss, accuracy, F1, zużycie pamięci GPU, czas/epoka) są logowane do Weights \& Biases.
+  \item System udostępnia możliwość wznowienia eksperymentu od ostatniego checkpointu z zachowaniem historii logów.
+  \item Każdy eksperyment generuje raport w formacie \texttt{metrics.csv} oraz agregację do \texttt{results.csv} (model, metryki, hiperparametry).
+\end{itemize}
+
+\subsection*{WNF-7 — Aspekty formalne i zgodność z dobrymi praktykami}
+\begin{itemize}
+  \item Dokumentacja projektu jest zgodna z wytycznymi wydziału dotyczących raportowania projektów inżynierskich.
+  \item Kod źródłowy jest wersjonowany w systemie kontroli wersji (Git) oraz wykorzystuje dobre praktyki inżynierii oprogramowania.
+\end{itemize}
+
+
+
+
+\section{Część badawcza}
+
+W części badawczej analizowane są małe architektury transformera w warunkach ograniczonych zasobów obliczeniowych. Celem eksperymentów jest zrozumienie wpływu różnych wariantów mechanizmu uwagi oraz konfiguracji modelu na koszt obliczeniowy i jakość uzyskiwanych wyników.  
+
+Badania koncentrują się w szczególności na następujących zagadnieniach:
+
+\begin{itemize}
+  \item \textbf{Wpływ doboru mechanizmu uwagi na koszt i jakość:} porównanie klasycznej uwagi (\textit{scaled dot-product}) z mechanizmami Reformer LSH i Performer FAVOR+ pod względem szybkości uczenia, jakości w zadaniach klasyfikacyjnych oraz kosztów obliczeniowych (czas treningu, zużycie pamięci). W tabelach wyników uwzględniany jest baseline \textbf{TF-IDF+LogReg}.
+  
+  \item \textbf{Wpływ długości sekwencji wejściowej:} analiza, jak długość sekwencji (w szczególności długie sekwencje rzędu 8–16k tokenów) wpływa na szybkość i jakość uczenia w zależności od zastosowanego mechanizmu uwagi.
+  
+  \item \textbf{Modyfikacje mechanizmów uwagi:} 
+  Wprowadzamy zmiany w mechanizmach uwagi (LSH, FAVOR+) i porównujemy ich działanie z oryginalnymi implementacjami, testując zarówno oryginalne mechanizmy, jak i nasze modyfikacje, aby ocenić ich wpływ na wyniki.
+  
+  \item \textbf{Analiza hiperparametrów:} badanie wpływu parametrów architektury (np. rozmiar modelu, sposób kodowania pozycji) na jakość uczenia.
+  
+  \item \textbf{Ocena kosztów obliczeniowych:} pomiar liczby parametrów do wytrenowania, złożoności obliczeniowej i pamięciowej etapów \textit{forward} i \textit{backward}, a także identyfikacja kompromisu między jakością modelu a kosztem treningu i inferencji.
+\end{itemize}
+
+Środowisko treningowe: eksperymenty uruchamiane na Google Colab. GPU docelowe: \textbf{V100 16\,GB} (preferowane); alternatywnie \textbf{A100 40\,GB} (jeśli przydzielone) lub \textbf{T4 16\,GB} z odpowiednim zmniejszeniem batch size.
+
+\section{Analiza ryzyka}
+
+Celem analizy jest szybkie wykrywanie i ograniczanie ryzyk poprzez jasne wskaźniki (triggery) oraz gotowe działania.
+
+\begin{enumerate}[label=R\arabic*., leftmargin=7mm]
+  \item \textbf{Ograniczenia zasobów (czas/VRAM).}
+  \emph{Trigger:} OOM przy $N\!\geq\!16$k. 
+  \emph{Mitigacje:} FP16/BF16, gradient checkpointing, akumulacja gradientów, dynamiczny padding. 
+  \emph{Plan awaryjny:} skrócenie $N$, redukcja warstw/głów.
+
+  \item \textbf{Niestabilność treningu (NaN, exploding gradients).}
+  \emph{Trigger:} NaN/Inf w stracie lub gradientach, >2 restarty na epokę. 
+  \emph{Mitigacje:} gradient clipping, dłuższy warmup, niższy learning rate, loss scaling dla FP16. 
+  \emph{Plan awaryjny:} zmiana optymalizatora/schedulera, hiperparametrów treningu.
+
+  \item \textbf{Błędy implementacyjne (Reformer/Performer).}
+  \emph{Trigger:} niezgodność kształtów/masek, rozjazd wyników na danych syntetycznych. 
+  \emph{Mitigacje:} testy jednostkowe i funkcjonalne, asercje. 
+  \emph{Plan awaryjny:} Ponowna implementacja/naprawa wadliwego komponentu, po czym re-walidacja testami.
+
+\item \textbf{Niedopasowanie tokenizera do domeny.}
+  \emph{Trigger:} wysoki udział tokenów \texttt{[UNK]}. 
+  \emph{Mitigacje:} dostrojenie słownika (dołączenie domenowych subwordów). 
+  \emph{Plan awaryjny:} pełny retrening tokenizera na mieszance domenowej.
+
+  \item \textbf{Zależności zewnętrzne (Colab, W\&B) i awarie sesji.}
+  \emph{Trigger:} przerwane sesje, brak artefaktów/logów. 
+  \emph{Mitigacje:} snapshoty lokalne, tryb W\&B \texttt{--offline}, autosave checkpointów co N minut/kroków. 
+  \emph{Plan awaryjny:} uruchomienia lokalne bez W\&B i późniejsza synchronizacja.
+
+\end{enumerate}
+
+\begin{table}[h!]
+\centering
+\small 
+\begin{tabularx}{\textwidth}{|l|c|c|X|l|}
+\hline
+\textbf{Ryzyko} & \textbf{Prawd.} & \textbf{Wpływ} & \textbf{Mitigacja} & \textbf{Właściciel} \\ \hline
+OOM przy długich sekwencjach & Średnia & Wysoki & FP16/BF16, checkpointing, akumulacja, redukcja $N$ & Bartłomiej Borycki \\ \hline
+NaN/niestabilność treningu & Średnia & Wysoki & Clipping, warmup, LR, loss scaling & Bartłomiej Borycki \\ \hline
+Błędy w Reformer/Performer & Średnia & Średni & Testy jednostkowe/funkcjonalne, asercje & Michał Iwaniuk \\ \hline
+Awaria sesji Colab/W\&B & Niska & Średni & Częste checkpointy, tryb offline, snapshoty & Michał Iwaniuk \\ \hline
+Niedopasowanie tokenizera & Niska & Średni & Dostrojenie słownika/retrening tokenizera & Michał Iwaniuk \\ \hline
+\end{tabularx}
+\end{table}
+
+%naglowki opisac tabelke
+\begin{table}[h!]
+\centering
+\resizebox{\textwidth}{!}{
+\begin{tabular}{|l|l|l|l|}
+\hline
+\textbf{Wymaganie} & \textbf{Moduł} & \textbf{AT/metryka} & \textbf{Eksperyment} \\ \hline
+WF-2 (wymienne uwagi) & Encoder+Attention & Test funkcjonalny (kształty, maski) & Jednostkowe na losowych wejściach \\ \hline
+WNF-2 (jakość SDPA) & Trening+Eval & macro-F1 vs TF-IDF+LR (+5 pp) & AG News/IMDb, 3 seedy \\ \hline
+WNF-1 (koszt Performer, Reformer) & Attention & time/epoch, max VRAM & Porównanie do SDPA \\ \hline
+WNF-2 (stabilność) & Trening & brak NaN/OOM, rozrzut $\leq 1$ pp & 3 seedy, stała konfiguracja \\ \hline
+WF-6 (raporty) & Eval+Logger & results.csv, PASS\_WNF & \texttt{eval.py --compare} \\ \hline
+\end{tabular}
+}
+\label{tab:wymagania}
+\end{table}
+
+
+\section{Harmonogram}
+Harmonogram wykonywany zgodnie z sekcją \emph{Podział Pracy}.
+
+\subsection*{Październik — Implementacja systemu}
+\begin{itemize}
+\item (01.10–7.10): implementacja mechanizmów uwagi od podstaw (SDPA, Reformer LSH, Performer FAVOR+).
+\item (8.10–14.10): złożenie bloku enkodera i modelu z wymienną architekturą uwagi.
+\item (15.10–19.10): pipeline danych (WordPiece, dynamiczny padding), implementacja maskowania MLM.
+\item (20.10–26.10): skrypty pretrain/finetune/eval z integracją W\&B, checkpointowaniem \\ i wznowieniem; testy jednostkowe i funkcjonalne.
+\end{itemize}
+
+\subsection*{Listopad — Trening modeli i zbieranie metryk}
+\begin{itemize}
+\item (27.10–9.11): pretrening modeli na wybranych korpusach (MLM), w różnych konfiguracjach.
+\item (10.11–23.11): fine-tuning do klasyfikacji (AG News/IMDb) z checkpointów pretreningu.
+\end{itemize}
+
+\subsection*{Grudzień, Styczeń — Analiza wyników i dokumentacja}
+\begin{itemize}
+\item (24.11–7.12): agregacja i analiza wyników, wnioski dot. użyteczności rozwiązań.
+\item (8.12–21.12): przygotowanie materiałów (tabele/wykresy).
+\item (22.12–4.01): opracowanie pełnej dokumentacji technicznej (implementacja, metodologia, rezultaty).
+\item (5.01–31.01): finalizacja dokumentacji zgodnie z wymaganiami pracy inżynierskiej.
+\end{itemize}
+
+\section{Podział pracy}
+
+\begin{table}[h!]
+\centering
+\begin{tabularx}{\textwidth}{|l|X|}
+\hline
+\textbf{Osoba odpowiedzialna} & \textbf{Zakres} \\ \hline
+Bartłomiej Borycki & Implementacja klasy transformera, implementacja skryptów treningowych i ewaluacyjnych, implementacja mechanizmu uwagi Performer FAVOR+ (łącznie z modyfikacjami)  \\ \hline
+Michał Iwaniuk &  Implementacja enkodera, implementacja mechanizmów uwagi scaled dot product i reformer LSH (łącznie z modyfikacjami), implementacja mechanizmu maskowania MLM\\ \hline
+Wspólne &  Wybranie zbiorów danych, preprocessing danych, trenowanie modeli, analiza i wizualizacja wyników, przygotowanie dokumentacji\\ \hline
+\end{tabularx}
+\end{table}
+
+
+
+\end{document}
