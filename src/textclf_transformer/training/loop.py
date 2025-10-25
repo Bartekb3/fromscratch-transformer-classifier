@@ -256,7 +256,7 @@ class TrainingLoop:
         scheduler_state: Optional[Dict[str, Any]] = None,
         scaler_state: Optional[Dict[str, Any]] = None,
         best_val_loss: Optional[float] = None,
-    ) -> Dict[str, Any]:
+    ) -> None:
         """Train the model for a number of epochs, optionally validating after each epoch.
 
         Args:
@@ -269,9 +269,6 @@ class TrainingLoop:
             scheduler_state: Optional scheduler state dict to restore (applied after scheduler creation).
             scaler_state: Optional AMP GradScaler state dict to restore.
             best_val_loss: Best validation loss observed so far; defaults to ``inf`` when ``None``.
-
-        Returns:
-            Dict[str, Any]: Summary with final ``epoch``, ``step``, and ``best_val_loss``.
         """
         total_steps = max(1, epochs * len(train_loader) //
                           max(1, self.grad_accum_steps))
@@ -297,7 +294,6 @@ class TrainingLoop:
         best_val = float("inf") if best_val_loss is None else float(
             best_val_loss)
 
-        last_epoch = start_epoch - 1
         for ep in range(start_epoch, epochs):
             state.epoch = ep
             total_loss = 0.0
@@ -342,16 +338,6 @@ class TrainingLoop:
                         "checkpoints" / "best-model.ckpt"
                     best_path.parent.mkdir(parents=True, exist_ok=True)
                     torch.save(best_payload, best_path)
-            last_epoch = ep
-
-        final_epoch = last_epoch if last_epoch >= start_epoch else max(
-            start_epoch - 1, 0)
-
-        return {
-            "epoch": final_epoch,
-            "step": state.step,
-            "best_val_loss": best_val,
-        }
 
     @torch.no_grad()
     def _eval_impl(self, loader: DataLoader) -> Dict[str, float]:

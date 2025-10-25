@@ -57,18 +57,18 @@ def _load_resume(training_cfg, exp_dir, model):
 
     model_state = checkpoint["model_state"]
     if resume_cfg.get("load_optimizer", True):
-        optimizer_state = checkpoint.get("optimizer_state")
+        optimizer_state = checkpoint.get("optimizer_state", None)
     if resume_cfg.get("load_scheduler", True):
-        scheduler_state = checkpoint.get("scheduler_state")
+        scheduler_state = checkpoint.get("scheduler_state", None)
     if resume_cfg.get("load_scaler", True):
-        scaler_state = checkpoint.get("scaler_state")
+        scaler_state = checkpoint.get("scaler_state", None)
 
     if checkpoint.get("best_val_loss") is not None:
-        best_val_loss = float(checkpoint["best_val_loss"])
+        best_val_loss = float(checkpoint.get("best_val_loss", None))
     if checkpoint.get("epoch") is not None:
-        start_epoch = int(checkpoint["epoch"]) + 1
+        start_epoch = int(checkpoint.get("epoch", -1)) + 1
     if checkpoint.get("step") is not None:
-        start_step = int(checkpoint["step"])
+        start_step = int(checkpoint.get("step", -1)) + 1
 
     model.load_state_dict(model_state, strict=strict)
     start_epoch = min(start_epoch, training_cfg["epochs"])
@@ -141,7 +141,7 @@ def main() -> None:
             pad_is_true_mask=True, max_seq_len=arch_max_len),
     )
 
-    is_resume = training_cfg.get["resume"]['is_resume']
+    is_resume = training_cfg["resume"]['is_resume']
     if is_resume:
         resume_kwargs = _load_resume(training_cfg, exp_dir, model)
     else:
@@ -156,7 +156,7 @@ def main() -> None:
         tokenizer_wrapper=wrapper,
     )
 
-    fit_summary = loop.fit(
+    loop.fit(
         train_loader,
         epochs=training_cfg["epochs"],
         val_loader=val_loader,
@@ -166,19 +166,9 @@ def main() -> None:
     ckpt_dir = exp_dir / "checkpoints"
     ckpt_dir.mkdir(parents=True, exist_ok=True)
     ckpt_path = ckpt_dir / "model.ckpt"
-    torch.save(
-        {
-            "model_state": model.state_dict(),
-            "optimizer_state": loop.optimizer.state_dict(),
-            "scheduler_state": loop.scheduler.state_dict(),
-            "scaler_state": loop.scaler.state_dict(),
-            "epoch": fit_summary["epoch"],
-            "step": fit_summary["step"],
-            "best_val_loss": fit_summary["best_val_loss"],
-            "is_mlm": True,
-        },
-        ckpt_path,
-    )
+    torch.save({
+        "model_state": model.state_dict(),
+    },ckpt_path)
     logger.finish()
     print(f"[OK] Zapisano checkpoint: {ckpt_path}")
 
