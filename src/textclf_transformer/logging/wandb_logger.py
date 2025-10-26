@@ -26,6 +26,7 @@ class WandbRun:
                     - ``log_train_lr`` (bool)
                     - ``log_train_grad_norm`` (bool)
                     - ``log_eval_metrics`` (bool)
+                    -  ``log_metrics_csv``: (bool)
                     - ``wandb`` (dict) with keys: ``entity``, ``project``, ``run_name``
             exp_dir: Base directory for this experiment; used for W&B run dir
                 and CSV output paths.
@@ -33,6 +34,7 @@ class WandbRun:
         self.cfg = cfg
         self.exp_dir = Path(exp_dir)
         log_cfg = cfg.get("logging", {})
+        self.log_metrics_csv = log_cfg.get("log_metrics_csv", True)
 
         self.use_wandb = bool(log_cfg.get("use_wandb", True))
         self.csv_train_path = self.exp_dir / log_cfg.get(
@@ -121,6 +123,8 @@ class WandbRun:
             metrics: Mapping of metric names to values to be written.
             step: Global step; ``0`` is used when ``None``.
         """
+        if not self.log_metrics_csv:
+            return
         row = {"step": step if step is not None else 0, **metrics}
 
         file_exists = path.exists()

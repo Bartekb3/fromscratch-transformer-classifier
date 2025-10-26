@@ -108,11 +108,7 @@ class TrainingLoop:
 
         use_amp_cfg = bool(training_cfg.get("use_amp", True))
         use_amp = (self.device == "cuda") and use_amp_cfg
-        try:
-            self.scaler = torch.amp.GradScaler(enabled=use_amp)
-        except Exception:
-
-            self.scaler = CudaGradScaler(enabled=use_amp)
+        self.scaler = torch.amp.GradScaler(enabled=use_amp)
 
         self.optimizer = AdamW(
             self.model.parameters(),
@@ -152,6 +148,68 @@ class TrainingLoop:
         self.scheduler = torch.optim.lr_scheduler.LambdaLR(
             self.optimizer, lr_lambda)
 
+    def _prepare_batch(self, batch):
+        """Move tensors to device, perform MLM masking if needed, and build model kwargs."""
+
+        if len(batch) < 2:
+            raise ValueError("Batch musi mieć co najmniej (input_ids, attention_mask).")
+
+        input_ids, attn_mask, *rest = batch
+
+        input_ids = input_ids.to(self.device)
+        attn_mask = attn_mask.to(self.device)
+
+        if self.is_mlm:
+            masked_ids, labels = self.tok_wrapper.mask_input_for_mlm(
+                input_ids=input_ids,
+                mask_p=float(self.mlm_cfg.get("mask_p", 0.15)),
+                mask_token_p=float(self.mlm_cfg.get("mask_token_p", 0.8)),
+                random_token_p=float(self.mlm_cfg.get("random_token_p", 0.1)),
+            )
+            effective_count = max(
+                1, int((labels.view(-1) != -100).sum().item())
+            )
+            model_inputs = {
+                "input_ids": masked_ids,
+                "attention_mask": attn_mask,
+                "return_sequence": False,
+                "attention_forward_params": self.attnention_forward_params,
+            }
+        else:
+            if not rest:
+                raise ValueError("Batch dla klasyfikacji musi mieć (input_ids, attention_mask, labels).")
+            labels = rest[0].to(self.device)
+
+            effective_count = max(1, int(labels.size(0)))
+            model_inputs = {
+                "input_ids": input_ids,
+                "attention_mask": attn_mask,
+                "return_pooled": False,
+                "return_sequence": False,
+                "attention_forward_params": self.attnention_forward_params,
+            }
+        return model_inputs, labels, effective_count
+
+    def _forward_logits_and_loss(
+        self,
+        model_inputs: Dict[str, Any],
+        labels: torch.Tensor,
+        *,
+        device_type: str,
+        use_autocast: bool,
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        """Execute the model forward pass and compute loss."""
+        with torch.amp.autocast(device_type=device_type, enabled=use_autocast):
+            outputs = self.model(**model_inputs)
+            logits = outputs["logits"]
+            if self.is_mlm:
+                loss = self.criterion(
+                    logits.view(-1, logits.size(-1)), labels.view(-1)
+                )
+            else:
+                loss = self.criterion(logits, labels)
+        return logits, loss
+
     def _train_step(self, batch, state: _State) -> Tuple[float, float, int]:
         """Perform a single training step with optional AMP, accumulation, and clipping.
 
@@ -179,55 +237,13 @@ class TrainingLoop:
         use_autocast = self.scaler.is_enabled()
         grad_norm_before_clip = float("nan")
 
-        if self.is_mlm:
-            if len(batch) < 2:
-                raise ValueError(
-                    "Batch dla MLM musi mieć co najmniej (input_ids, attention_mask).")
-            input_ids, attn_mask = batch[0].to(
-                self.device), batch[1].to(self.device)
-
-            masked_ids, labels = self.tok_wrapper.mask_input_for_mlm(
-                input_ids=input_ids,
-                mask_p=float(self.mlm_cfg.get("mask_p", 0.15)),
-                mask_token_p=float(self.mlm_cfg.get("mask_token_p", 0.8)),
-                random_token_p=float(self.mlm_cfg.get("random_token_p", 0.1)),
-            )
-
-            with torch.amp.autocast(device_type=device_type, enabled=use_autocast):
-                out = self.model(
-                    input_ids=masked_ids,
-                    attention_mask=attn_mask,
-                    return_sequence=False,
-                    attention_forward_params = self.attnention_forward_params
-                )
-                logits = out["logits"]
-                loss = self.criterion(
-                    logits.view(-1, logits.size(-1)),
-                    labels.view(-1),
-                )
-            num_tok = (labels.view(-1) != -100).sum().item()
-            effective_count = max(1, int(num_tok))
-        else:
-            if len(batch) != 3:
-                raise ValueError(
-                    "Batch dla klasyfikacji musi mieć (input_ids, attention_mask, labels).")
-            input_ids, attn_mask, labels = batch
-            input_ids = input_ids.to(self.device)
-            attn_mask = attn_mask.to(self.device)
-            labels = labels.to(self.device)
-
-            with torch.amp.autocast(device_type=device_type, enabled=use_autocast):
-                out = self.model(
-                    input_ids=input_ids,
-                    attention_mask=attn_mask,
-                    return_pooled=False,
-                    return_sequence=False,
-                    attention_forward_params = self.attnention_forward_params
-                )
-                logits = out["logits"]
-                loss = self.criterion(logits, labels)
-            batch_size = labels.size(0)
-            effective_count = max(1, int(batch_size))
+        model_inputs, labels, effective_count = self._prepare_batch(batch)
+        logits, loss = self._forward_logits_and_loss(
+            model_inputs=model_inputs,
+            labels=labels,
+            device_type=device_type,
+            use_autocast=use_autocast,
+        )
 
         loss_value = loss.item()
         loss = loss / self.grad_accum_steps
@@ -351,62 +367,43 @@ class TrainingLoop:
             Dict[str, float]: For MLM, ``{'mlm_loss': avg_token_loss}``; for classification,
             ``{'loss': avg_example_loss, 'accuracy': accuracy}``.
         """
+        self.model.eval()
+        device_type = "cuda" if self.device == "cuda" else "cpu"
+        use_autocast = self.scaler.is_enabled()
+
         if self.is_mlm:
-            self.model.eval()
             total_loss, total_tokens = 0.0, 0
-            device_type = "cuda" if self.device == "cuda" else "cpu"
-            use_autocast = self.scaler.is_enabled()
             for batch in loader:
-                if len(batch) < 2:
-                    continue
-                input_ids, attn_mask = batch[0].to(
-                    self.device), batch[1].to(self.device)
-                masked_ids, labels = self.tok_wrapper.mask_input_for_mlm(
-                    input_ids=input_ids,
-                    mask_p=float(self.mlm_cfg.get("mask_p", 0.15)),
-                    mask_token_p=float(self.mlm_cfg.get("mask_token_p", 0.8)),
-                    random_token_p=float(
-                        self.mlm_cfg.get("random_token_p", 0.1)),
+                model_inputs, labels, effective_count = self._prepare_batch(batch)
+                _, loss = self._forward_logits_and_loss(
+                    model_inputs=model_inputs,
+                    labels=labels,
+                    device_type=device_type,
+                    use_autocast=use_autocast,
                 )
-                with torch.amp.autocast(device_type=device_type, enabled=use_autocast):
-                    out = self.model(
-                        input_ids=masked_ids, attention_mask=attn_mask, return_sequence=False)
-                    logits = out["logits"]
-                    loss = self.criterion(
-                        logits.view(-1, logits.size(-1)), labels.view(-1))
-                num_tok = (labels.view(-1) != -100).sum().item()
-                total_loss += loss.item() * max(1, num_tok)
-                total_tokens += max(1, num_tok)
+                total_loss += loss.item() * float(effective_count)
+                total_tokens += effective_count
             self.model.train()
             avg_loss = total_loss / max(1, total_tokens)
             return {"loss": float(avg_loss)}
 
-        self.model.eval()
-        total, correct, total_loss = 0, 0, 0.0
-        device_type = "cuda" if self.device == "cuda" else "cpu"
-        use_autocast = self.scaler.is_enabled()
+        total_loss, total_weight, correct = 0.0, 0, 0
         for batch in loader:
-            input_ids, attn_mask, labels = batch
-            input_ids = input_ids.to(self.device)
-            attn_mask = attn_mask.to(self.device)
-            labels = labels.to(self.device)
-            with torch.amp.autocast(device_type=device_type, enabled=use_autocast):
-                out = self.model(
-                    input_ids=input_ids,
-                    attention_mask=attn_mask,
-                    return_pooled=False,
-                    return_sequence=False,
-                )
-                logits = out["logits"]
-                loss = self.criterion(logits, labels)
-            total_loss += loss.item() * input_ids.size(0)
+            model_inputs, labels, effective_count = self._prepare_batch(batch)
+            logits, loss = self._forward_logits_and_loss(
+                model_inputs=model_inputs,
+                labels=labels,
+                device_type=device_type,
+                use_autocast=use_autocast,
+            )
+            total_loss += loss.item() * float(effective_count)
+            total_weight += effective_count
             preds = logits.argmax(dim=-1)
             correct += (preds == labels).sum().item()
-            total += input_ids.size(0)
 
         self.model.train()
-        avg_loss = total_loss / max(1, total)
-        acc = correct / max(1, total)
+        avg_loss = total_loss / max(1, total_weight)
+        acc = correct / max(1, total_weight)
         return {"loss": float(avg_loss), "accuracy": float(acc)}
 
     @torch.no_grad()

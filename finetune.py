@@ -115,7 +115,7 @@ def main() -> None:
 
     loop = TrainingLoop(
         model=model,
-        optimizer_cfg=training_cfg,
+        training_cfg=training_cfg,
         logger=logger,
         attnention_forward_params = attnention_forward_params,
         is_mlm=False,

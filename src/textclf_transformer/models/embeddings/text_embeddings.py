@@ -72,6 +72,10 @@ class TransformerTextEmbeddings(nn.Module):
         nn.init.xavier_uniform_(self.word_embeddings.weight)
         if self.use_token_type:
             nn.init.xavier_uniform_(self.token_type_embeddings.weight)
+        pad_idx = self.word_embeddings.padding_idx
+        if pad_idx is not None:
+            with torch.no_grad():
+                self.word_embeddings.weight[pad_idx].zero_()
 
 
     def forward(
@@ -113,7 +117,9 @@ class TransformerTextEmbeddings(nn.Module):
         x = word_emb + pos_emb
         if self.use_token_type:
             if token_type_ids is None:
-                token_type_ids = torch.zeros((B, N), dtype=torch.long)
+                token_type_ids = torch.zeros((B, N), dtype=torch.long, device=device)
+            else:
+                token_type_ids = token_type_ids.to(device=device, dtype=torch.long)
             x = x + self.token_type_embeddings(token_type_ids)
 
         x = self.layer_norm(x)

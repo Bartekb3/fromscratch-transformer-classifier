@@ -127,6 +127,7 @@ class WordPieceTokenizerWrapper:
                     The provided labels (used in fine-tuning), converted to a tensor.
         """
 
+        tokenizer_dir = Path(tokenizer_dir)
         if self.tokenizer is None or tokenizer_dir != self.tokenizer_dir:
             self.load(tokenizer_dir)
         tok = self.tokenizer
@@ -186,6 +187,7 @@ class WordPieceTokenizerWrapper:
         if text_col not in df.columns:
             raise ValueError(f"Column '{text_col}' not found in DataFrame.")
 
+        tokenizer_dir = Path(tokenizer_dir)
         if self.tokenizer is None or tokenizer_dir != self.tokenizer_dir:
             self.load(tokenizer_dir)
         tok = self.tokenizer

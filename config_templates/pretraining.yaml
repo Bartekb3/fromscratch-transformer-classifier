@@ -15,6 +15,7 @@ logging:
   log_train_lr: true
   log_train_grad_norm: true
   log_eval_metrics: true
+  log_metrics_csv: false
   csv_train_metrics_path: metrics/train/metrics.csv
   csv_eval_metrics_path: metrics/eval/metrics.csv
 
@@ -72,7 +73,7 @@ training:
   device: auto # 'gpu' | 'cpu' | 'auto'
 
   resume:
-    is_resume: true
+    is_resume: false
     checkpoint_path: checkpoints/model.ckpt
     strict: true
     load_optimizer: true
