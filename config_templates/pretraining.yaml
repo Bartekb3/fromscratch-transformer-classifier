@@ -21,7 +21,6 @@ logging:
 tokenizer:
   wrapper_path: src/textclf_transformer/tokenizer/wordpiece_tokenizer_wrapper.py
   vocab_dir: src/textclf_transformer/tokenizer/BERT_original
-  vocab_path: src/textclf_transformer/tokenizer/BERT_original/vocab.txt
   max_length: 1000
 
 architecture:

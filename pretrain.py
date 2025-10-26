@@ -10,7 +10,7 @@ This script:
 6) Runs the training loop and saves the final checkpoint.
 
 Usage:
-    python pretrain.py <experiment_name>
+    python pretrain.py -p <pretraining_experiment_name>
 
 Exit codes:
     1 - Wrong number of CLI arguments.
@@ -18,6 +18,7 @@ Exit codes:
 """
 
 import sys
+import argparse
 import yaml
 import torch
 from pathlib import Path
@@ -50,16 +51,25 @@ def load_dataset(pt_path: str | Path):
 
 def main() -> None:
     """CLI entrypoint for running masked language model pretraining."""
-    if len(sys.argv) != 2:
-        print("Użycie: python pretrain.py <experiment_name>")
-        sys.exit(1)
-    name = sys.argv[1]
+    parser = argparse.ArgumentParser(
+        description="Pretraining entrypoint: load config, build model/dataloader, and run training."
+    )
+    parser.add_argument(
+        "-p", "--pretraining_experiment_name",
+        help="Pretraining experiment name",
+        required=True,
+    )
+    args = parser.parse_args()
+    name = args.pretraining_experiment_name
+
     exp_dir = EXP_BASE / name
     cfg_path = exp_dir / "config.yaml"
     if not exp_dir.exists() or not cfg_path.exists():
-        print(f"[ERR] Nie znaleziono eksperymentu '{name}'. Utwórz go:")
-        print(f"     experiments/generate_pretraining_experiment.py {name}")
-        sys.exit(2)
+        raise FileNotFoundError(
+            f"Nie znaleziono eksperymentu '{name}' lub jego configu: {cfg_path}. "
+            f"Utwórz go poleceniem: experiments/generate_pretraining_experiment.py -n {name}"
+        )
+
 
     cfg = yaml.safe_load(cfg_path.read_text(encoding="utf-8"))
     set_global_seed(cfg["experiment"].get("seed", 42))

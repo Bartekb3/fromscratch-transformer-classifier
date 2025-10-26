@@ -12,7 +12,7 @@ from the pretraining config (architecture and tokenizer), and writes the final
 ``config.yaml`` for the finetuning run.
 
 Usage (CLI):
-    experiments/generate_finetuning_experiment.py <finetune_name> <pretrain_name>
+    experiments/generate_finetuning_experiment.py -f <finetune_name> -p <pretrain_name>
 
 Exit codes:
     1 - Wrong number of CLI arguments.
@@ -22,8 +22,10 @@ Exit codes:
 """
 
 import sys
+import argparse
 import yaml
 from pathlib import Path
+
 
 ROOT = Path(__file__).resolve().parents[1]
 TPL = ROOT / "config_templates" / "finetuning.yaml"
@@ -45,25 +47,30 @@ def main() -> None:
 
     The function terminates the process with non-zero exit codes on validation failure.
     """
-    if len(sys.argv) != 3:
-        print("Użycie: experiments/generate_finetuning_experiment.py <finetune_name> <pretrain_name>")
-        sys.exit(1)
+    parser = argparse.ArgumentParser(
+        description="Generate a finetuning experiment from a template and an existing pretraining run."
+    )
+    parser.add_argument("-p", "--pretrain_name", help="Pretraining experiment name", required=True)
+    parser.add_argument("-f", "--finetune_name", help="Finetuning experiment name", required=True)
+    args = parser.parse_args()
+    name, pre_name = args.finetune_name, args.pretrain_name
 
-    name, pre_name = sys.argv[1], sys.argv[2]
+
+
     pre_dir = PRE_BASE / pre_name
     if not pre_dir.exists():
-        print(f"[ERR] Pretraining '{pre_name}' nie istnieje: {pre_dir}")
-        sys.exit(2)
+        raise FileNotFoundError(f"Pretraining '{pre_name}' nie istnieje: {pre_dir}")
+
 
     pre_cfg_path = pre_dir / "config.yaml"
     if not pre_cfg_path.exists():
-        print(f"[ERR] Brak configu w {pre_cfg_path}")
-        sys.exit(3)
+        raise FileNotFoundError(f"Brak configu w {pre_cfg_path}")
+
 
     fin_dir = BASE / name
     if fin_dir.exists():
-        print(f"[ERR] Finetuning '{name}' już istnieje: {fin_dir}")
-        sys.exit(4)
+        raise FileExistsError(f"Finetuning '{name}' już istnieje: {fin_dir}")
+
 
     fin_dir.mkdir(parents=True, exist_ok=False)
     (fin_dir / "metrics" / "train").mkdir(parents=True, exist_ok=True)

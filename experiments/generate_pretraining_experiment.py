@@ -1,6 +1,8 @@
 import sys
+import argparse
 import yaml
 from pathlib import Path
+
 
 """Generate a pretraining experiment directory from a template.
 
@@ -11,7 +13,7 @@ directory structure, populates the template with the experiment name and output
 path, and writes the resulting ``config.yaml``.
 
 Usage (CLI):
-    experiments/generate_pretraining_experiment.py <experiment_name>
+    experiments/generate_pretraining_experiment.py -p <pretraining_experiment_name>
 
 Exit codes:
     1 - Wrong number of CLI arguments.
@@ -36,15 +38,21 @@ def main() -> None:
 
     Terminates the process with non-zero exit codes on validation failure.
     """
-    if len(sys.argv) != 2:
-        print("Użycie: experiments/generate_pretraining_experiment.py <experiment_name>")
-        sys.exit(1)
+    parser = argparse.ArgumentParser(
+        description="Generate a pretraining experiment from a template."
+    )
+    parser.add_argument(
+        "-p", "--pretraining_experiment_name",
+        help="Pretraining experiment name",
+        required=True,
+    )
+    args = parser.parse_args()
+    name = args.pretraining_experiment_name
 
-    name = sys.argv[1]
     exp_dir = BASE / name
     if exp_dir.exists():
-        print(f"[ERR] Eksperyment '{name}' już istnieje: {exp_dir}")
-        sys.exit(2)
+        raise FileExistsError(f"Eksperyment '{name}' już istnieje: {exp_dir}")
+
 
     exp_dir.mkdir(parents=True, exist_ok=False)
     (exp_dir / "metrics" / "train").mkdir(parents=True, exist_ok=True)
