@@ -17,37 +17,20 @@ Exit codes:
     2 - Finetuning experiment or its config not found.
 """
 
-import sys
+from src.textclf_transformer import *
 import argparse
-import yaml
 import torch
 from pathlib import Path
-from torch.utils.data import DataLoader
-from torch.utils.data import TensorDataset
-from torch.serialization import add_safe_globals
 
+from script_utils import (
+    ensure_project_root,
+    read_experiment_config,
+    save_model_state,
+)
 
-ROOT = Path(__file__).resolve().parent
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
-
-from src.textclf_transformer import *
+ROOT = ensure_project_root(__file__)
 
 EXP_BASE = ROOT / "experiments" / "finetuning"
-
-
-def load_dataset(pt_path: str | Path):
-    """Load a serialized PyTorch dataset (e.g., TensorDataset) with safe globals.
-
-    Args:
-        pt_path: Path to a ``.pt``/``.pth`` file saved via ``torch.save``.
-
-    Returns:
-        The deserialized dataset object.
-    """
-
-    add_safe_globals([TensorDataset])
-    return torch.load(pt_path, weights_only=False)
 
 
 def main() -> None:
@@ -63,25 +46,15 @@ def main() -> None:
     args = parser.parse_args()
     name = args.finetuning_experiment_name
 
-    exp_dir = EXP_BASE / name
-    cfg_path = exp_dir / "config.yaml"
-    if not exp_dir.exists() or not cfg_path.exists():
-        raise FileNotFoundError(
-            f"Nie znaleziono eksperymentu '{name}' lub jego configu: {cfg_path}. "
-            f"Utwórz go poleceniem: experiments/generate_finetuning_experiment.py "
-            f"-f {name} -p <pretrain_name>"
-        )
-
-    cfg = yaml.safe_load(cfg_path.read_text(encoding="utf-8"))
-    training_cfg = cfg["training"]
+    exp_dir, cfg = read_experiment_config(EXP_BASE, name)
     set_global_seed(cfg["experiment"].get("seed", 42))
 
     logger = WandbRun(cfg, exp_dir)
 
     wrapper, hf_tok = load_tokenizer_wrapper_from_cfg(cfg["tokenizer"])
     arch_kw = arch_kwargs_from_cfg(cfg["architecture"], hf_tok)
-    head = cfg["classification_head"]
 
+    head = cfg["classification_head"]
     model = TransformerForSequenceClassification(
         **arch_kw,
         num_labels=head["num_labels"],
@@ -102,55 +75,35 @@ def main() -> None:
     if unexpected:
         print("[WARN] Nieoczekiwane klucze:", unexpected)
 
-    train_ds = load_dataset(cfg["data"]["train"]["dataset_path"])
-    val_ds = load_dataset(cfg["data"]["val"]["dataset_path"]) if cfg["data"]["val"]["dataset_path"] else None
-    test_ds = load_dataset(cfg["data"]["test"]["dataset_path"]) if cfg["data"]["test"]["dataset_path"] else None
+    train_loader = get_data_loader_from_cfg(cfg, 'train')
+    val_loader = get_data_loader_from_cfg(cfg, 'val')
 
-    arch_max_len = cfg["architecture"]["max_sequence_length"]
-    train_loader = DataLoader(
-        train_ds,
-        batch_size=training_cfg["batch_size"],
-        shuffle=True,
-        collate_fn=collate_for_classification(pad_is_true_mask=True, max_seq_len=arch_max_len),
-    )
-    val_loader = DataLoader(
-        val_ds,
-        batch_size=training_cfg["batch_size"],
-        shuffle=False,
-        collate_fn=collate_for_classification(pad_is_true_mask=True, max_seq_len=arch_max_len),
-    ) if val_ds else None
+    training_cfg = cfg["training"]
 
     attn_cfg = cfg["architecture"]['attention']
     attn_kind = attn_cfg['kind']
-    attnention_forward_params = attn_cfg[f'forward_{attn_kind}'] 
+    attnention_forward_params = attn_cfg[f'forward_{attn_kind}']
 
     loop = TrainingLoop(
         model=model,
         training_cfg=training_cfg,
         logger=logger,
-        attnention_forward_params = attnention_forward_params,
+        attnention_forward_params=attnention_forward_params,
         is_mlm=False,
     )
-    loop.fit(train_loader, epochs=training_cfg["epochs"], val_loader=val_loader)
+    loop.fit(
+        train_loader,
+        epochs=training_cfg["epochs"],
+        val_loader=val_loader
+    )
 
-    if test_ds:
-        test_loader = DataLoader(
-            test_ds,
-            batch_size=training_cfg["batch_size"],
-            shuffle=False,
-            collate_fn=collate_for_classification(pad_is_true_mask=True, max_seq_len=arch_max_len),
-        )
+    test_loader = get_data_loader_from_cfg(cfg, 'test')
+    if test_loader:
         loop.evaluate(test_loader)
 
-    ckpt_dir = exp_dir / "checkpoints"
-    ckpt_dir.mkdir(parents=True, exist_ok=True)
-    ckpt_path = ckpt_dir / "model.ckpt"
-    torch.save({
-        "model_state": model.state_dict(),
-    },ckpt_path)
+    ckpt_path = save_model_state(model.state_dict(), exp_dir / "checkpoints")
     logger.finish()
     print(f"[OK] Zapisano checkpoint: {ckpt_path}")
-
 
 
 if __name__ == "__main__":

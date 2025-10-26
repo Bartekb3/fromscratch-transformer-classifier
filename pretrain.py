@@ -19,19 +19,17 @@ Exit codes:
 """
 
 from src.textclf_transformer import *
-import sys
 import argparse
-import yaml
 import torch
 from pathlib import Path
-from torch.utils.data import DataLoader
-from torch.utils.data import TensorDataset
-from torch.serialization import add_safe_globals
 
-ROOT = Path(__file__).resolve().parent
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
+from script_utils import (
+    ensure_project_root,
+    read_experiment_config,
+    save_model_state,
+)
 
+ROOT = ensure_project_root(__file__)
 
 EXP_BASE = ROOT / "experiments" / "pretraining"
 
@@ -50,8 +48,8 @@ def _load_resume(training_cfg, exp_dir, model):
     if not ckpt_path.is_absolute():
         ckpt_path = exp_dir / ckpt_path
     if not ckpt_path.exists():
-        print(f"[ERR] Nie znaleziono checkpointu do wznowienia: {ckpt_path}")
-        sys.exit(3)
+        raise FileNotFoundError(f"Nie znaleziono checkpointu do wznowienia: {ckpt_path}")
+
 
     checkpoint = torch.load(ckpt_path, map_location="cpu", weights_only=False)
     strict = bool(resume_cfg.get("strict", True))
@@ -81,20 +79,6 @@ def _load_resume(training_cfg, exp_dir, model):
             "best_val_loss": best_val_loss}
 
 
-def load_dataset(pt_path: str | Path):
-    """Load a serialized PyTorch dataset (e.g., ``TensorDataset``) with safe globals.
-
-    Args:
-        pt_path: Path to a file produced by ``torch.save(...)``.
-
-    Returns:
-        The deserialized dataset object.
-    """
-
-    add_safe_globals([TensorDataset])
-    return torch.load(pt_path, weights_only=False)
-
-
 def main() -> None:
     """CLI entrypoint for running masked language model pretraining."""
     parser = argparse.ArgumentParser(
@@ -108,51 +92,23 @@ def main() -> None:
     args = parser.parse_args()
     name = args.pretraining_experiment_name
 
-    exp_dir = EXP_BASE / name
-    cfg_path = exp_dir / "config.yaml"
-    if not exp_dir.exists() or not cfg_path.exists():
-        raise FileNotFoundError(
-            f"Nie znaleziono eksperymentu '{name}' lub jego configu: {cfg_path}. "
-            f"Utwórz go poleceniem: experiments/generate_pretraining_experiment.py -n {name}"
-        )
-
-
-    cfg = yaml.safe_load(cfg_path.read_text(encoding="utf-8"))
-    training_cfg = cfg["training"]
+    exp_dir, cfg = read_experiment_config(EXP_BASE, name)
     set_global_seed(cfg["experiment"].get("seed", 42))
 
     logger = WandbRun(cfg, exp_dir)
 
     wrapper, hf_tok = load_tokenizer_wrapper_from_cfg(cfg["tokenizer"])
     arch_kw = arch_kwargs_from_cfg(cfg["architecture"], hf_tok)
+
     mlm_cfg = cfg.get("mlm_head", {})
     tie_mlm_weights = bool(mlm_cfg.get("tie_mlm_weights", True))
     model = TransformerForMaskedLM(tie_mlm_weights=tie_mlm_weights, **arch_kw)
 
-    train_ds = load_dataset(cfg["data"]["train"]["dataset_path"])
-    arch_max_len = cfg["architecture"]["max_sequence_length"]
 
-    train_loader = DataLoader(
-        train_ds,
-        batch_size=training_cfg["batch_size"],
-        shuffle=True,
-        collate_fn=collate_for_pretraining(
-            pad_is_true_mask=True, max_seq_len=arch_max_len),
-    )
+    train_loader = get_data_loader_from_cfg(cfg, 'train')
+    val_loader = get_data_loader_from_cfg(cfg, 'val')
 
-    val_loader = DataLoader(
-        load_dataset(cfg["data"]["val"]["dataset_path"]),
-        batch_size=training_cfg["batch_size"],
-        shuffle=False,
-        collate_fn=collate_for_pretraining(
-            pad_is_true_mask=True, max_seq_len=arch_max_len),
-    )
-
-    is_resume = training_cfg["resume"]['is_resume']
-    if is_resume:
-        resume_kwargs = _load_resume(training_cfg, exp_dir, model)
-    else:
-        resume_kwargs = {}
+    training_cfg = cfg["training"]
 
     attn_cfg = cfg["architecture"]['attention']
     attn_kind = attn_cfg['kind']
@@ -162,11 +118,17 @@ def main() -> None:
         model=model,
         training_cfg=training_cfg,
         logger=logger,
-        attnention_forward_params = attnention_forward_params,
+        attnention_forward_params=attnention_forward_params,
         is_mlm=True,
         mlm_cfg=mlm_cfg,
         tokenizer_wrapper=wrapper,
     )
+
+    is_resume = training_cfg["resume"]['is_resume']
+    if is_resume:
+        resume_kwargs = _load_resume(training_cfg, exp_dir, model)
+    else:
+        resume_kwargs = {}
 
     loop.fit(
         train_loader,
@@ -175,12 +137,7 @@ def main() -> None:
         **resume_kwargs
     )
 
-    ckpt_dir = exp_dir / "checkpoints"
-    ckpt_dir.mkdir(parents=True, exist_ok=True)
-    ckpt_path = ckpt_dir / "model.ckpt"
-    torch.save({
-        "model_state": model.state_dict(),
-    },ckpt_path)
+    ckpt_path = save_model_state(model.state_dict(), exp_dir / "checkpoints")
     logger.finish()
     print(f"[OK] Zapisano checkpoint: {ckpt_path}")
 

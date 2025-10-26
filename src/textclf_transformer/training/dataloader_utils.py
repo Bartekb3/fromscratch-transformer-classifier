@@ -1,5 +1,11 @@
 import torch
 from typing import Optional
+from torch.serialization import add_safe_globals
+from torch.utils.data import TensorDataset
+from torch.utils.data import DataLoader
+from pathlib import Path
+from typing import Any, Mapping, Literal
+
 
 
 def make_collate_trim_to_longest(
@@ -99,3 +105,25 @@ def collate_for_classification(pad_is_true_mask: bool = True, max_seq_len: Optio
         drop_labels_if_present=False,
         max_seq_len=max_seq_len,
     )
+
+def load_dataset(pt_path: str | Path):
+    """Load a serialized PyTorch dataset (e.g., ``TensorDataset``) with safe globals."""
+    add_safe_globals([TensorDataset])
+    return torch.load(pt_path, weights_only=False)
+
+def get_data_loader_from_cfg(cfg: dict[str, Any], kind_ds: Literal["train", "val", "test"]):
+    dataset_path = cfg["data"][kind_ds]["dataset_path"]
+    if not dataset_path:
+        return None
+    ds = load_dataset(dataset_path)
+    arch_max_len = cfg["architecture"]["max_sequence_length"]
+    batch_size = cfg["training"]["batch_size"]
+    collate_fn = collate_for_classification(max_seq_len=arch_max_len)
+    shuffle = (kind_ds == "train")
+    return DataLoader(
+        ds,
+        batch_size=batch_size,
+        shuffle=shuffle,
+        collate_fn=collate_fn,
+    )
+

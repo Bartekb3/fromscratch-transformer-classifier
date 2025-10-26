@@ -1,7 +1,7 @@
 from __future__ import annotations
 from types import MethodType
 
-from textclf_transformer.logging.wandb_logger import WandbRun
+from src.textclf_transformer.logging.wandb_logger import WandbRun
 """Unified training loop for MLM and classification with AMP, grad accumulation, and cosine scheduling.
 
 This module defines a configurable training loop that supports:
@@ -48,7 +48,7 @@ class TrainingLoop:
             - ``warmup_ratio`` (float, optional): Fraction of total steps used for LR warmup. Defaults to 0.0.
         logger: Object used to log metrics. If it defines ``log_train`` or ``log_eval``, these will be called.
         is_mlm: If ``True``, run in Masked Language Modeling mode; otherwise classification.
-        mlm_cfg: Optional dict with masking probabilities for MLM:
+        head_cfg: Optional dict with masking probabilities for MLM:
             - ``mask_p`` (float): Overall masking probability (default 0.15).
             - ``mask_token_p`` (float): Probability of replacing with [MASK] (default 0.8).
             - ``random_token_p`` (float): Probability of replacing with random token (default 0.1).
@@ -63,7 +63,7 @@ class TrainingLoop:
         logger: WandbRun,
         is_mlm: bool,
         attnention_forward_params: Dict[str, Any] | None = None,
-        mlm_cfg: Optional[Dict[str, Any]] = None,
+        head_cfg: Optional[Dict[str, Any]] = None,
         tokenizer_wrapper=None,
     ):
         """Initialize the training loop and prepare device, loss, AMP, optimizer, and scheduler slots."""
@@ -72,7 +72,7 @@ class TrainingLoop:
         self.logger = logger
         self.attnention_forward_params = attnention_forward_params
         self.is_mlm = is_mlm
-        self.mlm_cfg = mlm_cfg or {}
+        self.head_cfg = head_cfg or {}
         self.tok_wrapper = tokenizer_wrapper
 
         wanted = (training_cfg.get("device") or "auto").lower()
@@ -162,9 +162,9 @@ class TrainingLoop:
         if self.is_mlm:
             masked_ids, labels = self.tok_wrapper.mask_input_for_mlm(
                 input_ids=input_ids,
-                mask_p=float(self.mlm_cfg.get("mask_p", 0.15)),
-                mask_token_p=float(self.mlm_cfg.get("mask_token_p", 0.8)),
-                random_token_p=float(self.mlm_cfg.get("random_token_p", 0.1)),
+                mask_p=float(self.head_cfg.get("mask_p", 0.15)),
+                mask_token_p=float(self.head_cfg.get("mask_token_p", 0.8)),
+                random_token_p=float(self.head_cfg.get("random_token_p", 0.1)),
             )
             effective_count = max(
                 1, int((labels.view(-1) != -100).sum().item())
