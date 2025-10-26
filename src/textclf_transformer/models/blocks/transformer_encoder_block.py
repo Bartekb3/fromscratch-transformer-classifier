@@ -1,8 +1,9 @@
 import torch
 from torch import nn
 import torch.nn.functional as F
-from .multihead_self_attention_block import MultiheadSelfAttentionBlock
+from .multihead_self_attention_block import AttentionBlock
 from .mlp_block import MLPBlock
+
 
 class TransformerEncoderBlock(nn.Module):
     """    
@@ -28,15 +29,17 @@ class TransformerEncoderBlock(nn.Module):
                  mlp_dropout: float = 0.1,
                  mha_out_dropout: float = 0.1,
                  attn_dropout: float = 0.0,
-                 mha_projection_bias: bool = True):
+                 mha_projection_bias: bool = True,
+                 attention_kind: str = 'mha'):
         super().__init__()
 
-        self.msa_block = MultiheadSelfAttentionBlock(embedding_dim=embedding_dim,
-                                                     num_heads=num_heads,
-                                                     projection_bias=mha_projection_bias,
-                                                     attn_dropout=attn_dropout,
-                                                     out_dropout=mha_out_dropout
-                                                     )
+        self.attention_block = AttentionBlock(embedding_dim=embedding_dim,
+                                              num_heads=num_heads,
+                                              projection_bias=mha_projection_bias,
+                                              attn_dropout=attn_dropout,
+                                              out_dropout=mha_out_dropout,
+                                              attention_kind=attention_kind
+                                              )
 
         self.mlp_block = MLPBlock(embedding_dim=embedding_dim,
                                   mlp_size=mlp_size,
@@ -56,6 +59,6 @@ class TransformerEncoderBlock(nn.Module):
             y (Tensor): Output tensor of shape (B, N, D),
                 result of applying attention and MLP sublayers.
         """
-        x = self.msa_block(x, key_padding_mask)
+        x = self.attention_block(x, key_padding_mask)
         x = self.mlp_block(x)
         return x

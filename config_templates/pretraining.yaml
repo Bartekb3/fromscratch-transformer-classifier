@@ -34,14 +34,14 @@ architecture:
   pad_token_id: 0
 
   attention:
-    kind: mha # 'mha' | 'reformer' | 'performer'
+    kind: mha # 'mha' | 'lsh' | 'favor'
     mha:
       num_heads: 4
       projection_bias: true # (Q/K/V/out) bias
       mha_out_dropout: 0.1 # dropout na projekcji wyjściowej MHSA
       attn_dropout: 0.0 # dropout na wagach atencji (po softmax)
-    reformer: {}
-    performer: {}
+    lsh: {}
+    favor: {}
 
 mlm_head:
   tie_mlm_weights: true

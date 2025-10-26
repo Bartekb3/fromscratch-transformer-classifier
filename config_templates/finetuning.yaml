@@ -48,8 +48,8 @@ architecture:
       projection_bias: true
       mha_out_dropout: 0.1
       attn_dropout: 0.0
-    reformer: {}
-    performer: {}
+    lsh: {}
+    favor: {}
 
 classification_head:
   num_labels: 2
