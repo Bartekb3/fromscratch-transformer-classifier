@@ -38,7 +38,7 @@ class TrainingLoop:
 
     Args:
         model: PyTorch module to train/evaluate.
-        optimizer_cfg: Dictionary with optimization and loop settings. Expected keys:
+        training_cfg: Dictionary with optimization and loop settings. Expected keys:
             - ``device``: ``"cpu"``, ``"gpu"``/``"cuda"``, or ``"auto"`` (default).
             - ``learning_rate`` (float): Optimizer learning rate.
             - ``weight_decay`` (float, optional): Weight decay for AdamW. Defaults to 0.0.
@@ -59,21 +59,23 @@ class TrainingLoop:
     def __init__(
         self,
         model: nn.Module,
-        optimizer_cfg: Dict[str, Any],
+        training_cfg: Dict[str, Any],
         logger: WandbRun,
         is_mlm: bool,
+        attnention_forward_params: Dict[str, Any] | None = None,
         mlm_cfg: Optional[Dict[str, Any]] = None,
         tokenizer_wrapper=None,
     ):
         """Initialize the training loop and prepare device, loss, AMP, optimizer, and scheduler slots."""
         self.model = model
-        self.cfg = optimizer_cfg
+        self.cfg = training_cfg
         self.logger = logger
+        self.attnention_forward_params = attnention_forward_params
         self.is_mlm = is_mlm
         self.mlm_cfg = mlm_cfg or {}
         self.tok_wrapper = tokenizer_wrapper
 
-        wanted = (optimizer_cfg.get("device") or "auto").lower()
+        wanted = (training_cfg.get("device") or "auto").lower()
         cuda_avail = torch.cuda.is_available()
 
         if wanted in ("cpu",):
@@ -88,7 +90,7 @@ class TrainingLoop:
 
         self.model.to(self.device)
 
-        loss_name = (optimizer_cfg.get("loss") or "cross_entropy").lower()
+        loss_name = (training_cfg.get("loss") or "cross_entropy").lower()
         if self.is_mlm:
             if loss_name not in ("cross_entropy", "ce"):
                 raise ValueError(
@@ -104,7 +106,7 @@ class TrainingLoop:
             else:
                 raise ValueError(f"Nieobsługiwany loss: {loss_name}")
 
-        use_amp_cfg = bool(optimizer_cfg.get("use_amp", True))
+        use_amp_cfg = bool(training_cfg.get("use_amp", True))
         use_amp = (self.device == "cuda") and use_amp_cfg
         try:
             self.scaler = torch.amp.GradScaler(enabled=use_amp)
@@ -114,13 +116,13 @@ class TrainingLoop:
 
         self.optimizer = AdamW(
             self.model.parameters(),
-            lr=float(optimizer_cfg["learning_rate"]),
-            weight_decay=float(optimizer_cfg.get("weight_decay", 0.0)),
+            lr=float(training_cfg["learning_rate"]),
+            weight_decay=float(training_cfg.get("weight_decay", 0.0)),
         )
 
         self.scheduler = None
-        self.max_grad_norm = float(optimizer_cfg.get("max_grad_norm", 1.0))
-        self.grad_accum_steps = int(optimizer_cfg.get("grad_accum_steps", 1))
+        self.max_grad_norm = float(training_cfg.get("max_grad_norm", 1.0))
+        self.grad_accum_steps = int(training_cfg.get("grad_accum_steps", 1))
 
     def _build_scheduler(self, total_steps: int) -> None:
         """Construct a cosine LR scheduler with optional warmup.
@@ -195,7 +197,8 @@ class TrainingLoop:
                 out = self.model(
                     input_ids=masked_ids,
                     attention_mask=attn_mask,
-                    return_sequence=True,
+                    return_sequence=False,
+                    attention_forward_params = self.attnention_forward_params
                 )
                 logits = out["logits"]
                 loss = self.criterion(
@@ -217,8 +220,9 @@ class TrainingLoop:
                 out = self.model(
                     input_ids=input_ids,
                     attention_mask=attn_mask,
-                    return_pooled=True,
+                    return_pooled=False,
                     return_sequence=False,
+                    attention_forward_params = self.attnention_forward_params
                 )
                 logits = out["logits"]
                 loss = self.criterion(logits, labels)
@@ -366,7 +370,7 @@ class TrainingLoop:
                 )
                 with torch.amp.autocast(device_type=device_type, enabled=use_autocast):
                     out = self.model(
-                        input_ids=masked_ids, attention_mask=attn_mask, return_sequence=True)
+                        input_ids=masked_ids, attention_mask=attn_mask, return_sequence=False)
                     logits = out["logits"]
                     loss = self.criterion(
                         logits.view(-1, logits.size(-1)), labels.view(-1))
@@ -390,7 +394,7 @@ class TrainingLoop:
                 out = self.model(
                     input_ids=input_ids,
                     attention_mask=attn_mask,
-                    return_pooled=True,
+                    return_pooled=False,
                     return_sequence=False,
                 )
                 logits = out["logits"]

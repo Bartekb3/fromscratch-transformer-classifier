@@ -217,7 +217,7 @@ class WordPieceTokenizerWrapper:
 
         return ds
 
-    def mask_input_for_mlm1(self,
+    def mask_input_for_mlm(self,
                             input_ids: torch.LongTensor,
                             mask_p: float = 0.15,
                             mask_token_p: float = 0.8,

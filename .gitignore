@@ -48,4 +48,8 @@ docs/pz/pz*
 !pz*.pdf
 
 #other
-private
+*private*
+experiments/finetuning/*
+!experiments/finetuning/.gitkeep
+experiments/pretraining/*
+!experiments/pretraining/.gitkeep

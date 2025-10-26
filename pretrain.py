@@ -63,12 +63,9 @@ def _load_resume(training_cfg, exp_dir, model):
     if resume_cfg.get("load_scaler", True):
         scaler_state = checkpoint.get("scaler_state", None)
 
-    if checkpoint.get("best_val_loss") is not None:
-        best_val_loss = float(checkpoint.get("best_val_loss", None))
-    if checkpoint.get("epoch") is not None:
-        start_epoch = int(checkpoint.get("epoch", -1)) + 1
-    if checkpoint.get("step") is not None:
-        start_step = int(checkpoint.get("step", -1)) + 1
+    best_val_loss = float(checkpoint.get("best_val_loss", None))
+    start_epoch = int(checkpoint.get("epoch", -1)) + 1
+    start_step = int(checkpoint.get("step", -1)) + 1
 
     model.load_state_dict(model_state, strict=strict)
     start_epoch = min(start_epoch, training_cfg["epochs"])
@@ -118,8 +115,8 @@ def main() -> None:
 
     wrapper, hf_tok = load_tokenizer_wrapper_from_cfg(cfg["tokenizer"])
     arch_kw = arch_kwargs_from_cfg(cfg["architecture"], hf_tok)
-    tie_mlm_weights = bool(
-        cfg.get("mlm_head", {}).get("tie_mlm_weights", True))
+    mlm_cfg = cfg.get("mlm_head", {})
+    tie_mlm_weights = bool(mlm_cfg.get("tie_mlm_weights", True))
     model = TransformerForMaskedLM(tie_mlm_weights=tie_mlm_weights, **arch_kw)
 
     train_ds = load_dataset(cfg["data"]["train"]["dataset_path"])
@@ -147,12 +144,17 @@ def main() -> None:
     else:
         resume_kwargs = {}
 
+    attn_cfg = cfg["architecture"]['attention']
+    attn_kind = attn_cfg['kind']
+    attnention_forward_params = attn_cfg[f'forward_{attn_kind}']
+
     loop = TrainingLoop(
         model=model,
-        optimizer_cfg=training_cfg,
+        training_cfg=training_cfg,
         logger=logger,
+        attnention_forward_params = attnention_forward_params,
         is_mlm=True,
-        mlm_cfg=cfg.get("mlm_head", {}),
+        mlm_cfg=mlm_cfg,
         tokenizer_wrapper=wrapper,
     )
 

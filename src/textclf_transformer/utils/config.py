@@ -123,11 +123,9 @@ def arch_kwargs_from_cfg(arch_cfg: Dict[str, Any], hf_tok) -> Dict[str, Any]:
     Returns:
         A dictionary of keyword arguments suitable for initializing the model.
     """
-    vocab_size, pad_id_from_tok = vocab_and_pad_from_tokenizer(hf_tok)
+    vocab_size, pad_token_id = vocab_and_pad_from_tokenizer(hf_tok)
     attn = arch_cfg['attention']
     kind = attn['kind']
-
-    pad_token_id = arch_cfg.get("pad_token_id", pad_id_from_tok)
 
     kw = dict(
         vocab_size=vocab_size,
@@ -142,8 +140,8 @@ def arch_kwargs_from_cfg(arch_cfg: Dict[str, Any], hf_tok) -> Dict[str, Any]:
         attention_kind=kind,
         num_heads=attn["num_heads"],
         attn_dropout=attn["attn_dropout"],
-        mha_out_dropout=attn["attn_out_dropout"],
-        mha_projection_bias=attn["projection_bias"]
+        attn_out_dropout=attn["attn_out_dropout"],
+        attn_projection_bias=attn["projection_bias"]
     )
 
     kw['attention_params'] = attn[f"{kind}"]

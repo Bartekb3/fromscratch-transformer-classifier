@@ -44,9 +44,9 @@ class Transformer(nn.Module):
         num_heads: int = 12,
         mlp_size: int = 3072,
         mlp_dropout: float = 0.1,
-        mha_out_dropout: float = 0.1,
+        attn_out_dropout: float = 0.1,
         attn_dropout: float = 0.0,
-        mha_projection_bias: bool = True,
+        attn_projection_bias: bool = True,
         pos_encoding: str = "learned",
         type_vocab_size: int | None = 0,
         embedding_dropout: float = 0.1,
@@ -76,9 +76,9 @@ class Transformer(nn.Module):
                 num_heads=num_heads,
                 mlp_size=mlp_size,
                 mlp_dropout=mlp_dropout,
-                mha_out_dropout=mha_out_dropout,
+                attn_out_dropout=attn_out_dropout,
                 attn_dropout=attn_dropout,
-                mha_projection_bias=mha_projection_bias,
+                attn_projection_bias=attn_projection_bias,
                 attention_kind=attention_kind,
                 attention_params = attention_params
             )
@@ -90,6 +90,7 @@ class Transformer(nn.Module):
         input_ids: torch.LongTensor,
         attention_mask: torch.Tensor,
         *,
+        attention_forward_params: dict | None = None,
         token_type_ids: torch.LongTensor | None = None,
         position_ids: torch.LongTensor | None = None
     ):
@@ -115,7 +116,7 @@ class Transformer(nn.Module):
             input_ids, token_type_ids=token_type_ids, position_ids=position_ids)
 
         for layer in self.layers:
-            x = layer(x, key_padding_mask=attention_mask)
+            x = layer(x, key_padding_mask=attention_mask, attention_forward_params=attention_forward_params)
 
         return x
 

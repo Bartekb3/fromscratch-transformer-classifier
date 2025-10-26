@@ -27,18 +27,18 @@ class TransformerEncoderBlock(nn.Module):
                  num_heads: int = 12,
                  mlp_size: int = 3072,
                  mlp_dropout: float = 0.1,
-                 mha_out_dropout: float = 0.1,
+                 attn_out_dropout: float = 0.1,
                  attn_dropout: float = 0.0,
-                 mha_projection_bias: bool = True,
+                 attn_projection_bias: bool = True,
                  attention_kind: str = 'mha',
                  attention_params: dict | None = None):
         super().__init__()
 
         self.attention_block = AttentionBlock(embedding_dim=embedding_dim,
                                               num_heads=num_heads,
-                                              projection_bias=mha_projection_bias,
+                                              projection_bias=attn_projection_bias,
                                               attn_dropout=attn_dropout,
-                                              out_dropout=mha_out_dropout,
+                                              out_dropout=attn_out_dropout,
                                               attention_kind=attention_kind,
                                               attention_params = attention_params
                                               )
@@ -47,7 +47,7 @@ class TransformerEncoderBlock(nn.Module):
                                   mlp_size=mlp_size,
                                   dropout=mlp_dropout)
 
-    def forward(self, x, key_padding_mask=None):
+    def forward(self, x, key_padding_mask=None, attention_forward_params: dict | None = None):
         """
         Args:
             x (Tensor): Input tensor of shape (B, N, D)
@@ -61,6 +61,6 @@ class TransformerEncoderBlock(nn.Module):
             y (Tensor): Output tensor of shape (B, N, D),
                 result of applying attention and MLP sublayers.
         """
-        x = self.attention_block(x, key_padding_mask)
+        x = self.attention_block(x, key_padding_mask, attention_forward_params=attention_forward_params)
         x = self.mlp_block(x)
         return x

@@ -12,6 +12,7 @@ ATTENTION_REGISTRY = {
     "favor": FAVORAttention,
 }
 
+
 class AttentionBlock(nn.Module):
     """
     Sublayer: Multihead Self Attention + Residual + Norm 
@@ -32,7 +33,7 @@ class AttentionBlock(nn.Module):
                  attn_dropout: float = 0.0,
                  out_dropout: float = 0.0,
                  attention_kind: str = 'mha',
-                 attention_params: dict | None = None #attention specifig params
+                 attention_params: dict | None = None  # attention specifig params
                  ):
 
         super().__init__()
@@ -52,14 +53,16 @@ class AttentionBlock(nn.Module):
             attn_class = ATTENTION_REGISTRY[attention_kind]
         except KeyError:
             valid = ", ".join(sorted(ATTENTION_REGISTRY))
-            raise ValueError(f"Unsupported attention_kind: {attention_kind}. Choose one of: {valid}.")
+            raise ValueError(
+                f"Unsupported attention_kind: {attention_kind}. Choose one of: {valid}.")
 
-        self.attention_mechanism = attn_class(**common_kwargs, **attention_params)
+        self.attention_mechanism = attn_class(
+            **common_kwargs, **attention_params)
 
         self.layer_norm = nn.LayerNorm(
             normalized_shape=embedding_dim, eps=LN_EPS)
 
-    def forward(self, x, key_padding_mask=None):
+    def forward(self, x, key_padding_mask=None, attention_forward_params: dict | None = None):
         """
         Args:
             x (Tensor): Input tensor of shape (B, N, D)
@@ -68,5 +71,8 @@ class AttentionBlock(nn.Module):
         Returns:
             y (Tensor): = LayerNorm(x + Dropout(MultiheadSelfAttention(x))), (B,N,D)
         """
-        attn_output, _ = self.attention_mechanism(x, key_padding_mask)
+        if attention_forward_params is None:
+            attention_forward_params = {}
+
+        attn_output, _ = self.attention_mechanism(x, key_padding_mask, **attention_forward_params)
         return self.layer_norm(x + attn_output)

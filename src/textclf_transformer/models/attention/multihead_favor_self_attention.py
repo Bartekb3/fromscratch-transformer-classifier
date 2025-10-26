@@ -16,3 +16,10 @@ class FAVORAttention(nn.Module):
         # reszta parametrow TODO
     ):
         return
+    
+    def forward(self,
+                x: Tensor,
+                padding_mask: Tensor,
+                # reszta argumentow TODO
+                ) -> Tensor:
+        return

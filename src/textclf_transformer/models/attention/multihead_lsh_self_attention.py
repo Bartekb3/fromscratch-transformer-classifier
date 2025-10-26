@@ -247,8 +247,8 @@ class LSHAttention(nn.Module):
 
     def forward(self,
                 x: Tensor,
-                mask_within_chunks: bool,
-                padding_mask: Tensor
+                padding_mask: Tensor,
+                mask_within_chunks: bool = True,
                 ) -> Tensor:
         """
         Compute Reformer-style LSH self-attention with chunked local windows
