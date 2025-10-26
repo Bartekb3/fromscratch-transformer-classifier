@@ -1,0 +1,13 @@
+{
+  "do_lower_case": true,
+  "strip_accents": true,
+  "model_type": "bert",
+  "unk_token": "[UNK]",
+  "sep_token": "[SEP]",
+  "pad_token": "[PAD]",
+  "cls_token": "[CLS]",
+  "mask_token": "[MASK]",
+  "clean_text": true,
+  "handle_chinese_chars": true,
+  "tokenizer_class": "BertTokenizerFast"
+}

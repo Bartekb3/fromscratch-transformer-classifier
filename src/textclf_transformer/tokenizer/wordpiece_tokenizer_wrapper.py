@@ -32,6 +32,7 @@ class WordPieceTokenizerWrapper:
 
     def __init__(self):
         self.tokenizer = None
+        self.tokenizer_dir = None
 
     def train(self,
               tokenizer_dir: str,
@@ -86,13 +87,12 @@ class WordPieceTokenizerWrapper:
                 special_tokens=[("[CLS]", tokenizer.token_to_id("[CLS]"))],
             )
 
-
         tokenizer_dir = Path(tokenizer_dir)
         tokenizer_dir.mkdir(parents=True, exist_ok=True)
         tokenizer.save_model(str(tokenizer_dir))
         tokenizer.save(str(tokenizer_dir / "tokenizer.json"))
 
-    def load(self, tokenizer_dir: str) -> None:
+    def load(self, tokenizer_dir: str = "./BERT_original") -> None:
         tokenizer_dir = Path(tokenizer_dir)
         if not tokenizer_dir.exists():
             raise FileNotFoundError(
@@ -102,10 +102,10 @@ class WordPieceTokenizerWrapper:
             str(tokenizer_dir), use_fast=True)
 
     def encode(self,
-               tokenizer_dir: str,
                input: str | list[str],
                max_length: int,
-               labels: Sequence[int] | None = None) -> TensorDataset:
+               labels: Sequence[int] | None = None,
+               tokenizer_dir: str = "./BERT_original") -> TensorDataset:
         """
         Encode text files into a `TensorDataset` suitable for PyTorch models.
 
@@ -127,7 +127,7 @@ class WordPieceTokenizerWrapper:
                     The provided labels (used in fine-tuning), converted to a tensor.
         """
 
-        if self.tokenizer is None:
+        if self.tokenizer is None or tokenizer_dir != self.tokenizer_dir:
             self.load(tokenizer_dir)
         tok = self.tokenizer
 
@@ -157,12 +157,72 @@ class WordPieceTokenizerWrapper:
             ds = TensorDataset(input_ids, attention_mask)
         return ds
 
+    def encode_pandas(self,
+                      df,
+                      text_col: str,
+                      max_length: int,
+                      label_col: str | None = None,
+                      tokenizer_dir: str = "./BERT_original") -> TensorDataset:
+        """
+        Encode a pandas DataFrame into a TensorDataset for PyTorch models.
+
+        Args:
+            tokenizer_dir (str): Path to the tokenizer directory.
+            df (pandas.DataFrame): DataFrame containing the data.
+            text_col (str): Name of the column containing text sequences.
+            max_length (int): Maximum sequence length for padding/truncation.
+            label_col (str, optional): Name of the column containing labels.
+
+        Returns:
+            TensorDataset: A dataset containing:
+                - input_ids: (N, max_length)
+                - attention_mask: (N, max_length)
+                - labels: (N,) if label_col is provided
+        """
+        import pandas as pd
+        if not isinstance(df, pd.DataFrame):
+            raise TypeError("Expected a pandas DataFrame for argument `df`.")
+
+        if text_col not in df.columns:
+            raise ValueError(f"Column '{text_col}' not found in DataFrame.")
+
+        if self.tokenizer is None or tokenizer_dir != self.tokenizer_dir:
+            self.load(tokenizer_dir)
+        tok = self.tokenizer
+
+        texts = df[text_col].astype(str).tolist()
+
+        encoded = tok(
+            texts,
+            padding="max_length",
+            max_length=max_length,
+            truncation=True,
+            return_tensors="pt",
+            return_token_type_ids=False,
+            add_special_tokens=True
+        )
+        encoded['attention_mask'] = encoded['attention_mask'] == 0
+
+        input_ids = encoded["input_ids"]
+        attention_mask = encoded["attention_mask"]
+
+        if label_col is not None:
+            if label_col not in df.columns:
+                raise ValueError(
+                    f"Column '{label_col}' not found in DataFrame.")
+            labels = torch.tensor(df[label_col].tolist(), dtype=torch.long)
+            ds = TensorDataset(input_ids, attention_mask, labels)
+        else:
+            ds = TensorDataset(input_ids, attention_mask)
+
+        return ds
+
     def mask_input_for_mlm(self,
-                   input_ids: torch.LongTensor,
-                   mask_p: float = 0.15,
-                   mask_token_p: float = 0.8,
-                   random_token_p: float = 0.1
-                   ):
+                            input_ids: torch.LongTensor,
+                            mask_p: float = 0.15,
+                            mask_token_p: float = 0.8,
+                            random_token_p: float = 0.1
+                            ):
         """
         Create masked inputs and labels for Masked Language Modeling (MLM).
         Applies the standard BERT masking recipe: draw `mask_p` of the tokens to
@@ -186,11 +246,13 @@ class WordPieceTokenizerWrapper:
             Otherwise, the tokenizer will not know which input ids correspond to which tokens.
         """
         assert mask_token_p + random_token_p <= 1.0
-        assert self.tokenizer is not None, "`self.encode()` must be used before masking input."
+
+        device = input_ids.device
 
         labels = input_ids.clone()
+        shape = input_ids.shape
 
-        probability_matrix = torch.full(labels.shape, mask_p)
+        probability_matrix = torch.full(shape, mask_p, device=device)
 
         special_tokens_mask = [
             self.tokenizer.get_special_tokens_mask(
@@ -198,7 +260,7 @@ class WordPieceTokenizerWrapper:
             for val in labels.tolist()
         ]
         special_tokens_mask = torch.tensor(
-            special_tokens_mask, dtype=torch.bool)
+            special_tokens_mask, dtype=torch.bool, device=device)
         probability_matrix.masked_fill_(special_tokens_mask, value=0.0)
 
         masked_indices = torch.bernoulli(probability_matrix).bool()
@@ -207,15 +269,14 @@ class WordPieceTokenizerWrapper:
         input_ids_masked = input_ids.clone()
 
         indices_replaced = torch.bernoulli(torch.full(
-            labels.shape, mask_token_p)).bool() & masked_indices
-        input_ids_masked[indices_replaced] = self.tokenizer.convert_tokens_to_ids(
-            self.tokenizer.mask_token)
+            shape, mask_token_p, device=device)).bool() & masked_indices
+        input_ids_masked[indices_replaced] = self.tokenizer.mask_token_id
 
         p = random_token_p / (1 - mask_token_p)
         indices_random = torch.bernoulli(torch.full(
-            labels.shape, p)).bool() & masked_indices & ~indices_replaced
+            shape, p, device=device)).bool() & masked_indices & ~indices_replaced
         random_words = torch.randint(
-            len(self.tokenizer), labels.shape, dtype=torch.long)
+            self.tokenizer.vocab_size, shape, dtype=torch.long, device=device)
         input_ids_masked[indices_random] = random_words[indices_random]
 
         return input_ids_masked, labels

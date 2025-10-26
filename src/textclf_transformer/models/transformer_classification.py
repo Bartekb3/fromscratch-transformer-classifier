@@ -1,6 +1,5 @@
 from typing import Literal
-
-from transformer import Transformer
+from .transformer import Transformer
 from .pooling.pooling import ClsTokenPooling, MeanPooling, MaxPooling, MinPooling
 from .heads.classifier_head import SequenceClassificationHead
 
