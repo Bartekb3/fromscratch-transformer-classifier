@@ -73,6 +73,7 @@ def main() -> None:
         )
 
     cfg = yaml.safe_load(cfg_path.read_text(encoding="utf-8"))
+    training_cfg = cfg["training"]
     set_global_seed(cfg["experiment"].get("seed", 42))
 
     logger = WandbRun(cfg, exp_dir)
@@ -93,8 +94,9 @@ def main() -> None:
     pre_ckpt = Path(pre["path"]) / pre["checkpoint"]
     if not pre_ckpt.exists():
         raise FileNotFoundError(f"Brak checkpointu pretrainingu: {pre_ckpt}")
-    state = torch.load(pre_ckpt, map_location="cpu")
-    missing, unexpected = model.load_state_dict(state, strict=False)
+    state = torch.load(pre_ckpt, map_location="cpu", weights_only=False)
+    state_dict = state["model_state"]
+    missing, unexpected = model.load_state_dict(state_dict, strict=False)
     if missing:
         print("[WARN] Brakujące klucze:", missing)
     if unexpected:
@@ -107,38 +109,48 @@ def main() -> None:
     arch_max_len = cfg["architecture"]["max_sequence_length"]
     train_loader = DataLoader(
         train_ds,
-        batch_size=cfg["training"]["batch_size"],
+        batch_size=training_cfg["batch_size"],
         shuffle=True,
         collate_fn=collate_for_classification(pad_is_true_mask=True, max_seq_len=arch_max_len),
     )
     val_loader = DataLoader(
         val_ds,
-        batch_size=cfg["training"]["batch_size"],
+        batch_size=training_cfg["batch_size"],
         shuffle=False,
         collate_fn=collate_for_classification(pad_is_true_mask=True, max_seq_len=arch_max_len),
     ) if val_ds else None
 
+    attn_cfg = cfg["architecture"]['attention']
+    attn_kind = attn_cfg['kind']
+    attnention_forward_params = attn_cfg[f'forward_{attn_kind}'] 
+
     loop = TrainingLoop(
         model=model,
-        optimizer_cfg=cfg["training"],
+        training_cfg=training_cfg,
         logger=logger,
+        attnention_forward_params = attnention_forward_params,
         is_mlm=False,
     )
-    loop.fit(train_loader, epochs=cfg["training"]["epochs"], val_loader=val_loader)
+    loop.fit(train_loader, epochs=training_cfg["epochs"], val_loader=val_loader)
 
     if test_ds:
         test_loader = DataLoader(
             test_ds,
-            batch_size=cfg["training"]["batch_size"],
+            batch_size=training_cfg["batch_size"],
             shuffle=False,
             collate_fn=collate_for_classification(pad_is_true_mask=True, max_seq_len=arch_max_len),
         )
         loop.evaluate(test_loader)
 
-    ckpt = exp_dir / "model.ckpt"
-    torch.save(model.state_dict(), ckpt)
+    ckpt_dir = exp_dir / "checkpoints"
+    ckpt_dir.mkdir(parents=True, exist_ok=True)
+    ckpt_path = ckpt_dir / "model.ckpt"
+    torch.save({
+        "model_state": model.state_dict(),
+    },ckpt_path)
     logger.finish()
-    print(f"[OK] Zapisano checkpoint: {ckpt}")
+    print(f"[OK] Zapisano checkpoint: {ckpt_path}")
+
 
 
 if __name__ == "__main__":

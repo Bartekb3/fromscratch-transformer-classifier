@@ -8,6 +8,7 @@ __pycache__/
 .eggs/
 build/
 dist/
+*cache*
 
 # --- Virtual environments ---
 .venv/
@@ -41,3 +42,14 @@ data/raw/*
 data/tokenized/*
 !data/tokenized/.gitkeep
 
+#docs
+docs/pz/pz*
+!pz*.tex
+!pz*.pdf
+
+#other
+*private*
+experiments/finetuning/*
+!experiments/finetuning/.gitkeep
+experiments/pretraining/*
+!experiments/pretraining/.gitkeep
