@@ -107,6 +107,10 @@ def main() -> None:
         val_loader=val_loader,
         **resume_kwargs
     )
+    
+    test_loader = get_data_loader_from_cfg(cfg, 'test')
+    if test_loader:
+        loop.evaluate(test_loader)
 
     ckpt_path = save_model_state(model.state_dict(), exp_dir / "checkpoints")
     logger.finish()
