@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
+"""Entrypoint for running training or finetuning jobs defined in the project."""
 
 from src.textclf_transformer import *
 import argparse
 import torch
 from pathlib import Path
 
-from script_utils import (
+from train_utils import (
     ensure_project_root,
     read_experiment_config,
     save_model_state,
@@ -15,6 +16,7 @@ from script_utils import (
 ROOT = ensure_project_root(__file__)
 
 def main() -> None:
+    """Parse CLI arguments, build the model, training loop, and run training."""
     parser = argparse.ArgumentParser(
         description="Training script: load config, build model/dataloader, and run training."
     )
@@ -36,21 +38,22 @@ def main() -> None:
 
     is_mlm = mode == 'pretraining'
 
+    # read config
     exp_dir, cfg = read_experiment_config(EXP_BASE, name)
     set_global_seed(cfg["experiment"].get("seed", 42))
 
-    logger = WandbRun(cfg, exp_dir)
-
+    # load tokenizer
     wrapper, hf_tok = load_tokenizer_wrapper_from_cfg(cfg["tokenizer"])
-    arch_kw = arch_kwargs_from_cfg(cfg["architecture"], hf_tok)
+    # reads model architecture from config
+    arch_kw = arch_kwargs_from_cfg(cfg["architecture"], hf_tok) 
     
+    # creating model
     if is_mlm:
         head = cfg["mlm_head"]        
         model = TransformerForMaskedLM(
             **arch_kw,
             tie_mlm_weights=head["tie_mlm_weights"]
         )
-
     else:
         head = cfg["classification_head"]
         model = TransformerForSequenceClassification(
@@ -73,6 +76,7 @@ def main() -> None:
         if unexpected:
             print("[WARN] Nieoczekiwane klucze:", unexpected)
 
+    # get data loaders and create training loop
     train_loader = get_data_loader_from_cfg(cfg, 'train')
     val_loader = get_data_loader_from_cfg(cfg, 'val')
 
@@ -82,6 +86,7 @@ def main() -> None:
     attn_kind = attn_cfg['kind']
     attnention_forward_params = attn_cfg[f'forward_{attn_kind}']
 
+    logger = WandbRun(cfg, exp_dir)
     loop = TrainingLoop(
         model=model,
         training_cfg=training_cfg,
@@ -92,6 +97,7 @@ def main() -> None:
         tokenizer_wrapper=wrapper,
     )
 
+    # for pretraining we can start resume training from checkpoint
     if is_mlm:
         is_resume = training_cfg["resume"]['is_resume']
         if is_resume:
@@ -101,6 +107,7 @@ def main() -> None:
     else:
         resume_kwargs = {}
 
+    # training loop
     loop.fit(
         train_loader,
         epochs=training_cfg["epochs"],
@@ -108,10 +115,12 @@ def main() -> None:
         **resume_kwargs
     )
     
+    # evaluate on test dataset (only for finetuning)
     test_loader = get_data_loader_from_cfg(cfg, 'test')
     if test_loader:
         loop.evaluate(test_loader)
 
+    # save final model 
     ckpt_path = save_model_state(model.state_dict(), exp_dir / "checkpoints")
     logger.finish()
     print(f"[OK] Zapisano checkpoint: {ckpt_path}")

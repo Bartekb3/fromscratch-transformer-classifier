@@ -6,6 +6,7 @@ from typing import Any, Mapping
 
 import torch
 import yaml
+from torch.nn import Module
 
 
 def ensure_project_root(file_path: str | Path) -> Path:
@@ -36,7 +37,12 @@ def save_model_state(model_state: Mapping[str, Any], ckpt_dir: Path, filename: s
     return ckpt_path
 
 
-def load_resume(training_cfg, exp_dir, model):
+def load_resume(
+    training_cfg: Mapping[str, Any],
+    exp_dir: Path,
+    model: Module,
+) -> dict[str, Any]:
+    """Load states from a checkpoint and prepare kwargs for resuming training."""
     resume_cfg = training_cfg.get("resume")
     resume_path = resume_cfg.get("checkpoint_path")
     start_epoch = 0
@@ -79,4 +85,3 @@ def load_resume(training_cfg, exp_dir, model):
             "scheduler_state": scheduler_state,
             "scaler_state": scaler_state,
             "best_val_loss": best_val_loss}
-

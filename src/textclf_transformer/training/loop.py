@@ -1,8 +1,4 @@
-from __future__ import annotations
-from types import MethodType
-
-from src.textclf_transformer.logging.wandb_logger import WandbRun
-"""Unified training loop for MLM and classification with AMP, grad accumulation, and cosine scheduling.
+"""Training loop handling MLM and classification with AMP, accumulation, and cosine scheduling.
 
 This module defines a configurable training loop that supports:
 - device selection (CPU/GPU) with optional AMP (automatic mixed precision),
@@ -14,6 +10,9 @@ This module defines a configurable training loop that supports:
 The loop logs metrics via a user-provided logger object that may expose ``log_train`` and/or ``log_eval``.
 """
 
+from __future__ import annotations
+
+from src.textclf_transformer.logging.wandb_logger import WandbRun
 from dataclasses import dataclass
 from typing import Optional, Dict, Any, Tuple
 import math
@@ -22,7 +21,6 @@ from pathlib import Path
 import torch
 from torch import nn
 from torch.optim import AdamW
-from torch.cuda.amp import GradScaler as CudaGradScaler
 from torch.utils.data import DataLoader
 
 
@@ -54,6 +52,7 @@ class TrainingLoop:
             - ``random_token_p`` (float): Probability of replacing with random token (default 0.1).
         tokenizer_wrapper: Object providing ``mask_input_for_mlm(input_ids, mask_p, mask_token_p, random_token_p)``
             when ``is_mlm=True``.
+        attnention_forward_params: Static kwargs forwarded to the model on every call (e.g., attention caches).
     """
 
     def __init__(
@@ -364,7 +363,7 @@ class TrainingLoop:
         """Internal evaluation routine for MLM or classification.
 
         Returns:
-            Dict[str, float]: For MLM, ``{'mlm_loss': avg_token_loss}``; for classification,
+            Dict[str, float]: For MLM, ``{'loss': avg_token_loss}``; for classification,
             ``{'loss': avg_example_loss, 'accuracy': accuracy}``.
         """
         self.model.eval()
@@ -412,9 +411,6 @@ class TrainingLoop:
 
         Args:
             loader: DataLoader for the evaluation split.
-
-        Returns:
-            Dict[str, float]: Metrics as produced by ``_eval_impl``.
         """
         metrics = self._eval_impl(loader)
         self.logger.log_eval(metrics)

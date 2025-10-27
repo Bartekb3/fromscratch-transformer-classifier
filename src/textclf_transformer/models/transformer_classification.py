@@ -15,31 +15,30 @@ class TransformerForSequenceClassification(Transformer):
         - Task head: sequence classification
 
     Args:
-        vocab_size (int): Vocabulary size.
-        max_sequence_length (int): Maximum supported sequence length.
-        embedding_dim (int): Hidden size `D`.
-        num_layers (int): Number of encoder blocks.
-        num_heads (int): Number of attention heads per block.
-        mlp_size (int): Hidden size of the feed-forward sublayer.
-        mlp_dropout (float): Dropout after FFN second linear in mlp block of encoder.
-        mha_out_dropout (float): Dropout on the MHSA output projection.
-        attn_dropout (float): Dropout on attention weights (after softmax).
-        mha_projection_bias (bool): Whether (Q/K/V)/out MHSA projections include bias.
-        pos_encoding (str): `'learned'` or `'sinusoidal'` positional scheme.
-        type_vocab_size (int | None): Segment (token-type) vocabulary size; 0 or None disables segments.
-        embedding_dropout (float): Dropout applied to input embeddings.
-        pad_token_id (int | None): [PAD] token id.
-        attention_kind (ATTN_KIND): Type of attention. Currently only `'mha'` TODO
-            (classic Multi-Head Self-Attention) is implemented; others raise `NotImplementedError`. 
-        num_labels (int | None): Number of labels for classification.
-        classifier_dropout (float): Dropout probability applied before the classifier 
-            (or before pooling as well if pooler_type is roberta).
-        pooling (POOL_KIND): Pooling strategy for sequence-level outputs (cls/mean/max/min).
+        num_labels (int): Number of classification targets.
+        classifier_dropout (float): Dropout probability before the classifier head.
+        pooling (POOL_KIND): Pooling strategy for sequence-level outputs (``"cls"``, ``"mean"``, ``"max"``, ``"min"``).
         pooler_type ({"bert", "roberta"} or None): 
             Which architecture of pooler to use:
               * "bert" -> (BERT-style).
               * "roberta" -> (RoBERTa-style).
-              * None -> no pooler (use pooled_hidden directly).
+              * None -> no pooler (use pooled_hidden directly).       
+        vocab_size (int): Vocabulary size (forwarded to :class:`Transformer`).
+        max_sequence_length (int): Maximum supported sequence length.
+        embedding_dim (int): Hidden size ``D``.
+        num_layers (int): Number of encoder blocks.
+        num_heads (int): Number of attention heads per block.
+        mlp_size (int): Hidden size of the feed-forward sublayer.
+        mlp_dropout (float): Dropout applied after the second MLP linear layer.
+        attn_out_dropout (float): Dropout on the attention output projection.
+        attn_dropout (float): Dropout applied to attention probabilities.
+        attn_projection_bias (bool): Whether the Q/K/V/out projections include bias terms.
+        pos_encoding (str): ``"learned"`` or ``"sinusoidal"`` positional scheme.
+        type_vocab_size (int | None): Segment (token-type) vocabulary size; 0/``None`` disables segments.
+        embedding_dropout (float): Dropout applied to input embeddings.
+        pad_token_id (int | None): PAD token id passed to embeddings.
+        attention_kind (ATTN_KIND): Attention mechanism identifier (``"mha"``, ``"lsh"``, experimental ``"favor"``).
+        attention_params (dict | None): Extra keyword arguments forwarded to the selected attention module.
     """
 
     def __init__(self, *,
@@ -73,22 +72,21 @@ class TransformerForSequenceClassification(Transformer):
                 return_pooled: bool = True,
                 return_sequence: bool = True,
                 **kw):
-        """
-        Full forward pass through embeddings, encoder stack, pooler and classification head.
-
+        """Full forward pass through embeddings, encoder stack, pooling, and classifier.
+        Accepts the same keyword arguments as ``Transformer.forward_base`` (e.g.,
+        ``input_ids``, ``attention_mask``, ``token_type_ids``) and controls the
+        returned payload via ``return_sequence``/``return_pooled``.
         Args:
-            input_ids (LongTensor): `(B, N)` token ids. If `pooling='cls'`, the input
-                is expected to include a `[CLS]` token at position 0.
-            token_type_ids (LongTensor, optional): `(B, N)` segment ids (e.g., 0/1).
-            attention_mask (Tensor): Boolean mask of shape (B, N),
-                where True marks positions that should be masked (PAD tokens).
-                Must be of dtype bool. Masked keys are ignored
-                in attention computation.
-            position_ids (LongTensor, optional): `(B, N)` explicit position indices
-                (used for learned positional embeddings), if `None`, positions default to `arange(N)`.
-            return_sequence (bool): If `True`, include the per-token output `(B, N, D)`.
-            return_pooled (bool): If `True`, include the pooled output `(B, D)`.
-
+            return_pooled (bool): Whether to include ``pooled_output`` in the returned dict.
+            return_sequence (bool): Whether to include ``sequence_output`` in the returned dict.
+            input_ids (torch.LongTensor): Tensor of shape ``(B, N)`` with token ids.
+                If ``pooling='cls'`` was chosen, the sequence should include a ``[CLS]`` token.
+            attention_mask (torch.Tensor): Boolean mask ``(B, N)`` where ``True`` marks PAD
+                tokens ignored by attention and pooling.
+            token_type_ids (torch.LongTensor, optional): Segment ids ``(B, N)``; defaults to zeros when omitted.
+            position_ids (torch.LongTensor, optional): Explicit position indices ``(B, N)`` for learned positions.
+            attention_forward_params (dict | None, optional): Extra keyword arguments forwarded to the attention module.
+            **kw: Additional keyword arguments accepted by :meth:`Transformer.forward_base`.
         Returns:
             out (dict): A dictionary of:
                 - `sequence_output`: `(B, N, D)` encoder output, if `return_sequence=True`.
@@ -109,4 +107,3 @@ class TransformerForSequenceClassification(Transformer):
         logits = self.classifier(pooled)
         out['logits'] = logits
         return out
-

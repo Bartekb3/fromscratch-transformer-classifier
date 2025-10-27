@@ -243,9 +243,10 @@ class WordPieceTokenizerWrapper:
                 - Masked `input_ids` tensor shaped `(B, N)` to feed into the model.
                 - Labels tensor shaped `(B, N)` where tokens not chosen for masking
                   are set to `-100` to be ignored by the loss function.
-        ## Note:
-            The tokenizer must be loaded - meaning you have to use `self.encode()` fuction first.
-            Otherwise, the tokenizer will not know which input ids correspond to which tokens.
+        Note:
+            Call ``self.load()`` (directly or indirectly via ``encode``/``encode_pandas``)
+            beforehand so that ``self.tokenizer`` is populated and masking can resolve
+            token ids such as ``[MASK]``.
         """
         assert mask_token_p + random_token_p <= 1.0
 

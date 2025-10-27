@@ -112,6 +112,7 @@ def load_dataset(pt_path: str | Path):
     return torch.load(pt_path, weights_only=False)
 
 def get_data_loader_from_cfg(cfg: dict[str, Any], kind_ds: Literal["train", "val", "test"]):
+    """Instantiate a ``DataLoader`` for the dataset described under ``cfg['data'][kind_ds]["dataset_path"]``. """
     dataset_path = cfg["data"][kind_ds]["dataset_path"]
     if not dataset_path:
         return None
@@ -126,4 +127,3 @@ def get_data_loader_from_cfg(cfg: dict[str, Any], kind_ds: Literal["train", "val
         shuffle=shuffle,
         collate_fn=collate_fn,
     )
-

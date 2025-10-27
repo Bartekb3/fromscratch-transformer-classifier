@@ -6,8 +6,8 @@ from .mlp_block import MLPBlock
 
 
 class TransformerEncoderBlock(nn.Module):
-    """    
-    A full **Transformer encoder block**:
+    """A full Transformer encoder block consisting of attention + MLP sublayers.
+
         Multi-Head Self-Attention sublayer followed by Feed-Forward (MLP) sublayer,
         each wrapped with residual connection and LayerNorm.
 
@@ -17,9 +17,10 @@ class TransformerEncoderBlock(nn.Module):
         mlp_size (int): Hidden size of the FFN (typically 4*D).
         mlp_dropout (float): Dropout prob after FFN second linear (residual dropout).
         attn_dropout (float, optional): Dropout probability on attention output weights (after softmax).
-        mha_out_dropout (float, optional): Dropout probability on MHSA output projection.
-        mha_projection_bias (bool, optional): If True, adds learnable biases to input/output
-            projection layers.
+        attn_out_dropout (float, optional): Dropout probability on the attention output projection.
+        attn_projection_bias (bool, optional): If True, adds learnable biases to Q/K/V/out projections.
+        attention_kind (str): Attention implementation key (e.g., ``"mha"``, ``"lsh"``).
+        attention_params (dict | None): Extra kwargs forwarded to the attention implementation.
     """
 
     def __init__(self,
