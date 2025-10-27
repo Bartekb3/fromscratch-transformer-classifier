@@ -14,7 +14,7 @@ from __future__ import annotations
 
 from src.textclf_transformer.logging.wandb_logger import WandbRun
 from dataclasses import dataclass
-from typing import Optional, Dict, Any, Tuple
+from typing import Literal, Optional, Dict, Any, Tuple, List
 import math
 from pathlib import Path
 
@@ -23,6 +23,10 @@ from torch import nn
 from torch.optim import AdamW
 from torch.utils.data import DataLoader
 
+from src.textclf_transformer.training.metrics_utils import (
+    compute_classification_metrics,
+    compute_mlm_metrics,
+)
 
 @dataclass
 class _State:
@@ -363,13 +367,14 @@ class TrainingLoop:
         """Internal evaluation routine for MLM or classification.
 
         Returns:
-            Dict[str, float]: For MLM, ``{'loss': avg_token_loss}``; for classification,
-            ``{'loss': avg_example_loss, 'accuracy': accuracy}``.
+            Dict[str, float]: For MLM, metrics produced by ``compute_mlm_metrics``; for classification,
+            metrics produced by ``compute_classification_metrics``.
         """
         self.model.eval()
         device_type = "cuda" if self.device == "cuda" else "cpu"
         use_autocast = self.scaler.is_enabled()
 
+        # mlm evaluation
         if self.is_mlm:
             total_loss, total_tokens = 0.0, 0
             for batch in loader:
@@ -383,10 +388,12 @@ class TrainingLoop:
                 total_loss += loss.item() * float(effective_count)
                 total_tokens += effective_count
             self.model.train()
-            avg_loss = total_loss / max(1, total_tokens)
-            return {"loss": float(avg_loss)}
+            return compute_mlm_metrics(total_loss, total_tokens)
 
-        total_loss, total_weight, correct = 0.0, 0, 0
+        # classification evaluation
+        total_loss, total_weight = 0.0, 0
+        logits_batches: List[torch.Tensor] = []
+        labels_batches: List[torch.Tensor] = []
         for batch in loader:
             model_inputs, labels, effective_count = self._prepare_batch(batch)
             logits, loss = self._forward_logits_and_loss(
@@ -397,20 +404,26 @@ class TrainingLoop:
             )
             total_loss += loss.item() * float(effective_count)
             total_weight += effective_count
-            preds = logits.argmax(dim=-1)
-            correct += (preds == labels).sum().item()
+            logits_batches.append(logits.detach().cpu())
+            labels_batches.append(labels.detach().cpu())
 
         self.model.train()
         avg_loss = total_loss / max(1, total_weight)
-        acc = correct / max(1, total_weight)
-        return {"loss": float(avg_loss), "accuracy": float(acc)}
+        logits_tensor = torch.cat(logits_batches, dim=0)
+        labels_tensor = torch.cat(labels_batches, dim=0)
+        return compute_classification_metrics(
+            logits_tensor,
+            labels_tensor,
+            avg_loss=avg_loss,
+            total_weight=total_weight,
+        )
 
     @torch.no_grad()
-    def evaluate(self, loader: DataLoader) -> None:
+    def evaluate(self, loader: DataLoader, kind: Literal["eval", "test"]) -> None:
         """Public evaluation method that logs via the provided logger (if available).
 
         Args:
             loader: DataLoader for the evaluation split.
         """
         metrics = self._eval_impl(loader)
-        self.logger.log_eval(metrics)
+        self.logger.log_eval(metrics, kind)

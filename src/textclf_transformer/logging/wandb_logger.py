@@ -1,7 +1,7 @@
 import csv
 import wandb
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Literal, Optional
 
 
 class WandbRun:
@@ -63,7 +63,8 @@ class WandbRun:
                     config=cfg,
                     dir=str(self.exp_dir)
                 )
-                print(f"[wandb] Initialized run '{run_name}' in project '{project}' ({entity})")
+                print(
+                    f"[wandb] Initialized run '{run_name}' in project '{project}' ({entity})")
             except Exception as e:
                 print(f"[WARN] Nie udało się połączyć z W&B: {e}")
                 print("→ Przechodzę w tryb offline (CSV only).")
@@ -74,7 +75,7 @@ class WandbRun:
 
     def log_train(
         self,
-        metrics: Dict[str, float], 
+        metrics: Dict[str, float],
         step: Optional[int] = None,
     ) -> None:
         """Log training metrics to W&B (if enabled) and CSV.
@@ -98,7 +99,7 @@ class WandbRun:
 
         self._write_csv(self.csv_train_path, data, step)
 
-    def log_eval(self, metrics: Dict[str, float], step: Optional[int] = None) -> None:
+    def log_eval(self, metrics: Dict[str, float], step: Optional[int] = None,  kind: Literal["eval", "test"] = "eval") -> None:
         """Log evaluation metrics to W&B (if enabled) and CSV.
 
         Args:
@@ -108,7 +109,7 @@ class WandbRun:
         if not metrics or not self.log_eval_metrics:
             return
 
-        prefixed = {f"eval/{k}": v for k, v in metrics.items()}
+        prefixed = {f"{kind}/{k}": v for k, v in metrics.items()}
 
         if self._wandb_run:
             self._wandb_run.log(prefixed, step=step)

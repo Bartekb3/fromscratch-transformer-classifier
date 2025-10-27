@@ -118,7 +118,7 @@ def main() -> None:
     # evaluate on test dataset (only for finetuning)
     test_loader = get_data_loader_from_cfg(cfg, 'test')
     if test_loader:
-        loop.evaluate(test_loader)
+        loop.evaluate(test_loader, 'test')
 
     # save final model 
     ckpt_path = save_model_state(model.state_dict(), exp_dir / "checkpoints")
