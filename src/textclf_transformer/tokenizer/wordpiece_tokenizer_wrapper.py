@@ -152,7 +152,7 @@ class WordPieceTokenizerWrapper:
         attention_mask = encoded["attention_mask"]
 
         if labels is not None:  # labels is optional
-            labels = torch.tensor(labels)
+            labels = torch.tensor(labels, dtype=torch.long)
             ds = TensorDataset(input_ids, attention_mask, labels)
         else:
             ds = TensorDataset(input_ids, attention_mask)

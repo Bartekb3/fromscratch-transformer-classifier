@@ -34,8 +34,8 @@ class TransformerForMaskedLM(Transformer):
         super().__init__(**kw)
 
         self.mlm = MaskedLanguageModelingHead(
-            embedding_dim=kw["embedding_dim"],
-            vocab_size=kw["vocab_size"]
+            embedding_dim=self.embedding_dim,
+            vocab_size=self.vocab_size
         )
 
         if tie_mlm_weights:

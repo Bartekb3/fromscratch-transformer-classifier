@@ -70,7 +70,7 @@ def load_resume(
     if resume_cfg.get("load_scaler", True):
         scaler_state = checkpoint.get("scaler_state", None)
 
-    best_val_loss = float(checkpoint.get("best_val_loss", None))
+    best_val_loss = checkpoint.get("best_val_loss", None)
     start_epoch = int(checkpoint.get("epoch", -1)) + 1
     start_step = int(checkpoint.get("step", -1)) + 1
 

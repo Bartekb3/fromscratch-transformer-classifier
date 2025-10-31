@@ -39,6 +39,7 @@ class LSHAttention(nn.Module):
     def _reset_parameters(self):
         # Xavier init for Uqv projection, same as in Pythorch implementation
         nn.init.xavier_uniform_(self.Uqv.weight)
+        nn.init.xavier_uniform_(self.Uout.weight)
         if self.proj_bias:
             nn.init.zeros_(self.Uqv.bias)
             nn.init.zeros_(self.Uout.bias)

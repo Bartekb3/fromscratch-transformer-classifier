@@ -1,6 +1,4 @@
-import torch
 from torch import nn
-import torch.nn.functional as F
 from ..attention.multihead_self_attention import MultiheadSelfAttention
 from ..attention.multihead_lsh_self_attention import LSHAttention
 from ..attention.multihead_favor_self_attention import FAVORAttention

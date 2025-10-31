@@ -1,6 +1,4 @@
-import torch
 from torch import nn
-import torch.nn.functional as F
 from .multihead_self_attention_block import AttentionBlock
 from .mlp_block import MLPBlock
 

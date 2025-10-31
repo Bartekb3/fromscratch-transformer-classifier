@@ -111,15 +111,20 @@ def load_dataset(pt_path: str | Path):
     add_safe_globals([TensorDataset])
     return torch.load(pt_path, weights_only=False)
 
-def get_data_loader_from_cfg(cfg: dict[str, Any], kind_ds: Literal["train", "val", "test"]):
+def get_data_loader_from_cfg(cfg: dict[str, Any], kind_ds: Literal["train", "val", "test"], mode: Literal['pretraining', 'finetuning']):
     """Instantiate a ``DataLoader`` for the dataset described under ``cfg['data'][kind_ds]["dataset_path"]``. """
-    dataset_path = cfg["data"][kind_ds]["dataset_path"]
+    dataset_path = cfg["data"].get(f"{kind_ds}", {}).get("dataset_path", None)
     if not dataset_path:
         return None
     ds = load_dataset(dataset_path)
     arch_max_len = cfg["architecture"]["max_sequence_length"]
     batch_size = cfg["training"]["batch_size"]
-    collate_fn = collate_for_classification(max_seq_len=arch_max_len)
+
+    if mode == 'finetuning':
+        collate_fn = collate_for_classification(max_seq_len=arch_max_len)
+    else:
+        collate_fn = collate_for_pretraining(max_seq_len=arch_max_len)
+
     shuffle = (kind_ds == "train")
     return DataLoader(
         ds,

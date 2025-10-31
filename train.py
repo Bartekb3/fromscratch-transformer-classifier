@@ -77,8 +77,8 @@ def main() -> None:
             print("[WARN] Nieoczekiwane klucze:", unexpected)
 
     # get data loaders and create training loop
-    train_loader = get_data_loader_from_cfg(cfg, 'train')
-    val_loader = get_data_loader_from_cfg(cfg, 'val')
+    train_loader = get_data_loader_from_cfg(cfg, 'train', mode)
+    val_loader = get_data_loader_from_cfg(cfg, 'val', mode)
 
     training_cfg = cfg["training"]
 
@@ -116,7 +116,7 @@ def main() -> None:
     )
     
     # evaluate on test dataset (only for finetuning)
-    test_loader = get_data_loader_from_cfg(cfg, 'test')
+    test_loader = get_data_loader_from_cfg(cfg, 'test', mode)
     if test_loader:
         loop.evaluate(test_loader, 'test')
 

@@ -1,6 +1,4 @@
-import torch
 from torch import nn
-import torch.nn.functional as F
 from ..consts import LN_EPS
 
 class MLPBlock(nn.Module):
