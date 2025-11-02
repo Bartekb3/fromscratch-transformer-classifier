@@ -38,7 +38,7 @@ architecture:
   num_layers: 4
   mlp_size: 128
   mlp_dropout: 0.1
-  pos_encoding: learned
+  pos_encoding: learned # 'learned' | 'sinusoidal' | 'rope'
   embedding_dropout: 0.1
 
   attention:

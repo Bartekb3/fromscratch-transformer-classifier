@@ -2,6 +2,8 @@ import torch
 from torch import nn
 from ..consts import LN_EPS
 from .positional_encodings import LearnedPositionalEmbedding, SinusoidalPositionalEncoding
+from .rotary import build_rope_cache 
+
 
 class TransformerTextEmbeddings(nn.Module):
     """
@@ -58,13 +60,15 @@ class TransformerTextEmbeddings(nn.Module):
             self.position = LearnedPositionalEmbedding(max_position_embeddings, embedding_dim)
         elif pos_encoding == "sinusoidal":
             self.position = SinusoidalPositionalEncoding(embedding_dim, max_position_embeddings)
+        elif pos_encoding == "rope":
+            # RoPE uses rotary on (Q, K) inside attention; no absolute positions are added here.
+            self.position = None
         else:
             raise ValueError(f"Unknown pos_encoding '{pos_encoding}'. Use 'learned' or 'sinusoidal'.")
 
         self.layer_norm = nn.LayerNorm(embedding_dim, eps=LN_EPS)
         self.dropout = nn.Dropout(embedding_dropout)
 
-        # Inicjalizacja wag w tej klasie
         self._reset_parameters()
 
     def _reset_parameters(self):
@@ -104,17 +108,24 @@ class TransformerTextEmbeddings(nn.Module):
 
         word_emb = self.word_embeddings(input_ids)  # (B, N, D)
 
-        # Pozycje
+        # Positions
         if self.pos_kind == "learned":
             if position_ids is None:
                 position_ids = torch.arange(N, device=device).unsqueeze(0).expand(B, N)
             pos_emb = self.position(position_ids)  # (B, N, D)
-        else:  # sinusoidal (bezparametrowe)
+            x = word_emb + pos_emb
+        elif self.pos_kind == "sinusoidal":
             pos = self.position(seq_len=N, device=device)  # (N, D)
             pos_emb = pos.unsqueeze(0).expand(B, N, -1)
+            x = word_emb + pos_emb
+        elif self.pos_kind == "rope":
+            # No absolute positions added here (RoPE will be applied to Q/K in attention).
+            x = word_emb
+        else:
+            raise RuntimeError("Unsupported positional encoding kind.")
 
-        # Segmenty
-        x = word_emb + pos_emb
+
+
         if self.use_token_type:
             if token_type_ids is None:
                 token_type_ids = torch.zeros((B, N), dtype=torch.long, device=device)

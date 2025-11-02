@@ -3,6 +3,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor
+from ..embeddings.rotary import apply_rope
+
 
 
 def _gaussian_orthogonal_random_matrix(n_rows: int, n_cols: int, device, dtype) -> Tensor:
@@ -228,13 +230,27 @@ class FAVORAttention(nn.Module):
             return self._phi_relu2(x)
         raise ValueError(f"Unknown phi '{self.phi_kind}'. Use 'exp' | 'elu' | 'relu2'.")
 
-    def forward(self, x: Tensor, key_padding_mask: Tensor | None = None):
+    def forward(
+        self,
+        x: Tensor,
+        key_padding_mask: Tensor | None = None,
+        *,
+        rope_cos: torch.Tensor | None = None,
+        rope_sin: torch.Tensor | None = None,
+        rope_position_ids: torch.LongTensor | None = None,
+    ):
+
         """
         Compute Performer FAVOR+ attention (non-causal) with padding masking.
 
         Args:
             x: Tensor (B, N, D).
             key_padding_mask: Optional bool Tensor (B, N), True marks PAD positions.
+            rope_cos / rope_sin (Tensor, optional): Precomputed RoPE tables shaped
+                (1, 1, N, dk) or broadcastable to (B, H, N, dk). If both are provided,
+                rotary embedding is applied to (Q, K) prior to attention.
+            rope_position_ids (LongTensor, optional): (B, N) explicit positions to
+                gather RoPE tables; if None, positions 0..N-1 are used.
 
         Returns:
             out:  (B, N, D)
@@ -251,6 +267,11 @@ class FAVORAttention(nn.Module):
         Q = self._split_heads(Q, self.num_heads)  # (B,H,N,dk)
         K = self._split_heads(K, self.num_heads)
         V = self._split_heads(V, self.num_heads)
+
+        # Apply RoPE if provided
+        if (rope_cos is not None) and (rope_sin is not None):
+            Q, K = apply_rope(Q, K, rope_cos, rope_sin, rope_position_ids)
+
 
         # 2) Build masks; zero PAD queries/values to enforce zero output there
         valid_bool, valid = self._valid_mask_from_kp(
