@@ -50,11 +50,16 @@ architecture:
     kind: lsh # 'mha' | 'lsh' | 'favor'
     ###attention_params###
     mha:
-    lsh: 
+    lsh:
       num_hashes: 4
       chunk_size: 64
-    favor: 
-      #TODO add params
+    favor:
+      nb_features: 256
+      ortho_features: true
+      redraw_interval: 0
+      phi: exp
+      stabilize: true
+      eps: 1.0e-6
     ###attention_forward_params###
     forward_mha:
     forward_lsh:

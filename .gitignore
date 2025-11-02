@@ -31,7 +31,9 @@ logs/
 *.log
 
 # helper scripts
+arch.txt
 dump.py
+dump_files.py
 project_paths.txt
 
 
