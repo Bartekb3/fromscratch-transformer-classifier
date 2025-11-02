@@ -1,7 +1,7 @@
 from __future__ import annotations
 from types import MethodType
 
-from textclf_transformer.logging.wandb_logger import WandbRun
+from ..logging.wandb_logger import WandbRun
 """Unified training loop for MLM and classification with AMP, grad accumulation, and cosine scheduling.
 
 This module defines a configurable training loop that supports:

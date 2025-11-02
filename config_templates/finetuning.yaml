@@ -73,7 +73,7 @@ classification_head:
   pooler_type: bert # 'bert' | 'roberta' | null
 
 training:
-  batch_size: 32
+  batch_size: 6
   epochs: 3
   learning_rate: 2.0e-5
   warmup_ratio: 0.1
