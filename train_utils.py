@@ -62,18 +62,16 @@ def load_resume(
     checkpoint = torch.load(ckpt_path, map_location="cpu", weights_only=False)
     strict = bool(resume_cfg.get("strict", True))
 
+    if not resume_cfg['load_only_model_state']:
+        optimizer_state = checkpoint.get("optimizer_state")
+        scheduler_state = checkpoint.get("scheduler_state")
+        scaler_state = checkpoint.get("scaler_state")
+        best_val_loss = checkpoint.get("best_val_loss")
+        start_epoch = int(checkpoint.get("epoch")) + 1
+        start_step = int(checkpoint.get("step")) + 1
+            
+
     model_state = checkpoint["model_state"]
-    if resume_cfg.get("load_optimizer", True):
-        optimizer_state = checkpoint.get("optimizer_state", None)
-    if resume_cfg.get("load_scheduler", True):
-        scheduler_state = checkpoint.get("scheduler_state", None)
-    if resume_cfg.get("load_scaler", True):
-        scaler_state = checkpoint.get("scaler_state", None)
-
-    best_val_loss = checkpoint.get("best_val_loss", None)
-    start_epoch = int(checkpoint.get("epoch", -1)) + 1
-    start_step = int(checkpoint.get("step", -1)) + 1
-
     model.load_state_dict(model_state, strict=strict)
     start_epoch = min(start_epoch, training_cfg["epochs"])
     print(

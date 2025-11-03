@@ -1,5 +1,5 @@
 from torch import nn
-from ..attention.multihead_self_attention import MultiheadSelfAttention
+from ..attention.multihead_sdp_self_attention import MultiheadSelfAttention
 from ..attention.multihead_lsh_self_attention import LSHAttention
 from ..attention.multihead_favor_self_attention import FAVORAttention
 from ..consts import LN_EPS
@@ -72,5 +72,6 @@ class AttentionBlock(nn.Module):
         if attention_forward_params is None:
             attention_forward_params = {}
 
-        attn_output, _ = self.attention_mechanism(x, key_padding_mask, **attention_forward_params)
+        result = self.attention_mechanism(x, key_padding_mask, **attention_forward_params)
+        attn_output = result[0]
         return self.layer_norm(x + attn_output)

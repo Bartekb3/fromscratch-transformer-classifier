@@ -3,7 +3,7 @@ import torch
 import pytest
 from torch import nn
 
-from src.textclf_transformer.models.attention.multihead_self_attention import MultiheadSelfAttention
+from textclf_transformer.models.attention.multihead_sdp_self_attention import MultiheadSelfAttention
 
 @pytest.fixture(scope="module")
 def device():

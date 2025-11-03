@@ -3,7 +3,7 @@ from transformers import BertTokenizerFast
 import torch
 from torch.utils.data import TensorDataset
 from pathlib import Path
-from typing import Sequence
+from typing import Literal, Sequence, Dict
 from tokenizers.processors import TemplateProcessing
 
 
@@ -15,11 +15,12 @@ class WordPieceTokenizerWrapper:
     Example: 
     >>> tokenizer = WordPieceTokenizerWrapper()
     >>> tokenizer.train(tokenizer_dir='my_tokenizer', input='text1.txt')
+    >>> # training part can be skipped if you already have 'my_tokenizer' dir with vocab.txt file
+    >>> tokenizer.load(tokenizer_dir='my_tokenizer')
     >>>
     >>> num_lines = sum(1 for _ in open("text2.txt"))
     >>> labels = np.random.randint(0, num_classes, size=num_lines)
     >>> ds = tokenizer.encode(
-    ...     tokenizer_dir='my_tokenizer',
     ...     input='text2.txt',
     ...     labels=labels,
     ...     max_length=8
@@ -105,42 +106,50 @@ class WordPieceTokenizerWrapper:
                input: str | list[str],
                max_length: int,
                labels: Sequence[int] | None = None,
-               tokenizer_dir: str = "./BERT_original") -> TensorDataset:
+               return_type: Literal['dict', 'tensordataset'] = 'tensordataset') -> TensorDataset | Dict:
         """
-        Encode text files into a `TensorDataset` suitable for PyTorch models.
+        Encode text data from file paths or raw strings and produce tensors ready
+        for model consumption.
 
         Args:
             tokenizer_dir (str): Path to the tokenizer directory including `vocab.txt` and `tokenizer.json`.
-            input (str | list[str]): Path or list of paths to text files. Each line is treated as one example.
-            labels (Sequence[int]): Labels aligned with the input texts.
-            max_length (int): Maximum sequence length for padding/truncation.
+            input (str | list[str]): Path or list of paths to text files, or a list of raw text examples.
+                Every non-empty line is treated as an individual example.
+            labels (Sequence[int], optional): Label sequence aligned with the text examples.
+            max_length (int): Maximum sequence length to pad and/or truncate to.
+            return_type (Literal['dict', 'tensordataset']): Controls the return format. Use `'dict'` to
+                receive the Hugging Face style tokenization dictionary, or `'tensordataset'` for a PyTorch
+                `TensorDataset`. Defaults to `'tensordataset'`.
 
         Returns:
-            TensorDataset: A dataset of 3 tensors, each with length equal to the number of text examples:
-                - input_ids: (N, max_length)
-                    Token IDs for each example, padded/truncated to max_length.
-                - attention_mask: (N, max_length)
-                    Boolean mask where True marks a padding position and False
-                    marks a real token. ( Note: this is different from Hugging Face's
-                    default convention where 1 = token, 0 = padding).
-                - labels: (N,) (if provided in args)
-                    The provided labels (used in fine-tuning), converted to a tensor.
+            dict | TensorDataset: When `return_type='dict'`, a dictionary with keys `input_ids`,
+            `attention_mask`, and `labels` (present only if `labels` is supplied), each mapped to tensors.
+            When `return_type='tensordataset'`, a `TensorDataset` containing `(input_ids, attention_mask)`
+            and `(labels,)` appended if provided.
         """
 
-        tokenizer_dir = Path(tokenizer_dir)
-        if self.tokenizer is None or tokenizer_dir != self.tokenizer_dir:
-            self.load(tokenizer_dir)
-        tok = self.tokenizer
+        assert return_type in ['dict', 'tensordataset']
 
-        if isinstance(input, str):
+        is_input_str = isinstance(input, str)
+        if is_input_str:
             input = [input]
 
         texts = []
-        for fname in input:
-            with open(fname, "r", encoding="utf-8") as f:
-                texts.extend([line.strip() for line in f if line.strip()])
+        first_file = Path(input[0])
+        try:
+            first_file.exists()
+            if is_input_str:
+                print('[INFO] input is treated as a path to text file')
+            else:
+                print('[INFO] input is treated as a list of paths to text files')
+            for fname in input:
+                with open(fname, "r", encoding="utf-8") as f:
+                    texts.extend([line.strip() for line in f if line.strip()])
+        except:
+            print('[INFO] input is treated as a list of input texts')
+            texts = input
 
-        encoded = tok(texts, padding="max_length",
+        encoded = self.tokenizer(texts, padding="max_length",
                       max_length=max_length,
                       truncation=True,
                       return_tensors="pt",
@@ -148,15 +157,16 @@ class WordPieceTokenizerWrapper:
                       add_special_tokens=True)
         encoded['attention_mask'] = encoded['attention_mask'] == 0
 
-        input_ids = encoded["input_ids"]
-        attention_mask = encoded["attention_mask"]
+        if labels is not None:
+            encoded['labels'] = torch.tensor(labels, dtype=torch.long)
 
-        if labels is not None:  # labels is optional
-            labels = torch.tensor(labels, dtype=torch.long)
-            ds = TensorDataset(input_ids, attention_mask, labels)
+        if return_type == 'dict':
+            return encoded
+
+        if 'labels' in encoded:
+            return TensorDataset(encoded['input_ids'], encoded['attention_mask'], encoded['labels'])
         else:
-            ds = TensorDataset(input_ids, attention_mask)
-        return ds
+            return TensorDataset(encoded['input_ids'], encoded['attention_mask'])
 
     def encode_pandas(self,
                       df,
@@ -220,11 +230,11 @@ class WordPieceTokenizerWrapper:
         return ds
 
     def mask_input_for_mlm(self,
-                            input_ids: torch.LongTensor,
-                            mask_p: float = 0.15,
-                            mask_token_p: float = 0.8,
-                            random_token_p: float = 0.1
-                            ):
+                           input_ids: torch.LongTensor,
+                           mask_p: float = 0.15,
+                           mask_token_p: float = 0.8,
+                           random_token_p: float = 0.1
+                           ):
         """
         Create masked inputs and labels for Masked Language Modeling (MLM).
         Applies the standard BERT masking recipe: draw `mask_p` of the tokens to
