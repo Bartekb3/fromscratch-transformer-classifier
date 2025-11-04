@@ -1,6 +1,3 @@
-
-Running pipeline for: IMDB
-
 ================================================================================
 IMDB dataset overview
 
@@ -112,7 +109,6 @@ Confusion matrix (rows=true, cols=pred):
 negative            11145         1355
 positive             1270        11230
 
-Running pipeline for: AG News
 
 ================================================================================
 AG News dataset overview
@@ -175,14 +171,92 @@ sports                 20         1859           13            8
 business               61           16         1678          145
 sci/tech               45           18          124         1713
 
+Running pipeline for: ArXiv Classification
 
 ================================================================================
-Wikipedia dataset overview - 200k articles with keywords ["film", "sport", "business", "science", "technology", "news"]
+ArXiv Classification dataset overview
 
-{'avg_tokens': 931.301295,
- 'std_tokens': 1351.5528514994603,
- 'median_tokens': 547.0,
- 'min_tokens': 7,
- 'max_tokens': 48059,
- 'avg_chars': 5849.242285,
- 'std_chars': 8466.55715073447}
+Split: train — 28388 samples
+Label distribution:
+  - cs.DS          3527 (12.42%)
+  - cs.IT          2768 ( 9.75%)
+  - cs.SY          2631 ( 9.27%)
+  - math.GR        2599 ( 9.16%)
+  - math.ST        2581 ( 9.09%)
+  - cs.AI          2569 ( 9.05%)
+  - cs.NE          2560 ( 9.02%)
+  - math.AC        2456 ( 8.65%)
+  - cs.PL          2443 ( 8.61%)
+  - cs.CV          2137 ( 7.53%)
+  - cs.CE          2117 ( 7.46%)
+Token length stats (avg=10560.0, std=10184.3, median=8424.5, min=441, max=553206)
+Character length avg=56458.0, std=50058.5
+
+Split: validation — 2500 samples
+Label distribution:
+  - cs.DS           291 (11.64%)
+  - cs.SY           242 ( 9.68%)
+  - cs.NE           233 ( 9.32%)
+  - math.GR         232 ( 9.28%)
+  - math.ST         232 ( 9.28%)
+  - cs.IT           229 ( 9.16%)
+  - cs.AI           221 ( 8.84%)
+  - math.AC         217 ( 8.68%)
+  - cs.PL           217 ( 8.68%)
+  - cs.CV           194 ( 7.76%)
+  - cs.CE           192 ( 7.68%)
+Token length stats (avg=10506.5, std=8260.7, median=8431.5, min=733, max=125454)
+Character length avg=56039.1, std=40647.2
+
+Split: test — 2500 samples
+Label distribution:
+  - cs.DS           318 (12.72%)
+  - cs.PL           241 ( 9.64%)
+  - cs.IT           236 ( 9.44%)
+  - math.GR         234 ( 9.36%)
+  - cs.SY           233 ( 9.32%)
+  - cs.NE           219 ( 8.76%)
+  - math.ST         212 ( 8.48%)
+  - math.AC         212 ( 8.48%)
+  - cs.AI           205 ( 8.20%)
+  - cs.CE           196 ( 7.84%)
+  - cs.CV           194 ( 7.76%)
+Token length stats (avg=10234.0, std=7781.9, median=8198.0, min=740, max=95584)
+Character length avg=54883.8, std=39688.2
+
+
+Training baseline classifier for ArXiv Classification...
+ArXiv Classification accuracy: 0.8436
+Classification report:
+              precision    recall  f1-score   support
+
+     math.AC       0.95      0.94      0.95       212
+       cs.CV       0.80      0.82      0.81       194
+       cs.AI       0.69      0.58      0.63       205
+       cs.SY       0.85      0.88      0.87       233
+     math.GR       0.95      0.96      0.95       234
+       cs.CE       0.78      0.73      0.75       196
+       cs.PL       0.88      0.93      0.91       241
+       cs.IT       0.86      0.85      0.85       236
+       cs.DS       0.88      0.90      0.89       318
+       cs.NE       0.75      0.74      0.75       219
+     math.ST       0.81      0.88      0.84       212
+
+    accuracy                           0.84      2500
+   macro avg       0.84      0.84      0.84      2500
+weighted avg       0.84      0.84      0.84      2500
+
+Confusion matrix (rows=true, cols=pred):
+                   math.AC        cs.CV        cs.AI        cs.SY      math.GR        cs.CE        cs.PL        cs.IT        cs.DS        cs.NE      math.ST
+math.AC               200            0            1            0            6            0            0            3            1            0            1
+cs.CV                   0          160            5            1            0            4            0            4            1           16            3
+cs.AI                   0           16          118            8            0            2           22            0            6           27            6
+cs.SY                   1            1            7          206            0            3            1            4            2            4            4
+math.GR                 5            1            0            0          224            1            1            0            1            0            1
+cs.CE                   1            4            9           12            0          143            3            5            8            7            4
+cs.PL                   1            0            6            1            0            5          224            2            2            0            0
+cs.IT                   2            2            3            5            2            4            0          200            4            1           13
+cs.DS                   0            2            3            2            3            7            3            6          285            0            7
+cs.NE                   0           13           19            4            0           11            0            1            4          163            4
+math.ST                 0            1            0            3            1            3            0            7           11            0          186
+

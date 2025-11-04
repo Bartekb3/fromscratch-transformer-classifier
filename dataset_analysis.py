@@ -269,6 +269,15 @@ def main() -> None:
             max_test_samples=args.max_test_samples,
             reporter=reporter,
         )
+
+        run_pipeline(
+            dataset_name="ArXiv Classification",
+            dataset_id="ccdv/arxiv-classification",
+            label_names={0: "math.AC", 1: "cs.CV", 2: "cs.AI", 3: "cs.SY", 4: "math.GR", 5: "cs.CE", 6: "cs.PL", 7: "cs.IT", 8: "cs.DS", 9: "cs.NE", 10: "math.ST"},
+            max_train_samples=args.max_train_samples,
+            max_test_samples=args.max_test_samples,
+            reporter=reporter,
+        )
         reporter.log(f"\nAnalysis complete. Report saved to {args.output_file.resolve()}")
     finally:
         reporter.close()
