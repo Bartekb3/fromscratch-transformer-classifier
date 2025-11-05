@@ -17,6 +17,9 @@ Exit codes:
     2 - Experiment directory or its ``config.yaml`` not found.
     3 - Requested resume checkpoint not found.
 """
+# silence "field" warnings 
+import warnings
+warnings.filterwarnings("ignore", message=r".*field.*", category=UserWarning)
 
 from src.textclf_transformer import *
 import sys

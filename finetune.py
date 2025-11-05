@@ -16,6 +16,9 @@ Exit codes:
     1 - Wrong number of CLI arguments.
     2 - Finetuning experiment or its config not found.
 """
+# silence "field" warnings 
+import warnings
+warnings.filterwarnings("ignore", message=r".*field.*", category=UserWarning)
 
 import sys
 import argparse

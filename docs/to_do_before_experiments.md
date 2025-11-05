@@ -1,0 +1,5 @@
+- plan experiments
+- implement pretraining on wikipedia (flag)
+- Data loader directly from huggingface? Download, filter and process locally?
+- test each module functionalities !
+- test on colab
