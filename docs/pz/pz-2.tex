@@ -1,0 +1,730 @@
+% !TEX TS-program = pdflatex
+\documentclass[11pt,a4paper]{article}
+
+% --- Encoding & language ------------------------------------------------------
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[polish]{babel}
+
+% --- Fonts & micro-typography -------------------------------------------------
+\usepackage{lmodern}
+\usepackage{microtype}
+\microtypesetup{protrusion=true,expansion=true}
+
+% --- Geometry & layout --------------------------------------------------------
+\usepackage{geometry}
+\geometry{margin=2.5cm}
+\setlength{\emergencystretch}{3em}
+\raggedbottom
+% ======================================================================
+% Pakiety potrzebne do kompilacji sekcji EDA
+% ======================================================================
+\usepackage{graphicx}
+\usepackage{booktabs}          % profesjonalne tabele
+\usepackage{tabularx}          % szerokie tabele dopasowane do strony
+\usepackage{threeparttable}    % podpisy i noty pod tabelami
+\usepackage{siunitx}           % formatowanie liczb i jednostek
+\sisetup{
+  detect-weight=true,
+  detect-family=true,
+  table-align-text-post=false,
+}
+\usepackage{minted}            % podświetlanie składni kodu
+\usepackage{xcolor}            % kolory w tabelach i kodzie
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{enumitem}
+
+% Dodatkowe ustawienia dla minted
+\setminted{
+  fontsize=\small,
+  bgcolor=gray!5,
+  frame=lines,
+  framesep=3mm,
+  breaklines=true,
+  breakanywhere=true,
+}
+
+
+% --- Hyperlinks ---------------------------------------------------------------
+\usepackage{hyperref}
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue,
+  urlcolor=blue,
+  citecolor=blue,
+  pdfauthor={Zespół NLP},
+  pdftitle={Propozycja rozwiązania: modelowanie, narzędzia, techniki oraz raporty danych}
+}
+
+% --- Lists, tables, figures ---------------------------------------------------
+\usepackage{enumitem}
+\setlist[itemize]{leftmargin=2em}
+\setlist[enumerate]{leftmargin=2em}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{caption}
+\captionsetup{labelfont=bf}
+
+\title{Implementacja transformera oraz eksperymenty z wariantami mechanizmu uwagi (Performer, Reformer) w zadaniach klasyfikacji tekstu\\[0.25em]
+\large Dokumentacja projektu~\textendash{} część~II}
+\author{Bartłomiej Borycki, Michał Iwaniuk}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+% ======================================================================
+\section{Założenia techniki modelowania}
+Projektowany model opiera się na klasycznej architekturze typu \textbf{Transformer Encoder}, stanowiącej bazę dla większości współczesnych modeli językowych (m.in.~BERT, RoBERTa, DeBERTa). Struktura jest w pełni modularna, co umożliwia wymianę kluczowych komponentów – w~szczególności mechanizmu uwagi – przy zachowaniu wspólnego interfejsu i~procesu treningowego. Celem architektury jest uzyskanie elastycznego środowiska badawczego, w~którym można porównywać efektywność różnych wariantów atencji przy zachowaniu identycznej reszty toru przetwarzania.
+
+\subsection{Blok enkodera}
+Podstawowym elementem architektury jest powtarzany wielokrotnie \textbf{blok enkodera}, który odpowiada za przekształcenie sekwencji wejściowej do reprezentacji semantycznej o stałym wymiarze. Każdy blok składa się z~dwóch głównych komponentów:
+\begin{itemize}
+  \item \textbf{AttentionBlock} – implementacja wielogłowicowego mechanizmu uwagi (\emph{Multi-Head Attention}), którego celem jest modelowanie zależności między tokenami niezależnie od ich położenia w~sekwencji. Dla stabilności i~efektywnego uczenia stosowane są połączenia rezydualne oraz warstwy normalizacji (\texttt{LayerNorm}).
+  \item \textbf{MLPBlock} – dwuwarstwowa sieć liniowa z~nieliniowością typu \texttt{GELU}, pełniąca funkcję projekcji w~przestrzeni cech. Umożliwia nieliniową kombinację kontekstu wyuczonego przez uwagę oraz wprowadza dodatkową pojemność modelu.
+\end{itemize}
+
+Każdy blok enkodera jest zakończony połączeniem rezydualnym (\emph{residual connection}) oraz normalizacją warstwy, co poprawia propagację gradientu i~stabilność uczenia w~głębokich sieciach.
+
+\paragraph{Pozycjonowanie.}  
+Aby zachować informację o~kolejności tokenów, model obsługuje kilka metod kodowania pozycji:
+\begin{itemize}
+  \item \emph{Learned positional embeddings} – wektor pozycji uczony wraz z~resztą parametrów modelu,
+  \item \emph{Sinusoidal positional encoding} – deterministyczne, okresowe odwzorowanie pozycji oparte na funkcjach trygonometrycznych,
+  \item \emph{Rotary positional encoding (RoPE)} – metoda rotacyjnego osadzania pozycji bezpośrednio na wektorach zapytań i~kluczy~(Q,K), pozwalająca na zachowanie relacji odległości w~przestrzeni uwagi.
+\end{itemize}
+W~przypadku wariantu~RoPE informacja o~położeniu nie jest dodawana do embeddingów, lecz wprowadzana na etapie obliczania uwagi.
+
+\paragraph{Pooling.}  
+Po zakończeniu przetwarzania sekwencji przez enkoder, jej reprezentacja jest agregowana do jednego wektora cech, który stanowi wejście dla warstwy klasyfikacyjnej. W~zależności od zadania, możliwe są następujące metody~poolingu:
+\begin{itemize}
+  \item \textbf{CLS pooling} - wykorzystanie wektora przypisanego do specjalnego tokenu \texttt{[CLS]} (analogicznie jak w~BERT),
+  \item \textbf{Mean pooling} - uśrednienie reprezentacji wszystkich tokenów niebędących paddingiem,
+  \item \textbf{Max/min pooling} - wybór ekstremalnych wartości cech w~sekwencji.
+\end{itemize}
+Wszystkie warianty uwzględniają maskę \texttt{key\_padding\_mask}, co umożliwia poprawne pominięcie w~obliczeniach tokenów \texttt{[PAD]}.
+
+\subsection{Wymienne warianty uwagi}
+Jednym z~kluczowych założeń projektu jest umożliwienie porównania różnych implementacji mechanizmu uwagi w~identycznej architekturze. W~ramach systemu zaimplementowano trzy wymienne warianty:
+\begin{itemize}
+  \item \textbf{Standardowa uwaga (\texttt{mha}, SDPA)} – klasyczna wersja wielogłowicowej uwagi softmax, obliczająca pełną macierz wag między wszystkimi tokenami w~sekwencji. Maska paddingu jest stosowana w~postaci maski addytywnej, a~na wektorach zapytań i~kluczy może opcjonalnie zostać użyty mechanizm~RoPE.
+  \item \textbf{Performer (\texttt{favor})} – wariant oparty na aproksymacji softmax przy użyciu dodatnich cech losowych~(\emph{FAVOR+}). Pozwala on zredukować złożoność obliczeniową z~$\mathcal{O}(n^2)$ do~$\mathcal{O}(n)$ przy zachowaniu zbliżonej dokładności. Wariant ten umożliwia również zastosowanie~RoPE.
+  \item \textbf{Reformer (\texttt{lsh})} – implementacja uwagi opartej na~\emph{Locality-Sensitive Hashing (LSH)}, w~której tokeny są grupowane w~bucketach o~podobnych reprezentacjach, a~uwaga jest obliczana lokalnie w~oknach (typowo~$3\times$~\texttt{chunk}). Dodatkowo możliwe jest ograniczenie obliczeń do~intra-bucket, co further redukuje złożoność. W~tym wariancie stosowana jest wspólna projekcja dla~Q~i~K.
+\end{itemize}
+
+Wszystkie powyższe mechanizmy są kompatybilne z~wspólnym interfejsem \texttt{AttentionBlock}, co umożliwia ich wymianę bez modyfikacji pozostałych komponentów modelu. Dzięki temu możliwe jest bezpośrednie porównanie jakości reprezentacji oraz kosztów obliczeniowych poszczególnych podejść.
+
+\subsection{Głowice i zadania}
+Na wyjściu enkodera zastosowano odrębne moduły (\emph{heads}) odpowiedzialne za specyficzne zadania:
+\begin{itemize}
+  \item \textbf{SequenceClassificationHead} – moduł klasyfikacyjny operujący na~wektorze uzyskanym po~poolingu. Implementuje warianty pooler\_type zgodne z~architekturami~BERT,~RoBERTa lub~bez dodatkowej warstwy projekcji. W~etapie fine-tuningu pełni rolę głowicy decyzyjnej w~zadaniu klasyfikacji tekstu.
+  \item \textbf{MaskedLanguageModelingHead} – moduł przewidujący maskowane tokeny w~zadaniu~MLM (Masked Language Modeling). W~zależności od konfiguracji może współdzielić wagi z~embeddingami wejściowymi (\emph{weight tying}), co redukuje liczbę parametrów i~sprzyja spójności reprezentacji.
+\end{itemize}
+
+Oba moduły integrują się bezpośrednio z~głównym enkoderem i~mogą być dynamicznie przełączane w~zależności od etapu treningu (\emph{pretraining}, \emph{TAPT}, \emph{fine-tuning}). Takie rozwiązanie umożliwia zachowanie ciągłości uczenia pomiędzy różnymi zadaniami przy minimalnej liczbie zmian architektonicznych.
+
+% ======================================================================
+
+
+\subsection{Cele treningowe}
+\paragraph{Pretrening (MLM).} Maskowany model językowy, z wykorzystaniem danych z Wikipedii, z polityką maskowania 15\% tokenów (80\% \texttt{[MASK]}, 10\% losowy token, 10\% oryginał), z funkcją straty \emph{cross-entropy} wyliczaną jedynie dla pozycji maskowanych. 
+
+\paragraph{TAPT (Task-Adaptive PreTraining).} Dodatkowe dostosowanie reprezentacji poprzez trening MLM na danych z domeny docelowej (IMDB, AG~News, ArXiv Classification). Każdy TAPT jest przeprowadzany oddzielnie dla danego zbioru.
+
+\paragraph{Fine-tuning (klasyfikacja).} Po etapach pretreningu i~TAPT model jest dostrajany pod kątem klasyfikacji nadzorowanej — z nową głowicą klasyfikacyjną, przy zachowaniu architektury enkodera.
+
+
+
+
+% ======================================================================
+\section{Ocena narzędzi i technik}
+Projekt zakłada pełną implementację modelu typu~\textbf{Transformer Encoder} w~środowisku~\textbf{PyTorch}, z~wykorzystaniem jedynie wybranych elementów ekosystemu~Hugging~Face do~obsługi tokenizacji i~zarządzania zbiorami danych.
+
+\subsection{Biblioteki i środowisko}
+\paragraph{Hugging~Face \texttt{datasets} i~\texttt{tokenizers}.}  
+Z~ekosystemu~Hugging~Face wykorzystano wyłącznie moduły wspierające przygotowanie danych wejściowych:
+\begin{itemize}
+  \item \textbf{\texttt{datasets}~(v3.0.1)} – do~pobierania, wstępnego przetwarzania i~cache’owania zbiorów danych.
+  \item \textbf{\texttt{tokenizers}~(v0.21.0)} – do~implementacji tokenizacji typu~\textbf{WordPiece}, z~zachowaniem kompatybilności z~oryginalnym słownikiem~BERT~(\texttt{bert-base-uncased}). Moduł zapewnia wysoką wydajność  oraz możliwość definiowania własnych reguł postprocessingu~(\texttt{[CLS]},~\texttt{[SEP]},~\texttt{[MASK]}).
+\end{itemize}
+W~projekcie celowo zrezygnowano z~wykorzystania gotowych modeli dostępnych w~bibliotece~\texttt{transformers}, koncentrując się na~implementacji architektury~Transformer od~podstaw, z~pełną kontrolą nad jej komponentami i~mechanizmami uwagi.
+
+\paragraph{PyTorch.}  
+Całość implementacji modelu, mechanizmów uwagi oraz procesów treningowych zrealizowano w~ramach frameworka~\textbf{PyTorch}~(v2.3.1) z~wykorzystaniem środowiska~\texttt{Python~3.11}. PyTorch zapewnia:
+\begin{itemize}
+  \item imperatywny model programowania, ułatwiający tworzenie i~debugowanie niestandardowych modułów sieciowych,
+  \item natywną obsługę akceleracji~GPU (CUDA~12.2 / cuDNN~9.1),,
+  \item wsparcie dla~trybów obliczeń o~mieszanej precyzji~(AMP,~bfloat16),
+
+\end{itemize}
+
+
+\paragraph{Środowisko eksperymentalne.}  
+Kod źródłowy został zorganizowany w~postaci modułowej struktury~Python z~konfiguracją w~formacie~YAML. Umożliwia to pełną automatyzację eksperymentów w~trybach:
+\emph{pretraining},~\emph{TAPT/DAPT} oraz~\emph{fine-tuning}.  
+Każdy eksperyment jest definiowany poprzez pojedynczy plik konfiguracyjny zawierający parametry modelu, danych i~harmonogramu uczenia, co sprzyja reprodukowalności wyników.  
+
+
+\subsection{Techniki przetwarzania tekstu}
+\paragraph{Tokenizacja: WordPiece.}  
+Zastosowano tokenizację typu~\textbf{WordPiece}, która dzieli słowa na~subtokeny według częstości ich występowania w~korpusie. Wykorzystano oryginalny słownik modelu~BERT, co zapewnia pełną zgodność z~rozpoznawalnymi jednostkami językowymi i~minimalizuje liczbę nieznanych tokenów~(\texttt{[UNK]}).  
+Proces tokenizacji został zrealizowany za~pomocą własnego~\texttt{WordPieceTokenizerWrapper}, który integruje funkcje ładowania i~enkodowania danych oraz przygotowuje tensorowe reprezentacje wejściowe (\texttt{input\_ids},~\texttt{attention\_mask}) w~formacie~\texttt{TensorDataset}.
+
+\paragraph{Przetwarzanie danych tekstowych.}
+Podczas tokenizacji z wykorzystaniem \texttt{BertTokenizerFast}, (z którego korzysta ~\texttt{WordPieceTokenizerWrapper})
+dane wejściowe są przetwarzane w kilku etapach określonych przez
+pipeline tokenizera z biblioteki \texttt{tokenizers}.
+
+\textbf{1. Normalizacja tekstu.}
+Na tym etapie wykonywane są operacje zdefiniowane w konfiguracji
+konkretnego modelu BERT, takie jak:
+\begin{itemize}
+    \item konwersja tekstu do małych liter (dla modeli typu \emph{uncased}),
+    \item usuwanie lub zastępowanie znaków niewidocznych,
+    \item podstawowa normalizacja unicode (np. NFD).
+\end{itemize}
+
+\textbf{2. Pre-tokenizacja.}
+Na tym etapie \texttt{BertTokenizerFast} dzieli tekst na wstępne segmenty
+zgodne z regułami tokenizerów BERT. Obejmuje to:
+\begin{itemize}
+    \item podział według białych znaków (spacje, tabulatory, nowe linie),
+    \item wydzielanie znaków niealfanumerycznych jako osobnych segmentów
+          (np.\ interpunkcji),
+    \item zachowanie offsetów znakowych, umożliwiających późniejsze
+          odwzorowanie tokenów na oryginalny tekst.
+\end{itemize}
+Uzyskane segmenty stanowią wejście dla właściwej tokenizacji WordPiece.
+
+\textbf{3. Tokenizacja WordPiece.}
+Każde słowo jest rozbijane na podtokeny zgodnie ze słownikiem modelu.
+Fragmenty rozpoczynające się wewnątrz słowa otrzymują prefiks \#\#.
+W przypadku braku dopasowania wykorzystywany jest token \texttt{[UNK]}.
+
+\textbf{4. Dodawanie tokenów specjalnych.}
+W zależności od konfiguracji tokenizera automatycznie dodawane są
+tokeny takie jak \texttt{[CLS]} i \texttt{[SEP]}.
+
+\textbf{5. Tokenizator generuje:}
+\begin{itemize}
+    \item \texttt{input\_ids} -- numeryczne identyfikatory tokenów zgodne
+ze słownikiem (vocabulary) modelu.
+    \item \texttt{attention\_mask} -- maskę wskazującą tokeny rzeczywiste oraz \texttt{[PAD]}.
+\end{itemize}
+Podczas tokenizacji stosowane jest przycinanie sekwencji~(\emph{truncation}) zależne od~maksymalnej długości kontekstu w~zadaniu, oraz \emph{dynamiczny padding} po tokenizacji, co pozwala na~efektywne wykorzystanie zasobów~GPU.
+
+\paragraph{Strategia tokenizacji.}
+W korpusie ArXiv~Classification znaczna część dokumentów przekracza kilka tysięcy tokenów - posłuży on nam do testowania mechanizmów atencji na długich sekwencjach.\\
+\textbf{Ograniczenia długości podczas treningu:}
+\begin{itemize}
+  \item \textbf{IMDB, AG~News:} \(L^{\mathrm{train}}_{\max}=512\) tokenów.
+\item \textbf{ArXiv}: \(L^{\mathrm{train}}_{\max}=8192\) tokenów.  
+(Wariant Reformer/LSH; jeśli nie będzie to możliwe w naszej implementacji MHA z powodu zbyt małej ilości pamięci VRAM, wówczas wykorzystamy mechanizm FlashAttention.)
+\end{itemize}
+
+
+% ======================================================================
+
+% ======================================================================
+% ======================================================================
+\section{Schemat eksperymentów end-to-end}
+\subsection{Opis ogólny}
+W celu przeprowadzenia pełnego eksperymentu porównawczego zaprojektowano plan uczenia składający się z etapów pretreningu, adaptacji domenowej (TAPT/DAPT) oraz końcowego fine-tuningu. Proces jest realizowany dla trzech wariantów mechanizmu uwagi, przy identycznych parametrach architektury i~konfiguracji.
+
+\subsection{Etapy przetwarzania}
+\begin{enumerate}
+  \item \textbf{Etap~I: Porównanie wariantów uwagi}\\
+  Trzy modele trenowane niezależnie:
+  \begin{itemize}
+    \item \emph{Transformer:} klasyczna wielogłowicowa uwaga (\textbf{MHA}),
+    \item \emph{Reformer-style:} uwaga oparta na~\textbf{LSH} (hashowane okna sekwencji),
+    \item \emph{Performer:} aproksymacja softmax poprzez \textbf{FAVOR+} (cechy losowe).
+  \end{itemize}
+  Wszystkie warianty korzystają z identycznych hiperparametrów oraz kodowania pozycji~RoPE.
+  
+  \item \textbf{Etap~II: Pretraining na korpusie ogólnym (Wikipedia)}\\
+  Modele są trenowane od zera na~korpusie Wikipedia w~zadaniu~MLM.
+  \begin{itemize}
+    \item Dynamiczne maskowanie tokenów.
+    \item Zapis checkpointu: \texttt{base\_rope.pt}.
+    \item Reset optymalizatora i~scheduler’a po zakończeniu etapu.
+  \end{itemize}
+
+  \item \textbf{Etap~III: Adaptacja domenowa (DAPT/TAPT)}\\
+  Dla każdego zbioru danych (IMDB, AG~News, ArXiv~Classification):
+  \begin{itemize}
+    \item trening MLM startujący z~checkpointu \texttt{base\_rope.pt},
+    \item ponowna inicjalizacja optymalizatora i~scheduler’a,
+    \item możliwość dodania niewielkiej części próbek ogólnych (1–5\%) dla ograniczenia \emph{catastrophic forgetting},
+  \end{itemize}
+  
+  Wynikiem są osobne checkpointy \texttt{base\_rope + D\_i.pt} dla każdego zbioru domenowego.
+
+  \item \textbf{Etap~IV: Fine-tuning (klasyfikacja)}\\
+  Trening nadzorowany rozpoczyna się z~odpowiedniego checkpointu~TAPT:
+  \begin{itemize}
+    \item trening całego modelu
+    \item strategia „miękkiego startu”: 1--2~epoki z~zamrożonymi embeddingami/dolnymi warstwami, następnie pełne odmrożenie.
+  \end{itemize}
+
+  \item \textbf{Etap~V: Organizacja eksperymentów}\\
+  \begin{itemize}
+    \item jeden wspólny checkpoint \texttt{base\_rope.pt} $\rightarrow$ wiele gałęzi TAPT (per~dataset),
+    \item fine-tuning dla każdego zbioru,
+    \item powtórzenie całego schematu dla trzech wariantów uwagi (\texttt{MHA}, \texttt{LSH}, \texttt{FAVOR}).
+  \end{itemize}
+\end{enumerate}
+
+
+% ======================================================================
+% ======================================================================
+\section{Dane i przygotowanie danych}
+\subsection{Korpus Wikipedii do pretreningu MLM}
+\paragraph{Źródło.} \texttt{wikimedia/wikipedia 20231101.en}, split~\texttt{train}. Wybrano podzbiór ok.~200\,000~artykułów.
+
+\paragraph{Filtracja.} Wybierane dokumenty zawierające przynajmniej jedno ze słów kluczowych:
+\begin{center}
+\texttt{["film", "sport", "business", "science", "technology", "news"]}
+\end{center}
+
+\subsection{TAPT: IMDB, AG~News i korpus ArXiv}
+\begin{itemize}
+  \item \textbf{IMDB:} recenzje filmowe bez etykiet (MLM); sekwencje o~maksymalnej długości~512~tokenów. Dane pochodzą z~modułu \texttt{datasets} (Hugging~Face), split~\texttt{train}.
+  \item \textbf{AG~News:} tytuły i~streszczenia artykułów prasowych; trening MLM na~sekwencjach do~512~tokenów; dane z~\texttt{datasets} (Hugging~Face), split~\texttt{train}.
+  \item \textbf{ArXiv~Classification:}  Zbiór zawiera streszczenia i~teksty naukowe z~różnych dziedzin (Algebra przemienna, Widzenie komputerowe i rozpoznawanie obrazów, Sztuczna inteligencja, Systemy i sterowanie, Teoria grup, Inżynieria obliczeniowa (finanse i nauka obliczeniowa), Języki programowania, Teoria informacji, Struktury danych i algorytmy, Obliczenia neuronowe i ewolucyjne, Teoria statystyki), a~każdy dokument jest przypisany do~jednej z~jedenastu~kategorii tematycznych~ArXiv.
+\end{itemize}
+
+\subsection{Fine-tuning: klasyfikacja}
+\begin{itemize}
+  \item \textbf{IMDB:} klasyfikacja binarna sentymentu (pozytywny/negatywny).
+  \item \textbf{AG~News:} klasyfikacja czteroklasowa (World,~Sports,~Business,~Sci/Tech).
+  \item \textbf{ArXiv~Classification:} klasyfikacja streszczeń naukowych według dziedziny.
+\end{itemize}
+
+\subsection{Aspekty danych: źródła, licencje, przetwarzanie, etyka i bias}
+\paragraph{Źródła i licencje.}
+Wszystkie zbiory danych są pozyskiwane wyłącznie poprzez \textbf{Hugging Face Datasets}: \texttt{imdb}, \texttt{ag\_news}, \texttt{ccdv/arxiv-classification}, \texttt{wikimedia/wikipedia}.
+\begin{itemize}
+  \item \textbf{Wikipedia (\texttt{wikimedia/wikipedia})}: treści objęte licencjami \textbf{CC~BY-SA~3.0} oraz \textbf{GFDL}. Wykorzystanie w projekcie ma charakter badawczy; zachowujemy atrybucję i nie redystrybuujemy surowych fragmentów tekstów poza cytowaniami i metadanymi.
+  \item \textbf{ArXiv (\texttt{ccdv/arxiv-classification})}: dane pochodzą z serwisu arXiv; obowiązują warunki arXiv dla treści (\emph{non-exclusive license to distribute}). Wykorzystanie wyłącznie do celów naukowo-badawczych; nie publikujemy pełnych tekstów.
+  \item \textbf{IMDB (\texttt{imdb})}, \textbf{AG~News (\texttt{ag\_news})}: korzystamy z gotowych ładowarek i podziałów udostępnianych na HF; zasady licencyjne zgodnie z kartami danych na Hugging~Face. Dane używane są wyłącznie badawczo; bez redystrybucji surowych przykładów.
+\end{itemize}
+
+\paragraph{Wstępne przetwarzanie danych.}
+\begin{itemize}
+  \item \textbf{Normalizacja:} podstawowa normalizacja z pipeline tokenizera (sekcja~2.2): m.in. obróbka białych znaków, znaków niewidocznych; bez agresywnej modyfikacji semantyki.
+  \item \textbf{Ograniczenie długości:} maksymalna długość sekwencji określone w sekcji~2.2; dynamiczny \emph{padding} w batchu.
+  \item \textbf{Wikipedia:} dodatkowy filtr słów kluczowych (\texttt{film}, \texttt{sport}, \texttt{business}, \texttt{science}, \texttt{technology}, \texttt{news}).
+\end{itemize}
+
+\paragraph{Kwestie etyczne i bias.}
+\begin{itemize}
+  \item \textbf{Stronniczość treści:} Wikipedia odzwierciedla preferencje społeczności redaktorów; IMDB zawiera subiektywne opinie; AG~News obejmuje wybrane źródła medialne; ArXiv ma nierówny rozkład dziedzin.
+  \item \textbf{Transparentność:} odwołujemy się do kart danych na HF i nie modyfikujemy etykiet/\,splitów dostarczanych przez autorów.
+\end{itemize}
+
+\section{Eksploracyjna analiza danych}
+\label{sec:eda}
+
+Analiza eksploracyjna została przeprowadzona dla czterech korpusów: 
+IMDB, AG~News, ArXiv~Classification oraz Wikipedia.    
+Podziały zbiorów (\texttt{split}) są predefiniowane podczas ładowania z \textbf{Hugging Face}.
+
+% ----------------------------------------------------------------------
+\subsection{Model bazowy}
+
+Wszystkie eksperymenty korzystają z~klasyfikatora bazowego opartego na~wektorach TF–IDF i~regresji logistycznej (\emph{baseline}).
+Konfiguracja modelu przedstawia się następująco:
+
+\begin{minted}{python}
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.linear_model import LogisticRegression
+from sklearn.pipeline import Pipeline
+
+pipeline = Pipeline(
+    steps=[
+        (
+            "tfidf",
+            TfidfVectorizer(
+                max_features=20000,
+                ngram_range=(1, 2),
+                min_df=2,
+                max_df=0.9,
+            ),
+        ),
+        (
+            "clf",
+            LogisticRegression(
+                max_iter=1000,
+                solver="lbfgs",
+                multi_class="auto",
+                verbose=0,
+            ),
+        ),
+    ]
+)
+\end{minted}
+
+\noindent\textit{Uwaga:} W dalszych eksperymentach wykorzystamy dodatkowy \textbf{baseline transformacyjny} w postaci \textbf{DistilBERT-base-uncased} (fine-tuning) w celu porówaniania wyników z powszechnie stosowanym punktem odniesienia.
+
+% ======================================================================
+\subsection{Zbiór IMDB}
+
+\paragraph{Opis.}
+Zbiór IMDB obejmuje 50\,000~recenzji filmowych z~etykietami \texttt{positive} lub \texttt{negative}, 
+oraz dodatkowy podzbiór 50\,000~przykładów bez etykiet (\emph{unsupervised}).
+
+\textbf{Statystyki długości (liczba słów).}
+\begin{table}[!htbp]
+\centering
+\small
+\begin{tabular}{
+    l
+    S[table-format=5.1]
+    S[table-format=5.1]
+    S[table-format=5.1]
+    S[table-format=4.0]
+    S[table-format=4.0]
+}
+\toprule
+\textbf{Split} & \textbf{avg} & \textbf{std} & \textbf{median} & \textbf{min} & \textbf{max}\\
+\midrule
+train & 233.8 & 173.7 & 174.0 & 10 & 2470\\
+test & 228.5 & 168.9 & 172.0 & 4 & 2278\\
+unsupervised & 234.4 & 173.8 & 175.0 & 9 & 2367\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Statystyki po tokenizacji (liczba tokenów).}\\
+\begin{table}[!htbp]
+\centering
+\small
+\begin{tabular}{
+    l
+    S[table-format=5.1]
+    S[table-format=5.1]
+    S[table-format=5.1]
+    S[table-format=4.0]
+    S[table-format=4.0]
+}
+\toprule
+\textbf{Split} & \textbf{avg\_tokens} & \textbf{std\_tokens} & \textbf{median\_tokens} & \textbf{min} & \textbf{max}\\
+\midrule
+train        & 313.9 & 234.3 & 233.0 & 13 & 3127\\
+test         & 306.8 & 227.9 & 230.0 & 10 & 3157\\
+unsupervised & 314.8 & 234.5 & 234.0 & 13 & 3446\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Rozkład etykiet (zbiór treningowy).}
+\begin{table}[!htbp]
+\centering
+\small
+\begin{tabular}{
+    l
+    S[table-format=5.0]
+    S[table-format=3.2]
+}
+\toprule
+\textbf{Etykieta} & \textbf{Liczba próbek} & \textbf{Udział [\%]}\\
+\midrule
+negative & 12500 & 50.00\\
+positive & 12500 & 50.00\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Wyniki modelu bazowego (zbiór testowy).}
+\begin{table}[!htbp]
+\centering
+\small
+\begin{tabular}{
+    l
+    S
+    S
+    S
+    S
+}
+\toprule
+\textbf{Klasa} & \textbf{Precision} & \textbf{Recall} & \textbf{F1} & \textbf{Support}\\
+\midrule
+negative & 0.90 & 0.89 & 0.89 & 12500\\
+positive & 0.89 & 0.90 & 0.90 & 12500\\
+\midrule
+\textbf{Accuracy} & \multicolumn{3}{c}{0.8950} & 25000\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\clearpage
+% ======================================================================
+\subsection{Zbiór AG News}
+
+\paragraph{Opis.}
+Zbiór AG~News zawiera 127\,600~artykułów wiadomości w~czterech kategoriach: 
+\texttt{world}, \texttt{sports}, \texttt{business}, \texttt{sci/tech}.  
+Podział: 120\,000~próbek uczących oraz 7\,600~testowych.
+\\
+
+\textbf{Statystyki długości (liczba słów).}
+\begin{table}[!htbp]
+\centering
+\small
+\begin{tabular}{
+    l
+    S[table-format=5.1]
+    S[table-format=5.1]
+    S[table-format=5.1]
+    S[table-format=3.0]
+    S[table-format=3.0]
+}
+\toprule
+\textbf{Split} & \textbf{avg} & \textbf{std} & \textbf{median} & \textbf{min} & \textbf{max}\\
+\midrule
+train & 37.8 & 10.1 & 37.0 & 8 & 177\\
+test  & 37.7 & 10.1 & 37.0 & 11 & 137\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Statystyki po tokenizacji (liczba tokenów).}\\
+\begin{table}[!htbp]
+\centering
+\small
+\begin{tabular}{
+    l
+    S[table-format=4.1]
+    S[table-format=4.1]
+    S[table-format=4.1]
+    S[table-format=3.0]
+    S[table-format=3.0]
+}
+\toprule
+\textbf{Split} & \textbf{avg\_tokens} & \textbf{std\_tokens} & \textbf{median\_tokens} & \textbf{min} & \textbf{max}\\
+\midrule
+train & 53.2 & 19.1 & 51.0 & 15 & 379\\
+test  & 52.7 & 18.2 & 50.0 & 18 & 277\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Rozkład etykiet (zbiór treningowy).}
+\begin{table}[!htbp]
+\centering
+\small
+\begin{tabular}{
+    l
+    S[table-format=5.0]
+    S[table-format=3.2]
+}
+\toprule
+\textbf{Etykieta} & \textbf{Liczba próbek} & \textbf{Udział [\%]}\\
+\midrule
+business & 30000 & 25.00\\
+sci/tech & 30000 & 25.00\\
+sports   & 30000 & 25.00\\
+world    & 30000 & 25.00\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Wyniki modelu bazowego (zbiór testowy).}
+\begin{table}[!htbp]
+\centering
+\small
+\begin{tabular}{
+    l
+    S
+    S
+    S
+    S
+}
+\toprule
+\textbf{Klasa} & \textbf{Precision} & \textbf{Recall} & \textbf{F1} & \textbf{Support}\\
+\midrule
+world    & 0.93 & 0.90 & 0.92 & 1900\\
+sports   & 0.95 & 0.98 & 0.97 & 1900\\
+business & 0.89 & 0.88 & 0.89 & 1900\\
+sci/tech & 0.89 & 0.90 & 0.90 & 1900\\
+\midrule
+\textbf{Accuracy} & \multicolumn{3}{c}{0.9166} & 7600\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+
+% ======================================================================
+\clearpage
+
+\subsection{Zbiór ArXiv Classification}
+
+\paragraph{Opis.}
+Zbiór ArXiv~Classification obejmuje artykuły naukowe z~serwisu arXiv w~11~kategoriach tematycznych.  
+Podziały: \texttt{train} – 28\,388, \texttt{validation} – 2\,500, \texttt{test} – 2\,500~próbek.
+\\
+\textbf{Statystyki długości (liczba słów).}
+\begin{table}[!htbp]
+\centering
+\small
+\begin{tabular}{
+    l
+    S[table-format=5.0]
+    S[table-format=5.0]
+    S[table-format=5.0]
+    S[table-format=5.0]
+    S[table-format=6.0]
+}
+\toprule
+\textbf{Split} & \textbf{avg} & \textbf{std} & \textbf{median} & \textbf{min} & \textbf{max}\\
+\midrule
+train & 10560 & 10184 & 8424 & 441 & 553206\\
+validation & 10506 & 8260 & 8431 & 733 & 125454\\
+test & 10234 & 7781 & 8198 & 740 & 95584\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Statystyki po tokenizacji (liczba tokenów).}\\
+\emph{Obliczone bez \texttt{split}=\textbf{train}. Maksymalna długość ograniczona do 32768 tokenów}
+\begin{table}[!htbp]
+\centering
+\small
+\begin{tabular}{
+    l
+    S[table-format=5.1]
+    S[table-format=5.1]
+    S[table-format=5.1]
+    S[table-format=5.0]
+    S[table-format=5.0]
+}
+\toprule
+\textbf{Split} & \textbf{avg\_tokens} & \textbf{std\_tokens} & \textbf{median\_tokens} & \textbf{min} & \textbf{max}\\
+\midrule
+validation & 15012.7 & 8385.6 & 12885.0 & 1373 & 32768\\
+test       & 14745.9 & 8257.8 & 12631.0 & 1268 & 32768\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Rozkład etykiet (zbiór treningowy).}
+
+\begin{table}[!htbp]
+\centering
+\small
+\begin{tabular}{
+    l
+    S[table-format=5.0]
+    S[table-format=3.2]
+}
+\toprule
+\textbf{Etykieta} & \textbf{Liczba próbek} & \textbf{Udział [\%]}\\
+\midrule
+cs.DS   & 3527 & 12.42\\
+cs.IT   & 2768 &  9.75\\
+cs.SY   & 2631 &  9.27\\
+math.GR & 2599 &  9.16\\
+math.ST & 2581 &  9.09\\
+cs.AI   & 2569 &  9.05\\
+cs.NE   & 2560 &  9.02\\
+math.AC & 2456 &  8.65\\
+cs.PL   & 2443 &  8.61\\
+cs.CV   & 2137 &  7.53\\
+cs.CE   & 2117 &  7.46\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+\textbf{Wyniki modelu bazowego (zbiór testowy).}
+\begin{table}[!htbp]
+\centering
+\small
+\begin{tabular}{
+    l
+    S
+    S
+    S
+    S
+}
+\toprule
+\textbf{Klasa} & \textbf{Precision} & \textbf{Recall} & \textbf{F1} & \textbf{Support}\\
+\midrule
+math.AC & 0.95 & 0.94 & 0.95 & 212\\
+cs.CV & 0.80 & 0.82 & 0.81 & 194\\
+cs.AI & 0.69 & 0.58 & 0.63 & 205\\
+cs.SY & 0.85 & 0.88 & 0.87 & 233\\
+math.GR & 0.95 & 0.96 & 0.95 & 234\\
+cs.CE & 0.78 & 0.73 & 0.75 & 196\\
+cs.PL & 0.88 & 0.93 & 0.91 & 241\\
+cs.IT & 0.86 & 0.85 & 0.85 & 236\\
+cs.DS & 0.88 & 0.90 & 0.89 & 318\\
+cs.NE & 0.75 & 0.74 & 0.75 & 219\\
+math.ST & 0.81 & 0.88 & 0.84 & 212\\
+\midrule
+\textbf{Accuracy} & \multicolumn{3}{c}{0.8436} & 2500\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+
+% ======================================================================
+\clearpage
+
+\subsection{Zbiór Wikipedia}
+
+\paragraph{Opis.}
+Zbiór Wikipedia obejmuje pierwsze 200\,000~artykułów zawierających co najmniej jedno ze słów kluczowych:  
+\texttt{film}, \texttt{sport}, \texttt{business}, \texttt{science}, \texttt{technology}, \texttt{news}.
+\\
+
+\textbf{Statystyki długości (liczba słów).}
+\begin{table}[!htbp]
+\centering
+\small
+\begin{tabular}{
+    l
+    S[table-format=6.1]
+    S[table-format=6.1]
+    S[table-format=6.1]
+    S[table-format=6.0]
+    S[table-format=6.0]
+}
+\toprule
+\textbf{avg} & \textbf{std} & \textbf{median} & \textbf{min} & \textbf{max} \\
+\midrule
+931.3 & 1351.6 & 547.0 & 7 & 48059 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Statystyki po tokenizacji (liczba tokenów).}\\
+\emph{Obliczone na podstawie pierwszych 20000 artykułów. Maksymalna długość ograniczona do 4096 tokenów}
+\begin{table}[!htbp]
+\centering
+\small
+\begin{tabular}{
+    l
+    S[table-format=6.1]
+    S[table-format=6.1]
+    S[table-format=6.1]
+    S[table-format=4.0]
+    S[table-format=4.0]
+}
+\toprule
+\textbf{avg\_tokens} & \textbf{std\_tokens} & \textbf{median\_tokens} & \textbf{min} & \textbf{max} \\
+\midrule
+1364.6 & 1226.1 & 897.0 & 16 & 4096 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+
+
+
+\end{document}
