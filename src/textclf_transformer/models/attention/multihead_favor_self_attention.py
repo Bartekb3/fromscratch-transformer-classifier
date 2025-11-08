@@ -38,7 +38,7 @@ def _gaussian_orthogonal_random_matrix(n_rows: int, n_cols: int, device, out_dty
     """
     blocks, rows_left = [], n_rows
     compute_dtype = torch.float32
-    with torch.amp.autocast('cuda',enabled=False):
+    with torch.amp.autocast('cuda', enabled=False):
         while rows_left > 0:
             block_rows = min(n_cols, rows_left)
             unstructured = torch.randn(n_cols, n_cols, device=device, dtype=compute_dtype)

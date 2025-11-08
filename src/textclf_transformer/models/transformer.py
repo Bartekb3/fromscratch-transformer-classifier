@@ -59,6 +59,8 @@ class Transformer(nn.Module):
         super().__init__()
         self.pad_token_id = pad_token_id
         self.attention_kind = attention_kind
+        self.embedding_dim = embedding_dim
+        self.num_heads = num_heads
 
         # Embeddings
         self.embeddings = TransformerTextEmbeddings(
@@ -124,7 +126,7 @@ class Transformer(nn.Module):
         # If using RoPE, build cosine/sine cache for the current sequence length
         if getattr(self.embeddings, "pos_kind", None) == "rope":
             B, N, D = x.shape
-            head_dim = self.layers[0].attention_block.attention_mechanism.dk  # per-head dim
+            head_dim = self.embedding_dim // self.num_heads  # per-head dim
             cos, sin = build_rope_cache(
                 seq_len=N,
                 dim=head_dim,
