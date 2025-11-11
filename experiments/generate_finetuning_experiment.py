@@ -1,27 +1,17 @@
 #!/usr/bin/env python3
-"""Generate a finetuning experiment directory from a template and a pretraining run.
+"""Scaffold a finetuning experiment directory from the template and a pretrain run.
 
-This script creates a new finetuning experiment under ``experiments/finetuning/<name>``
-based on:
-- a configuration template at ``config_templates/finetuning.yaml``, and
-- an existing pretraining experiment at ``experiments/pretraining/<pretrain_name>``.
+The script validates that a referenced pretraining experiment (and its
+``config.yaml``) exists, creates ``experiments/finetuning/<name>`` with metric
+subdirectories, loads ``config_templates/finetuning.yaml``, and populates the
+template with experiment metadata. It also copies the architecture/tokenizer
+sections from the pretraining config when present and serialises the result to
+``config.yaml`` while keeping paths relative to the project root.
 
-It performs basic validations (existence of the pretraining directory and its
-``config.yaml``), prepares the target directory structure, merges selected fields
-from the pretraining config (architecture and tokenizer), and writes the final
-``config.yaml`` for the finetuning run.
-
-Usage (CLI):
-    experiments/generate_finetuning_experiment.py -f <finetune_name> -p <pretrain_name>
-
-Exit codes:
-    1 - Wrong number of CLI arguments.
-    2 - Pretraining experiment directory does not exist.
-    3 - Missing ``config.yaml`` in the pretraining experiment directory.
-    4 - Target finetuning experiment already exists.
+Usage:
+    python experiments/generate_finetuning_experiment.py -f <finetune_name> -p <pretrain_name>
 """
 
-import sys
 import argparse
 import yaml
 from pathlib import Path

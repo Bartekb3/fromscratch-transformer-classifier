@@ -113,8 +113,8 @@ def arch_kwargs_from_cfg(arch_cfg: Dict[str, Any], hf_tok) -> Dict[str, Any]:
           ``embedding_dropout``, optionally ``pad_token_id``.
         - ``attention``: a dict with keys:
             - ``kind`` (defaults to ``"mha"``),
-            - ``mha`` (dict) with ``num_heads``, ``attn_dropout``,
-              ``mha_out_dropout``, ``projection_bias``.
+            - ``num_heads``, ``attn_dropout``, ``attn_out_dropout``, ``projection_bias``,
+            - a sub-dict per kind (``"mha"``, ``"lsh"``, ``"favor"``) holding additional parameters.
 
     Args:
         arch_cfg: Architecture configuration dictionary.

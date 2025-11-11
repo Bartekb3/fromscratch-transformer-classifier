@@ -1,24 +1,18 @@
-import sys
+"""Scaffold a pretraining experiment directory from the project template.
+
+The script validates that the requested experiment name does not already exist
+under ``experiments/pretraining/``, creates the directory structure (including
+``metrics/train``), loads ``config_templates/pretraining.yaml`` and fills in the
+experiment name, relative output path, and W&B run name before writing
+``config.yaml``.
+
+Usage:
+    python experiments/generate_pretraining_experiment.py -p <experiment_name>
+"""
+
 import argparse
 import yaml
 from pathlib import Path
-
-
-"""Generate a pretraining experiment directory from a template.
-
-This script creates a new pretraining experiment under
-``experiments/pretraining/<experiment_name>`` using the configuration template
-``config_templates/pretraining.yaml``. It validates inputs, prepares the target
-directory structure, populates the template with the experiment name and output
-path, and writes the resulting ``config.yaml``.
-
-Usage (CLI):
-    experiments/generate_pretraining_experiment.py -p <pretraining_experiment_name>
-
-Exit codes:
-    1 - Wrong number of CLI arguments.
-    2 - Target experiment already exists.
-"""
 
 ROOT = Path(__file__).resolve().parents[1]
 TPL = ROOT / "config_templates" / "pretraining.yaml"

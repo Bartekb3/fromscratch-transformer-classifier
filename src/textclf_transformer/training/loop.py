@@ -1,8 +1,4 @@
-from __future__ import annotations
-from types import MethodType
-
-from textclf_transformer.logging.wandb_logger import WandbRun
-"""Unified training loop for MLM and classification with AMP, grad accumulation, and cosine scheduling.
+"""Training loop handling MLM and classification with AMP, accumulation, and cosine scheduling.
 
 This module defines a configurable training loop that supports:
 - device selection (CPU/GPU) with optional AMP (automatic mixed precision),
@@ -14,17 +10,23 @@ This module defines a configurable training loop that supports:
 The loop logs metrics via a user-provided logger object that may expose ``log_train`` and/or ``log_eval``.
 """
 
+from __future__ import annotations
+
+from src.textclf_transformer.logging.wandb_logger import WandbRun
 from dataclasses import dataclass
-from typing import Optional, Dict, Any, Tuple
+from typing import Literal, Optional, Dict, Any, Tuple, List
 import math
 from pathlib import Path
 
 import torch
 from torch import nn
 from torch.optim import AdamW
-from torch.cuda.amp import GradScaler as CudaGradScaler
 from torch.utils.data import DataLoader
 
+from src.textclf_transformer.training.metrics_utils import (
+    compute_classification_metrics,
+    compute_mlm_metrics,
+)
 
 @dataclass
 class _State:
@@ -48,12 +50,13 @@ class TrainingLoop:
             - ``warmup_ratio`` (float, optional): Fraction of total steps used for LR warmup. Defaults to 0.0.
         logger: Object used to log metrics. If it defines ``log_train`` or ``log_eval``, these will be called.
         is_mlm: If ``True``, run in Masked Language Modeling mode; otherwise classification.
-        mlm_cfg: Optional dict with masking probabilities for MLM:
+        head_cfg: Optional dict with masking probabilities for MLM:
             - ``mask_p`` (float): Overall masking probability (default 0.15).
             - ``mask_token_p`` (float): Probability of replacing with [MASK] (default 0.8).
             - ``random_token_p`` (float): Probability of replacing with random token (default 0.1).
         tokenizer_wrapper: Object providing ``mask_input_for_mlm(input_ids, mask_p, mask_token_p, random_token_p)``
             when ``is_mlm=True``.
+        attnention_forward_params: Static kwargs forwarded to the model on every call (e.g., attention caches).
     """
 
     def __init__(
@@ -63,7 +66,7 @@ class TrainingLoop:
         logger: WandbRun,
         is_mlm: bool,
         attnention_forward_params: Dict[str, Any] | None = None,
-        mlm_cfg: Optional[Dict[str, Any]] = None,
+        head_cfg: Optional[Dict[str, Any]] = None,
         tokenizer_wrapper=None,
     ):
         """Initialize the training loop and prepare device, loss, AMP, optimizer, and scheduler slots."""
@@ -72,7 +75,7 @@ class TrainingLoop:
         self.logger = logger
         self.attnention_forward_params = attnention_forward_params
         self.is_mlm = is_mlm
-        self.mlm_cfg = mlm_cfg or {}
+        self.head_cfg = head_cfg or {}
         self.tok_wrapper = tokenizer_wrapper
 
         wanted = (training_cfg.get("device") or "auto").lower()
@@ -162,9 +165,9 @@ class TrainingLoop:
         if self.is_mlm:
             masked_ids, labels = self.tok_wrapper.mask_input_for_mlm(
                 input_ids=input_ids,
-                mask_p=float(self.mlm_cfg.get("mask_p", 0.15)),
-                mask_token_p=float(self.mlm_cfg.get("mask_token_p", 0.8)),
-                random_token_p=float(self.mlm_cfg.get("random_token_p", 0.1)),
+                mask_p=float(self.head_cfg.get("mask_p", 0.15)),
+                mask_token_p=float(self.head_cfg.get("mask_token_p", 0.8)),
+                random_token_p=float(self.head_cfg.get("random_token_p", 0.1)),
             )
             effective_count = max(
                 1, int((labels.view(-1) != -100).sum().item())
@@ -290,8 +293,8 @@ class TrainingLoop:
             scaler_state: Optional AMP GradScaler state dict to restore.
             best_val_loss: Best validation loss observed so far; defaults to ``inf`` when ``None``.
         """
-        total_steps = max(1, epochs * len(train_loader) //
-                          max(1, self.grad_accum_steps))
+        total_steps = max(1, epochs * math.ceil(len(train_loader) /
+                          max(1, self.grad_accum_steps)))
         self._build_scheduler(total_steps)
 
         if optimizer_state:
@@ -364,13 +367,14 @@ class TrainingLoop:
         """Internal evaluation routine for MLM or classification.
 
         Returns:
-            Dict[str, float]: For MLM, ``{'mlm_loss': avg_token_loss}``; for classification,
-            ``{'loss': avg_example_loss, 'accuracy': accuracy}``.
+            Dict[str, float]: For MLM, metrics produced by ``compute_mlm_metrics``; for classification,
+            metrics produced by ``compute_classification_metrics``.
         """
         self.model.eval()
         device_type = "cuda" if self.device == "cuda" else "cpu"
         use_autocast = self.scaler.is_enabled()
 
+        # mlm evaluation
         if self.is_mlm:
             total_loss, total_tokens = 0.0, 0
             for batch in loader:
@@ -384,10 +388,12 @@ class TrainingLoop:
                 total_loss += loss.item() * float(effective_count)
                 total_tokens += effective_count
             self.model.train()
-            avg_loss = total_loss / max(1, total_tokens)
-            return {"loss": float(avg_loss)}
+            return compute_mlm_metrics(total_loss, total_tokens)
 
-        total_loss, total_weight, correct = 0.0, 0, 0
+        # classification evaluation
+        total_loss, total_weight = 0.0, 0
+        logits_batches: List[torch.Tensor] = []
+        labels_batches: List[torch.Tensor] = []
         for batch in loader:
             model_inputs, labels, effective_count = self._prepare_batch(batch)
             logits, loss = self._forward_logits_and_loss(
@@ -398,23 +404,26 @@ class TrainingLoop:
             )
             total_loss += loss.item() * float(effective_count)
             total_weight += effective_count
-            preds = logits.argmax(dim=-1)
-            correct += (preds == labels).sum().item()
+            logits_batches.append(logits.detach().cpu())
+            labels_batches.append(labels.detach().cpu())
 
         self.model.train()
         avg_loss = total_loss / max(1, total_weight)
-        acc = correct / max(1, total_weight)
-        return {"loss": float(avg_loss), "accuracy": float(acc)}
+        logits_tensor = torch.cat(logits_batches, dim=0)
+        labels_tensor = torch.cat(labels_batches, dim=0)
+        return compute_classification_metrics(
+            logits_tensor,
+            labels_tensor,
+            avg_loss=avg_loss,
+            total_weight=total_weight,
+        )
 
     @torch.no_grad()
-    def evaluate(self, loader: DataLoader) -> None:
+    def evaluate(self, loader: DataLoader, kind: Literal["eval", "test"]) -> None:
         """Public evaluation method that logs via the provided logger (if available).
 
         Args:
             loader: DataLoader for the evaluation split.
-
-        Returns:
-            Dict[str, float]: Metrics as produced by ``_eval_impl``.
         """
         metrics = self._eval_impl(loader)
-        self.logger.log_eval(metrics)
+        self.logger.log_eval(metrics, kind)

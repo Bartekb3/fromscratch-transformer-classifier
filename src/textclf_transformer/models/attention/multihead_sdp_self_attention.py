@@ -59,6 +59,7 @@ class MultiheadSelfAttention(nn.Module):
     def _reset_parameters(self):
         # Xavier init for Uqkv projection, same as in Pythorch implementation
         nn.init.xavier_uniform_(self.Uqkv.weight)
+        nn.init.xavier_uniform_(self.Uout.weight)
         if self.proj_bias:
             nn.init.zeros_(self.Uqkv.bias)
             nn.init.zeros_(self.Uout.bias)

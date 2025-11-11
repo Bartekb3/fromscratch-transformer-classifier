@@ -1,5 +1,10 @@
 import torch
 from typing import Optional
+from torch.serialization import add_safe_globals
+from torch.utils.data import TensorDataset
+from torch.utils.data import DataLoader
+from pathlib import Path
+from typing import Any, Mapping, Literal
 
 
 def make_collate_trim_to_longest(
@@ -39,6 +44,7 @@ def make_collate_trim_to_longest(
         presence of labels in the input batch.
     """
     def collate(batch):
+        print(batch)
         has_labels = len(batch[0]) == 3
 
         input_ids = torch.stack([b[0] for b in batch], dim=0)
@@ -67,35 +73,32 @@ def make_collate_trim_to_longest(
     return collate
 
 
-def collate_for_pretraining(pad_is_true_mask: bool = True, max_seq_len: Optional[int] = None):
-    """Factory for a pretraining collate that trims to longest and drops labels.
-
-    Args:
-        pad_is_true_mask: See ``make_collate_trim_to_longest``.
-        max_seq_len: Optional hard cap on the trimmed sequence length.
-
-    Returns:
-        Callable configured as ``drop_labels_if_present=True``.
-    """
-    return make_collate_trim_to_longest(
-        pad_is_true_mask=pad_is_true_mask,
-        drop_labels_if_present=True,
-        max_seq_len=max_seq_len,
-    )
+def load_dataset(pt_path: str | Path):
+    """Load a serialized PyTorch dataset (e.g., ``TensorDataset``) with safe globals."""
+    add_safe_globals([TensorDataset])
+    return torch.load(pt_path, weights_only=False)
 
 
-def collate_for_classification(pad_is_true_mask: bool = True, max_seq_len: Optional[int] = None):
-    """Factory for a classification collate that trims to longest and keeps labels.
+def get_data_loader_from_cfg(cfg: dict[str, Any], kind_ds: Literal["train", "val", "test"], mode: Literal['pretraining', 'finetuning']):
+    """Instantiate a ``DataLoader`` for the dataset described under ``cfg['data'][kind_ds]["dataset_path"]``. """
+    dataset_path = cfg["data"].get(f"{kind_ds}", {}).get("dataset_path", None)
+    if not dataset_path:
+        return None
+    ds = load_dataset(dataset_path)
+    max_seq_len = cfg["architecture"]["max_sequence_length"]
+    batch_size = cfg["training"]["batch_size"]
 
-    Args:
-        pad_is_true_mask: See ``make_collate_trim_to_longest``.
-        max_seq_len: Optional hard cap on the trimmed sequence length.
+    if mode == 'finetuning':
+        collate_fn = make_collate_trim_to_longest(
+            drop_labels_if_present=False, max_seq_len=max_seq_len)
+    else:
+        collate_fn = make_collate_trim_to_longest(
+            drop_labels_if_present=True, max_seq_len=max_seq_len)
 
-    Returns:
-        Callable configured as ``drop_labels_if_present=False``.
-    """
-    return make_collate_trim_to_longest(
-        pad_is_true_mask=pad_is_true_mask,
-        drop_labels_if_present=False,
-        max_seq_len=max_seq_len,
+    shuffle = (kind_ds == "train")
+    return DataLoader(
+        ds,
+        batch_size=batch_size,
+        shuffle=shuffle,
+        collate_fn=collate_fn,
     )

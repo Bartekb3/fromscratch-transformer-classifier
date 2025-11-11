@@ -1,30 +1,30 @@
 # From-Scratch Transformer Classifier — One-Page Quick Use (README)
 
-Minimal, practical guide to run **MLM pretraining** and **classification finetuning**.  
-Only usage + where things live. Single page, single block.
+Minimal, practical guide to run **MLM pretraining** and **classification finetuning**. Up-to-date with this repo’s CLI and layout.
 
 ---
 
 ## 🗺 Repo Map (where things live)
 
-- **CLIs (run these)**
-  - `pretrain.py` — run masked-language-model pretraining (MLM)
-  - `finetune.py` — run classification finetuning (CLS)
+- **CLI (run this)**
+  - `train.py` — run training with a mode flag:
+    - `-m pretraining` for MLM pretraining
+    - `-m finetuning` for classification finetuning
 - **Templates & Experiment generators**
   - `config_templates/pretraining.yaml` — template for MLM
   - `config_templates/finetuning.yaml` — template for CLS
   - `experiments/generate_pretraining_experiment.py` — creates `experiments/pretraining/<name>/`
   - `experiments/generate_finetuning_experiment.py` — creates `experiments/finetuning/<name>/` (linked to a pretraining run)
 - **Generated runs**
-  - `experiments/pretraining/<name>/` → `config.yaml`, `metrics/train/metrics.csv`, `model.ckpt`
-  - `experiments/finetuning/<name>/` → `config.yaml`, `metrics/train|eval/metrics.csv`, `model.ckpt`
+  - `experiments/pretraining/<name>/` → `config.yaml`, `metrics/train/metrics.csv`, `checkpoints/`, `model.ckpt`
+  - `experiments/finetuning/<name>/` → `config.yaml`, `metrics/train|eval/metrics.csv`, `checkpoints/`, `model.ckpt`
 - **Library (`src/textclf_transformer/`)**
-  - `model/` — transformer blocks & heads
+  - `models/` — transformer blocks, heads, and variants (CLS, MLM)
   - `training/loop.py` — TrainingLoop (AMP, grad accumulation, cosine LR, eval)
-  - `data/collate.py` — collate for MLM/CLS (**expects `True = PAD`**)
+  - `training/dataloader_utils.py` — collate and DataLoader helpers (**expects `True = PAD`**)
   - `tokenizer/wordpiece_tokenizer_wrapper.py` — wrapper with `load(...)`, `mask_input_for_mlm(...)`
-  - `utils.py` — seeding, dynamic import, arch kwargs
-  - `__init__.py` — re-exports used by CLIs
+  - `utils/config.py` — seeding, dynamic import, arch kwargs
+  - `logging/wandb_logger.py` — CSV + optional W&B logging
 
 ---
 
@@ -32,16 +32,10 @@ Only usage + where things live. Single page, single block.
 
 ```bash
 python -m venv .venv
-# Linux/macOS:
-source .venv/bin/activate
-# Windows (PowerShell):
-.\.venv\Scripts\Activate.ps1
+source .venv/bin/activate            # Windows: .\.venv\Scripts\Activate.ps1
 
 pip install --upgrade pip
-pip install torch torchvision torchaudio     # choose CUDA/CPU build for your machine
-pip install pyyaml wandb numpy
-# (optional)
-pip install -r requirements.txt
+pip install -r requirements.txt       # contains PyTorch, transformers, tokenizers, wandb, etc.
 ```
 
 Notes:  
@@ -74,11 +68,11 @@ and caps to architecture.max_sequence_length.
 ```
 experiment: name, output_dir, seed
 logging: use_wandb, W&B entity/project/run_name, CSV paths
-tokenizer: wrapper_path, vocab_dir
+tokenizer: wrapper_path, vocab_dir, max_length
 architecture: max_sequence_length, embedding_dim, num_layers, attention, dropouts
 training: device (auto/cpu/cuda), learning_rate, batch_size, epochs, warmup_ratio, use_amp, grad_accum_steps, max_grad_norm
 Pretraining only mlm_head: mask_p, mask_token_p, random_token_p, tie_mlm_weights
-Finetuning only classification_head: num_labels, pooling, classifier_dropout; and pretrained_experiment: path, checkpoint
+Finetuning only classification_head: num_labels, pooling, classifier_dropout, pooler_type; and pretrained_experiment: path, checkpoint
 data: .pt paths for train / val / test
 ```
 
@@ -88,7 +82,7 @@ data: .pt paths for train / val / test
 
 ```
 # Generate
-python experiments/generate_pretraining_experiment.py <pretrain_name>
+python experiments/generate_pretraining_experiment.py -p <pretrain_name>
 
 # Edit experiments/pretraining/<pretrain_name>/config.yaml:
 #   - Set data.train.dataset_path (your MLM .pt)
@@ -96,7 +90,7 @@ python experiments/generate_pretraining_experiment.py <pretrain_name>
 #   - Adjust architecture, training, and optional mlm_head
 
 # Run
-python pretrain.py <pretrain_name>
+python train.py -n <pretrain_name> -m pretraining
 
 # Outputs:
 #   CSV → metrics/train/metrics.csv
@@ -110,7 +104,7 @@ python pretrain.py <pretrain_name>
 
 ```
 # Generate from pretraining
-python experiments/generate_finetuning_experiment.py <finetune_name> <pretrain_name>
+python experiments/generate_finetuning_experiment.py -f <finetune_name> -p <pretrain_name>
 
 # Edit experiments/finetuning/<finetune_name>/config.yaml:
 #   - Set data.train/val/test.dataset_path (your CLS .pt)
@@ -118,7 +112,7 @@ python experiments/generate_finetuning_experiment.py <finetune_name> <pretrain_n
 #   - Set classification_head.num_labels (+ pooling/dropout if needed)
 
 # Run
-python finetune.py <finetune_name>
+python train.py -n <finetune_name> -m finetuning
 
 # Outputs:
 #   CSV → metrics/train/metrics.csv, metrics/eval/metrics.csv
@@ -156,12 +150,12 @@ python finetune.py <finetune_name>
 
 ```
 # Pretraining
-python experiments/generate_pretraining_experiment.py pre_v1
+python experiments/generate_pretraining_experiment.py -p pre_v1
 # edit: experiments/pretraining/pre_v1/config.yaml
-python pretrain.py pre_v1
+python train.py -n pre_v1 -m pretraining
 
 # Finetuning
-python experiments/generate_finetuning_experiment.py ft_v1 pre_v1
+python experiments/generate_finetuning_experiment.py -f ft_v1 -p pre_v1
 # edit: experiments/finetuning/ft_v1/config.yaml
-python finetune.py ft_v1
+python train.py -n ft_v1 -m finetuning
 ```

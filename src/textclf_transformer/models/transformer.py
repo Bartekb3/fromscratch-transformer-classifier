@@ -8,30 +8,30 @@ from .embeddings.text_embeddings import TransformerTextEmbeddings
 ATTN_KIND = Literal["mha", "lsh", "favor"]
 
 class Transformer(nn.Module):
-    """
+    """Backbone Transformer encoder stack used by MLM and classification variants.
 
     Composition:
-        - Embeddings: token + positional (learned or sinusoidal) + optional token type
-        - `num_layers` x `TransformerEncoderBlock`
-        - Sequence pooling head (cls/mean/max/min)
+        - Token/positional/type embeddings with LayerNorm and dropout.
+        - ``num_layers`` identical ``TransformerEncoderBlock`` modules.
+        - Optional attention specialisation per block via ``attention_kind``.
 
     Args:
         vocab_size (int): Vocabulary size.
         max_sequence_length (int): Maximum supported sequence length.
-        embedding_dim (int): Hidden size `D`.
+        embedding_dim (int): Hidden size ``D``.
         num_layers (int): Number of encoder blocks.
         num_heads (int): Number of attention heads per block.
         mlp_size (int): Hidden size of the feed-forward sublayer.
-        mlp_dropout (float): Dropout after FFN second linear in mlp block of encoder.
-        mha_out_dropout (float): Dropout on the MHSA output projection.
-        attn_dropout (float): Dropout on attention weights (after softmax).
-        mha_projection_bias (bool): Whether (Q/K/V)/out MHSA projections include bias.
-        pos_encoding (str): `'learned'` or `'sinusoidal'` positional scheme.
-        type_vocab_size (int | None): Segment (token-type) vocabulary size; 0 or None disables segments.
+        mlp_dropout (float): Dropout applied after the second MLP linear layer.
+        attn_out_dropout (float): Dropout on the attention output projection.
+        attn_dropout (float): Dropout applied to attention probabilities.
+        attn_projection_bias (bool): Whether the Q/K/V/out projections include bias terms.
+        pos_encoding (str): ``"learned"`` or ``"sinusoidal"`` positional scheme.
+        type_vocab_size (int | None): Segment (token-type) vocabulary size; 0/``None`` disables segments.
         embedding_dropout (float): Dropout applied to input embeddings.
-        pad_token_id (int | None): [PAD] token id.
-        attention_kind (ATTN_KIND): Type of attention. Currently only `'mha'` TODO
-            (classic Multi-Head Self-Attention) is implemented; others raise `NotImplementedError`. 
+        pad_token_id (int | None): PAD token id passed to embeddings.
+        attention_kind (ATTN_KIND): Attention mechanism identifier (``"mha"``, ``"lsh"``, ``"favor"``).
+        attention_params (dict | None): Extra keyword arguments forwarded to the selected attention module.
     """
 
     def __init__(
@@ -94,22 +94,17 @@ class Transformer(nn.Module):
         token_type_ids: torch.LongTensor | None = None,
         position_ids: torch.LongTensor | None = None
     ):
-        """
-        Full forward pass through embeddings and encoder stack.
+        """Run embeddings and encoder stack without any task-specific heads.
 
         Args:
-            input_ids (LongTensor): `(B, N)` token ids. If `pooling='cls'`, the input
-                is expected to include a `[CLS]` token at position 0.
-            attention_mask (Tensor): Boolean mask of shape `(B, N)`,
-                where True marks positions that should be masked (PAD tokens).
-                Must be of dtype bool. Masked keys are ignored
-                in attention computation.
-            token_type_ids (LongTensor, optional): `(B, N)` segment ids (e.g., 0/1).
-            position_ids (LongTensor, optional): `(B, N)` explicit position indices
-                (used for learned positional embeddings), if `None`, positions default to `arange(N)`.
+            input_ids (LongTensor): ``(B, N)`` token ids.
+            attention_mask (Tensor): Boolean mask ``(B, N)`` where ``True`` marks PAD tokens to ignore.
+            attention_forward_params (dict | None): Extra kwargs forwarded to the attention module.
+            token_type_ids (LongTensor, optional): ``(B, N)`` segment ids.
+            position_ids (LongTensor, optional): ``(B, N)`` explicit positions for learned encodings.
 
         Returns:
-            `sequence_output`(LongTensor): `(B, N, D)` encoder output.
+            torch.Tensor: Encoder hidden states of shape ``(B, N, D)``.
         """
 
         x = self.embeddings(
@@ -119,4 +114,3 @@ class Transformer(nn.Module):
             x = layer(x, key_padding_mask=attention_mask, attention_forward_params=attention_forward_params)
 
         return x
-
