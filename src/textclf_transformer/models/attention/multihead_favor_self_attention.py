@@ -198,7 +198,7 @@ class FAVORAttention(nn.Module):
 
     def _phi_exp(self, x: torch.Tensor) -> torch.Tensor:
         """
-        FAVOR+ random features (Performer) — numerically stable & AMP-compatible version.
+        FAVOR+ random features (Performer)
         """
         B, H, N, D = x.shape
         M = self.nb_features // 2
