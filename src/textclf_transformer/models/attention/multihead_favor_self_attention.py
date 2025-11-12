@@ -21,8 +21,9 @@ def _gaussian_orthogonal_random_matrix(n_rows: int, n_cols: int, device, out_dty
             block_rows = min(n_cols, rows_left)
             unstructured = torch.randn(n_cols, n_cols, device=device, dtype=compute_dtype)
             q, r = torch.linalg.qr(unstructured, mode="reduced")
-            d = torch.sign(torch.diagonal(r))
-            q = q @ torch.diag(d)
+            diag = torch.diagonal(r)
+            d = torch.where(diag >= 0, torch.ones_like(diag), -torch.ones_like(diag))  # ±1
+            q = q * d.unsqueeze(0)
 
             # (opcja lepsza jakościowo) skala „gaussian length” (chi):
             g = torch.randn(block_rows, n_cols, device=device, dtype=compute_dtype)
@@ -79,6 +80,7 @@ class FAVORAttention(nn.Module):
         self.embed_dim = embed_dim
         self.num_heads = num_heads
         self.dk = embed_dim // num_heads
+        self.dk_fourth_root = self.dk ** 0.25
 
         self.out_drop = nn.Dropout(out_dropout)
         self.proj_bias = bias
@@ -90,6 +92,11 @@ class FAVORAttention(nn.Module):
         # FAVOR+ config
         self.phi_kind = phi.lower()
         self.nb_features = int(nb_features)
+        if self.phi_kind == "exp":
+            if self.nb_features <= 0:
+                raise ValueError("nb_features must be positive for phi='exp'.")
+            if self.nb_features % 2 != 0:
+                raise ValueError("nb_features must be even for phi='exp' (positive/negative pairs).")
         self.ortho_features = bool(ortho_features)
         self.redraw_interval = int(redraw_interval) if redraw_interval else 0
         self.stabilize = bool(stabilize)
@@ -173,17 +180,15 @@ class FAVORAttention(nn.Module):
         # First-time init: draw even in eval so we have valid Ω loaded/created.
         if self._omega.numel() == 0:
             self._draw_features(device, dtype)
-            self._calls.zero_()
             return
 
         # After init, do not redraw in eval.
-        if not self.training:
+        if not self.training or self.redraw_interval <= 0:
             return
 
         # Redraw during training if interval is enabled and reached.
-        if self.redraw_interval and (self._calls.item() % self.redraw_interval == 0):
+        if self._calls.item() % self.redraw_interval == 0:
             self._draw_features(device, dtype)
-            self._calls.zero_()
     
     def freeze_features(self):
         """Keep current Ω fixed (no redraw). Also sets the module to eval mode."""
@@ -200,33 +205,26 @@ class FAVORAttention(nn.Module):
         """
         FAVOR+ random features (Performer)
         """
-        B, H, N, D = x.shape
-        M = self.nb_features // 2
-        device, dtype = x.device, x.dtype
-
-        self._maybe_redraw_features(device, dtype)
-
-        x32 = (x.float() / math.sqrt(self.dk))
+        in_dtype = x.dtype
+        scale = self.dk_fourth_root
+        x32 = x.float() / scale
         omega32 = self._omega.float()
 
         proj = torch.einsum("bhnd,hmd->bhnm", x32, omega32)
 
-
         if self.stabilize:
-            m = proj.abs().amax(dim=-1, keepdim=True)  # (B,H,N,1)
-            exp_pos = torch.exp(proj - m)
-            exp_neg = torch.exp(-proj - m)
-        else:
-            exp_pos = torch.exp(proj)
-            exp_neg = torch.exp(-proj)
+            m = proj.abs().amax(dim=(2, 3), keepdim=True) 
+            proj = proj - m
+
+        exp_pos = torch.exp(proj)
+        exp_neg = torch.exp(-proj)
 
         features = torch.cat([exp_pos, exp_neg], dim=-1)
 
         norm = torch.exp(-0.5 * (x32 ** 2).sum(dim=-1, keepdim=True)).clamp_min(1e-6)
         features = norm * features / math.sqrt(self.nb_features)
 
-
-        return features.to(dtype)
+        return features.to(in_dtype)
 
 
 
@@ -279,7 +277,7 @@ class FAVORAttention(nn.Module):
             - Autocast is respected (no manual disabling). Some ops upcast to fp32
             for stability but do not change the global autocast state.
         """
-        self._calls += 1
+        self._calls.add_(1)
 
         B, N, D = x.shape
         assert D == self.embed_dim
@@ -301,6 +299,7 @@ class FAVORAttention(nn.Module):
         Q = Q * valid
         V = V * valid
 
+        self._maybe_redraw_features(Q.device, Q.dtype)
 
         Qf = self._phi(Q)        # (B, H, N, M)
         Kf = self._phi(K)        # (B, H, N, M)
@@ -334,4 +333,3 @@ class FAVORAttention(nn.Module):
         out = self.out_drop(out)
 
         return out, None
-
