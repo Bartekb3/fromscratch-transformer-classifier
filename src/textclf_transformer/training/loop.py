@@ -1,4 +1,8 @@
-"""Training loop handling MLM and classification with AMP, accumulation, and cosine scheduling.
+from __future__ import annotations
+from types import MethodType
+
+from ..logging.wandb_logger import WandbRun
+"""Unified training loop for MLM and classification with AMP, grad accumulation, and cosine scheduling.
 
 This module defines a configurable training loop that supports:
 - device selection (CPU/GPU) with optional AMP (automatic mixed precision),

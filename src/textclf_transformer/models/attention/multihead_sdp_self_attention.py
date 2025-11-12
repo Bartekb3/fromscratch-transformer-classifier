@@ -1,6 +1,8 @@
 import torch
 from torch import nn
 import torch.nn.functional as F
+from ..embeddings.rotary import apply_rope
+
 
 
 class MultiheadSelfAttention(nn.Module):
@@ -117,7 +119,16 @@ class MultiheadSelfAttention(nn.Module):
 
         return ctx, attn
 
-    def forward(self, x, key_padding_mask: torch.Tensor | None = None):
+    def forward(
+        self,
+        x,
+        key_padding_mask: torch.Tensor | None = None,
+        *,
+        rope_cos: torch.Tensor | None = None,
+        rope_sin: torch.Tensor | None = None,
+        rope_position_ids: torch.LongTensor | None = None,
+    ):
+
         """
         Forward steps:
         1. Input projection: linear layer maps (B, N, D) -> (B, N, 3D),
@@ -135,6 +146,12 @@ class MultiheadSelfAttention(nn.Module):
                 where True marks positions that should be masked (PAD tokens).
                 Must be of dtype bool. If provided, masked keys are ignored
                 in attention computation.
+            rope_cos / rope_sin (Tensor, optional): Precomputed RoPE tables shaped
+                (1, 1, N, dk) or broadcastable to (B, H, N, dk). If both are provided,
+                rotary embedding is applied to (Q, K) prior to attention.
+            rope_position_ids (LongTensor, optional): (B, N) explicit positions to
+                gather RoPE tables; if None, positions 0..N-1 are used.
+
 
         Returns:
             out (Tensor): Contextualized sequence of shape (B, N, D).
@@ -154,6 +171,11 @@ class MultiheadSelfAttention(nn.Module):
         Q = self._split_heads(Q, self.num_heads)
         K = self._split_heads(K, self.num_heads)
         V = self._split_heads(V, self.num_heads)
+
+        # Apply RoPE if provided
+        if (rope_cos is not None) and (rope_sin is not None):
+            Q, K = apply_rope(Q, K, rope_cos, rope_sin, rope_position_ids)
+
 
         # scaled dot product attention
         ctx, attn = self.sdp_attention(

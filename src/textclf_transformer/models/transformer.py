@@ -4,6 +4,8 @@ from torch import nn
 
 from .blocks.transformer_encoder_block import TransformerEncoderBlock
 from .embeddings.text_embeddings import TransformerTextEmbeddings
+from .embeddings.rotary import build_rope_cache
+
 
 ATTN_KIND = Literal["mha", "lsh", "favor"]
 
@@ -57,6 +59,8 @@ class Transformer(nn.Module):
         super().__init__()
         self.pad_token_id = pad_token_id
         self.attention_kind = attention_kind
+        self.embedding_dim = embedding_dim
+        self.num_heads = num_heads
 
         # Embeddings
         self.embeddings = TransformerTextEmbeddings(
@@ -108,9 +112,34 @@ class Transformer(nn.Module):
         """
 
         x = self.embeddings(
-            input_ids, token_type_ids=token_type_ids, position_ids=position_ids)
+            input_ids, token_type_ids=token_type_ids, position_ids=position_ids
+        )
+
+        # Prepare per-call attention forward params
+        fwd_params = dict(attention_forward_params or {})
+
+        # If using RoPE, build cosine/sine cache for the current sequence length
+        if getattr(self.embeddings, "pos_kind", None) == "rope":
+            B, N, D = x.shape
+            head_dim = self.embedding_dim // self.num_heads  # per-head dim
+            cos, sin = build_rope_cache(
+                seq_len=N,
+                dim=head_dim,
+                device=x.device,
+                dtype=x.dtype,
+                base=float(fwd_params.get("rope_base", 10000.0)),
+                scale=float(fwd_params.get("rope_scale", 1.0)),
+            )
+            fwd_params["rope_cos"] = cos
+            fwd_params["rope_sin"] = sin
+            if position_ids is not None:
+                fwd_params["rope_position_ids"] = position_ids
 
         for layer in self.layers:
-            x = layer(x, key_padding_mask=attention_mask, attention_forward_params=attention_forward_params)
+            x = layer(
+                x,
+                key_padding_mask=attention_mask,
+                attention_forward_params=fwd_params,
+            )
 
         return x

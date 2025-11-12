@@ -2,6 +2,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor
+from ..embeddings.rotary import apply_rope
+
 
 BUCKET_PAD_ID = -1
 
@@ -246,11 +248,17 @@ class LSHAttention(nn.Module):
 
         return out  # [B, H#, H, n_chunks, chunk_size, dk]
 
-    def forward(self,
-                x: Tensor,
-                padding_mask: Tensor,
-                mask_within_chunks: bool = True,
-                ) -> Tensor:
+    def forward(
+        self,
+        x: Tensor,
+        padding_mask: Tensor,
+        mask_within_chunks: bool = True,
+        *,
+        rope_cos: torch.Tensor | None = None,
+        rope_sin: torch.Tensor | None = None,
+        rope_position_ids: torch.LongTensor | None = None,
+    ) -> Tensor:
+
         """
         Compute Reformer-style LSH self-attention with chunked local windows
         and 1-back/1-forward context.
@@ -285,6 +293,11 @@ class LSHAttention(nn.Module):
                 Boolean tensor of shape **[B, N]** with **True** at padded
                 positions and **False** at real tokens. Padded tokens are ignored
                 as keys and produce zero outputs as queries.
+            rope_cos / rope_sin (Tensor, optional): Precomputed RoPE tables shaped
+                (1, 1, N, dk) or broadcastable to (B, H, N, dk). If both are provided,
+                rotary embedding is applied to (Q, K) prior to attention.
+            rope_position_ids (LongTensor, optional): (B, N) explicit positions to
+                gather RoPE tables; if None, positions 0..N-1 are used.
 
         Returns:
             Tensor:
@@ -309,6 +322,15 @@ class LSHAttention(nn.Module):
             B, self.num_hashes, N, self.num_heads, dk
         ).transpose(2, 3)
         # q,v: (B,H#,H,N,dk)
+
+        # RoPE in Reformer: Q also serves as K (Q = K). We rotate Q once and
+        # treat it as both Q and K in subsequent steps.
+        if (rope_cos is not None) and (rope_sin is not None):
+            B_, Hh, H, N_, dk_ = q.shape
+            q_merged = q.reshape(B_ * Hh, H, N_, dk_)  # -> (B*Hh, H, N, dk)
+            q_rot, _ = apply_rope(q_merged, q_merged, rope_cos, rope_sin, rope_position_ids)
+            q = q_rot.reshape(B_, Hh, H, N_, dk_)
+
 
         # valid mask - True on 'real' tokens: (B,H#,H,N)
         valid_mask = ~padding_mask_bool[:, None, None, :].expand(

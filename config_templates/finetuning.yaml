@@ -38,7 +38,7 @@ architecture:
   num_layers: 4
   mlp_size: 128
   mlp_dropout: 0.1
-  pos_encoding: learned
+  pos_encoding: learned # 'learned' | 'sinusoidal' | 'rope'
   embedding_dropout: 0.1
 
   attention:
@@ -50,11 +50,16 @@ architecture:
     kind: lsh # 'mha' | 'lsh' | 'favor'
     ###attention_params###
     mha:
-    lsh: 
+    lsh:
       num_hashes: 4
       chunk_size: 64
-    favor: 
-      #TODO add params
+    favor:
+      nb_features: 256
+      ortho_features: true
+      redraw_interval: 0
+      phi: exp
+      stabilize: true
+      eps: 1.0e-6
     ###attention_forward_params###
     forward_mha:
     forward_lsh:
@@ -68,7 +73,7 @@ classification_head:
   pooler_type: bert # 'bert' | 'roberta' | null
 
 training:
-  batch_size: 32
+  batch_size: 6
   epochs: 3
   learning_rate: 2.0e-5
   warmup_ratio: 0.1

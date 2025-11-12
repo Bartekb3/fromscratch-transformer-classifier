@@ -30,7 +30,7 @@ architecture:
   num_layers: 4
   mlp_size: 128
   mlp_dropout: 0.1
-  pos_encoding: learned # 'learned' | 'sinusoidal'
+  pos_encoding: learned # 'learned' | 'sinusoidal' | 'rope'
   embedding_dropout: 0.1
 
   attention:
@@ -46,7 +46,12 @@ architecture:
       num_hashes: 4
       chunk_size: 64
     favor:
-      #TODO add params
+      nb_features: 256
+      ortho_features: true
+      redraw_interval: 0
+      phi: exp
+      stabilize: true
+      eps: 1.0e-6
     ###attention_forward_params###
     forward_mha:
     forward_lsh:
@@ -60,7 +65,7 @@ mlm_head:
   random_token_p: 0.1
 
 training:
-  batch_size: 64
+  batch_size: 6
   epochs: 3
   learning_rate: 2.0e-4
   warmup_ratio: 0.1
