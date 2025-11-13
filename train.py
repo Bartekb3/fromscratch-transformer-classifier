@@ -43,9 +43,9 @@ def main() -> None:
     set_global_seed(cfg["experiment"].get("seed", 42))
 
     # load tokenizer
-    wrapper, hf_tok = load_tokenizer_wrapper_from_cfg(cfg["tokenizer"])
+    wrapper = load_tokenizer_wrapper_from_cfg(cfg["tokenizer"])
     # reads model architecture from config
-    arch_kw = arch_kwargs_from_cfg(cfg["architecture"], hf_tok) 
+    arch_kw = arch_kwargs_from_cfg(cfg, wrapper.tokenizer) 
     
     # creating model
     if is_mlm:

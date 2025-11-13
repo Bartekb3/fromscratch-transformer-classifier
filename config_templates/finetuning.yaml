@@ -23,9 +23,6 @@ pretrained_experiment:
   name: __WILL_BE_FILLED__
   path: experiments/pretraining/__WILL_BE_FILLED__
   checkpoint: checkpoints/model.ckpt
-  inherit:
-    - architecture
-    - tokenizer
 
 tokenizer:
   wrapper_path: src/textclf_transformer/tokenizer/wordpiece_tokenizer_wrapper.py

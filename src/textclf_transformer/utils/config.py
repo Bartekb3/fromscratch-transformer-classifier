@@ -62,11 +62,10 @@ def load_tokenizer_wrapper_from_cfg(tok_cfg: Dict[str, Any]):
         tok_cfg: Tokenizer configuration dictionary.
 
     Returns:
-        Tuple of ``(wrapper, hf_tokenizer)``.
+        WordPieceTokenizerWrapper: Wrapper for WordPiece tokenizer
 
     Raises:
         AttributeError: If the module does not define ``WordPieceTokenizerWrapper``.
-        RuntimeError: If the wrapper does not set ``tokenizer`` after ``load()``.
     """
     wrapper_path = tok_cfg["wrapper_path"]
     vocab_dir = tok_cfg["vocab_dir"]
@@ -79,11 +78,7 @@ def load_tokenizer_wrapper_from_cfg(tok_cfg: Dict[str, Any]):
     WrapperCls = getattr(module, "WordPieceTokenizerWrapper")
     wrapper = WrapperCls()
     wrapper.load(vocab_dir)
-    hf_tok = wrapper.tokenizer
-    if hf_tok is None:
-        raise RuntimeError(
-            "Wrapper nie ustawił atrybutu `tokenizer` po `load()`.")
-    return wrapper, hf_tok
+    return wrapper
 
 
 def vocab_and_pad_from_tokenizer(hf_tok) -> Tuple[int, int]:
@@ -100,7 +95,7 @@ def vocab_and_pad_from_tokenizer(hf_tok) -> Tuple[int, int]:
     return vocab_size, pad_id
 
 
-def arch_kwargs_from_cfg(arch_cfg: Dict[str, Any], hf_tok) -> Dict[str, Any]:
+def arch_kwargs_from_cfg(cfg: Dict[str, Any], hf_tok) -> Dict[str, Any]:
     """Build model constructor keyword arguments from architecture config and tokenizer.
 
     This helper reads required fields from ``arch_cfg`` and augments them with
@@ -117,19 +112,23 @@ def arch_kwargs_from_cfg(arch_cfg: Dict[str, Any], hf_tok) -> Dict[str, Any]:
             - a sub-dict per kind (``"mha"``, ``"lsh"``, ``"favor"``) holding additional parameters.
 
     Args:
-        arch_cfg: Architecture configuration dictionary.
+        cfg:  Configuration dictionary.
         hf_tok: Tokenizer used to obtain ``vocab_size`` and default ``pad_token_id``.
 
     Returns:
         A dictionary of keyword arguments suitable for initializing the model.
     """
     vocab_size, pad_token_id = vocab_and_pad_from_tokenizer(hf_tok)
+    tok_cfg = cfg["tokenizer"]
+    max_sequence_length = tok_cfg['max_length']
+
+    arch_cfg = cfg["architecture"]
     attn = arch_cfg['attention']
     kind = attn['kind']
 
     kw = dict(
         vocab_size=vocab_size,
-        max_sequence_length=arch_cfg["max_sequence_length"],
+        max_sequence_length=max_sequence_length,
         embedding_dim=arch_cfg["embedding_dim"],
         num_layers=arch_cfg["num_layers"],
         mlp_size=arch_cfg["mlp_size"],
