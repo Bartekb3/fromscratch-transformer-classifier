@@ -20,8 +20,8 @@ def _rotate_half(x: Tensor) -> Tensor:
 def build_rope_cache(
     seq_len: int,
     dim: int,
-    device,
-    dtype,
+    device = None,
+    dtype = torch.float32,
     base: float = 10000.0,
     scale: float = 1.0,
 ) -> tuple[Tensor, Tensor]:
@@ -57,6 +57,7 @@ def build_rope_cache(
     emb = torch.cat([freqs, freqs], dim=-1)     # (seq_len, dim)
     cos = emb.cos().to(dtype=dtype)[None, None, ...]  # (1, 1, seq_len, dim)
     sin = emb.sin().to(dtype=dtype)[None, None, ...]
+
     return cos, sin
 
 def apply_rope(

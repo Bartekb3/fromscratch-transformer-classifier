@@ -213,11 +213,12 @@ class FAVORAttention(nn.Module):
         proj = torch.einsum("bhnd,hmd->bhnm", x32, omega32)
 
         if self.stabilize:
-            m = proj.abs().amax(dim=(2, 3), keepdim=True) 
-            proj = proj - m
-
-        exp_pos = torch.exp(proj)
-        exp_neg = torch.exp(-proj)
+            m = proj.abs().amax(dim=-1, keepdim=True)  # (B,H,N,1)
+            exp_pos = torch.exp(proj - m)
+            exp_neg = torch.exp(-proj - m)
+        else:
+            exp_pos = torch.exp(proj)
+            exp_neg = torch.exp(-proj)
 
         features = torch.cat([exp_pos, exp_neg], dim=-1)
 
