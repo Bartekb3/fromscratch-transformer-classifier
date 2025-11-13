@@ -10,11 +10,19 @@ from torch.nn import Module
 
 
 def ensure_project_root(file_path: str | Path) -> Path:
-    """Ensure the repository root (parent of ``file_path``) is importable."""
-    root = Path(file_path).resolve().parent
-    if str(root) not in sys.path:
-        sys.path.insert(0, str(root))
-    return root
+    """Ensure the repository root and ``src`` directory are importable."""
+    file_path = Path(file_path).resolve()
+    project_root = file_path.parent
+    for parent in file_path.parents:
+        if (parent / "src").exists():
+            project_root = parent
+            break
+
+    src_dir = project_root / "src"
+    target = src_dir if src_dir.exists() else project_root
+    if str(target) not in sys.path:
+        sys.path.insert(0, str(target))
+    return project_root
 
 def read_experiment_config(
     base_dir: Path,

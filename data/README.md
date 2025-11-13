@@ -19,7 +19,7 @@
   2) Create a TensorDataset and save it:
 
 ```python
-    from src.textclf_transformer.tokenizer wordpiece_tokenizer_wrapper import WordPieceTokenizerWrapper
+    from textclf_transformer.tokenizer wordpiece_tokenizer_wrapper import WordPieceTokenizerWrapper
     tok = WordPieceTokenizerWrapper()
     ds = tok.encode(
         input="data/raw/your_texts.txt",

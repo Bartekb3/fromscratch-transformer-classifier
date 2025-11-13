@@ -1,17 +1,12 @@
 #!/usr/bin/env python3
 """Entrypoint for running training or finetuning jobs defined in the project."""
 
-from src.textclf_transformer import *
 import argparse
-import torch
 from pathlib import Path
 
-from train_utils import (
-    ensure_project_root,
-    read_experiment_config,
-    save_model_state,
-    load_resume
-)
+import torch
+
+from src.textclf_transformer import *
 
 ROOT = ensure_project_root(__file__)
 

@@ -1,5 +1,5 @@
 from torch import nn
-from .multihead_self_attention_block import AttentionBlock
+from .attention_block import AttentionBlock
 from .mlp_block import MLPBlock
 
 

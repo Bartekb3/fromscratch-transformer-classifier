@@ -47,9 +47,7 @@ def main() -> None:
     if exp_dir.exists():
         raise FileExistsError(f"Eksperyment '{name}' już istnieje: {exp_dir}")
 
-
     exp_dir.mkdir(parents=True, exist_ok=False)
-    (exp_dir / "metrics" / "train").mkdir(parents=True, exist_ok=True)
 
     cfg = yaml.safe_load(TPL.read_text(encoding="utf-8"))
     cfg["experiment"]["name"] = name

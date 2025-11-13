@@ -1,7 +1,9 @@
-import torch
 import pytest
+import torch
 
-from src.textclf_transformer.models.attention.multihead_lsh_self_attention import LSHAttention
+from textclf_transformer.models.attention.multihead_lsh_self_attention import (
+    LSHAttention,
+)
 
 
 def _random_attention(

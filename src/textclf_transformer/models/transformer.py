@@ -61,6 +61,7 @@ class Transformer(nn.Module):
         self.attention_kind = attention_kind
         self.embedding_dim = embedding_dim
         self.num_heads = num_heads
+        self.vocab_size = vocab_size
 
         # Embeddings
         self.embeddings = TransformerTextEmbeddings(

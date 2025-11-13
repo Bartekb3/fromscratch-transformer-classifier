@@ -44,9 +44,6 @@ class WandbRun:
             "csv_eval_metrics_path", "metrics/eval/metrics.csv"
         )
 
-        self.log_train_loss = log_cfg.get("log_train_loss", True)
-        self.log_train_lr = log_cfg.get("log_train_lr", True)
-        self.log_train_grad_norm = log_cfg.get("log_train_grad_norm", True)
         self.log_eval_metrics = log_cfg.get("log_eval_metrics", True)
 
         self._wandb_run = None

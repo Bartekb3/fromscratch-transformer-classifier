@@ -63,8 +63,6 @@ def main() -> None:
 
 
     fin_dir.mkdir(parents=True, exist_ok=False)
-    (fin_dir / "metrics" / "train").mkdir(parents=True, exist_ok=True)
-    (fin_dir / "metrics" / "eval").mkdir(parents=True, exist_ok=True)
 
     tpl = yaml.safe_load(TPL.read_text(encoding="utf-8"))
     pre_cfg = yaml.safe_load(pre_cfg_path.read_text(encoding="utf-8"))

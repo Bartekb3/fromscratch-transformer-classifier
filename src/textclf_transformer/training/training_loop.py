@@ -1,36 +1,17 @@
 from __future__ import annotations
-from types import MethodType
 
-from ..logging.wandb_logger import WandbRun
-"""Unified training loop for MLM and classification with AMP, grad accumulation, and cosine scheduling.
-
-This module defines a configurable training loop that supports:
-- device selection (CPU/GPU) with optional AMP (automatic mixed precision),
-- gradient accumulation and gradient clipping,
-- cosine learning-rate schedule with an optional warmup phase,
-- masked language modeling (MLM) where input masking is delegated to a provided tokenizer wrapper,
-- standard multi-class classification with cross-entropy loss.
-
-The loop logs metrics via a user-provided logger object that may expose ``log_train`` and/or ``log_eval``.
-"""
-
-from __future__ import annotations
-
-from src.textclf_transformer.logging.wandb_logger import WandbRun
 from dataclasses import dataclass
-from typing import Literal, Optional, Dict, Any, Tuple, List
 import math
 from pathlib import Path
-
+from typing import Any, Dict, List, Literal, Optional, Tuple
 import torch
 from torch import nn
 from torch.optim import AdamW
 from torch.utils.data import DataLoader
 
-from src.textclf_transformer.training.metrics_utils import (
-    compute_classification_metrics,
-    compute_mlm_metrics,
-)
+from ...textclf_transformer import *
+from .utils import *
+
 
 @dataclass
 class _State:

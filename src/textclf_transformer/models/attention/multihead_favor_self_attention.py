@@ -270,7 +270,6 @@ class FAVORAttention(nn.Module):
 
         Returns:
             out: (B, N, D) contextualized outputs.
-            attn: always None (API parity).
 
         Notes:
             - PAD keys contribute nothing; PAD queries yield zero outputs.
@@ -332,4 +331,4 @@ class FAVORAttention(nn.Module):
         out = self.Uout(out)
         out = self.out_drop(out)
 
-        return out, None
+        return out

@@ -1,7 +1,7 @@
 import torch
 from torch.testing import assert_close
 
-from src.textclf_transformer.models.attention.multihead_lsh_self_attention import LSHAttention
+from textclf_transformer.models.attention.multihead_lsh_self_attention import LSHAttention
 
 
 def _make_identity_lsh_attention(

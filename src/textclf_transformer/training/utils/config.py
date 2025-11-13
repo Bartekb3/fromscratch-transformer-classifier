@@ -81,7 +81,7 @@ def load_tokenizer_wrapper_from_cfg(tok_cfg: Dict[str, Any]):
     return wrapper
 
 
-def vocab_and_pad_from_tokenizer(hf_tok) -> Tuple[int, int]:
+def _vocab_and_pad_from_tokenizer(hf_tok) -> Tuple[int, int]:
     """Extract vocabulary size and PAD token id from a Hugging Face tokenizer.
 
     Args:
@@ -118,7 +118,7 @@ def arch_kwargs_from_cfg(cfg: Dict[str, Any], hf_tok) -> Dict[str, Any]:
     Returns:
         A dictionary of keyword arguments suitable for initializing the model.
     """
-    vocab_size, pad_token_id = vocab_and_pad_from_tokenizer(hf_tok)
+    vocab_size, pad_token_id = _vocab_and_pad_from_tokenizer(hf_tok)
     tok_cfg = cfg["tokenizer"]
     max_sequence_length = tok_cfg['max_length']
 

@@ -44,7 +44,6 @@ def make_collate_trim_to_longest(
         presence of labels in the input batch.
     """
     def collate(batch):
-        print(batch)
         has_labels = len(batch[0]) == 3
 
         input_ids = torch.stack([b[0] for b in batch], dim=0)

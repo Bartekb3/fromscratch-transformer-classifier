@@ -1,6 +1,6 @@
 from .blocks.transformer_encoder_block import TransformerEncoderBlock
 from .blocks.mlp_block import MLPBlock
-from .blocks.multihead_self_attention_block import AttentionBlock
+from .blocks.attention_block import AttentionBlock
 from .attention.multihead_sdp_self_attention import MultiheadSelfAttention
 from .transformer import Transformer
 from .embeddings.text_embeddings import TransformerTextEmbeddings
