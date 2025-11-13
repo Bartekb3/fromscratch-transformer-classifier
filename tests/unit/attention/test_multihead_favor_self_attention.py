@@ -8,6 +8,7 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.append(str(ROOT))
 
+
 from textclf_transformer.models.attention.multihead_favor_self_attention import FAVORAttention
 
 
@@ -24,6 +25,7 @@ def make_favor(
     phi: str = "exp",
     bias: bool = True,
     out_dropout: float = 0.0,
+    stabilize: bool = True,
 ):
     torch.manual_seed(0)
     return FAVORAttention(
@@ -33,6 +35,7 @@ def make_favor(
         phi=phi,
         bias=bias,
         out_dropout=out_dropout,
+        stabilize=stabilize,
         redraw_interval=0,
     )
 
@@ -148,3 +151,18 @@ def test_nb_features_constraints():
 
     with pytest.raises(ValueError):
         _ = FAVORAttention(embed_dim=32, num_heads=4, nb_features=30 + 1, phi="exp")
+
+
+def test_stabilize_flag_preserves_outputs(device):
+    """Toggling stabilize should not alter the numerical outputs."""
+    B, N, D, H = 2, 6, 32, 4
+    x, kpm = rand_inputs(batch_size=B, seq_len=N, embed_dim=D, device=device)
+
+    favor_stable = make_favor(embed_dim=D, num_heads=H, out_dropout=0.0, stabilize=True).to(device).eval()
+    favor_unstable = make_favor(embed_dim=D, num_heads=H, out_dropout=0.0, stabilize=False).to(device).eval()
+    favor_unstable.load_state_dict(favor_stable.state_dict())
+
+    out_stable = favor_stable(x, key_padding_mask=kpm)
+    out_unstable = favor_unstable(x, key_padding_mask=kpm)
+
+    assert torch.allclose(out_stable, out_unstable, atol=1e-6)

@@ -5,7 +5,7 @@ import argparse
 from pathlib import Path
 
 import torch
-
+from src.textclf_transformer.training.training_loop import TrainingLoop
 from src.textclf_transformer import *
 
 ROOT = ensure_project_root(__file__)
