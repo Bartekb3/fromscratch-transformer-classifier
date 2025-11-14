@@ -115,6 +115,8 @@ class FAVORAttention(nn.Module):
         if self.proj_bias:
             nn.init.zeros_(self.Uqkv.bias)
             nn.init.zeros_(self.Uout.bias)
+        if self.phi_kind == "exp":
+            self._draw_features(self.Uqkv.weight.device, self.Uqkv.weight.dtype)
 
     @staticmethod
     def _split_heads(t: Tensor, num_heads: int) -> Tensor:
@@ -213,9 +215,9 @@ class FAVORAttention(nn.Module):
         proj = torch.einsum("bhnd,hmd->bhnm", x32, omega32)
 
         if self.stabilize:
-            m = proj.abs().amax(dim=-1, keepdim=True)  # (B,H,N,1)
-            exp_pos = torch.exp(proj - m)
-            exp_neg = torch.exp(-proj - m)
+            shift = proj.abs().amax(dim=(2, 3), keepdim=True)
+            exp_pos = torch.exp(proj - shift)
+            exp_neg = torch.exp(-proj - shift)
         else:
             exp_pos = torch.exp(proj)
             exp_neg = torch.exp(-proj)
@@ -297,13 +299,14 @@ class FAVORAttention(nn.Module):
             key_padding_mask, B=B, N=N, device=Q.device, dtype=Q.dtype
         )
         Q = Q * valid
+        K = K * valid  # ensure masked keys do not affect feature stabilization
         V = V * valid
 
         self._maybe_redraw_features(Q.device, Q.dtype)
 
         Qf = self._phi(Q)        # (B, H, N, M)
         Kf = self._phi(K)        # (B, H, N, M)
-        Kf = Kf * valid         
+        Kf = Kf * valid          # zero out masked key features explicitly
 
         # Core FAVOR+ in fp32 for stability
         Qf32 = Qf.to(torch.float32)

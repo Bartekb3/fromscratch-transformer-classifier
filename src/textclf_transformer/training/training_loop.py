@@ -9,8 +9,8 @@ from torch import nn
 from torch.optim import AdamW
 from torch.utils.data import DataLoader
 
-from ...textclf_transformer import *
 from .utils import *
+from ..logger.wandb_logger import WandbRun
 
 
 @dataclass
