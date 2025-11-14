@@ -10,7 +10,8 @@ from .embeddings.rotary import build_rope_cache
 ATTN_KIND = Literal["mha", "lsh", "favor"]
 
 class Transformer(nn.Module):
-    """Backbone Transformer encoder stack used by MLM and classification variants.
+    """
+    Backbone Transformer encoder stack used by MLM and classification variants.
 
     Composition:
         - Token/positional/type embeddings with LayerNorm and dropout.
@@ -62,6 +63,9 @@ class Transformer(nn.Module):
         self.embedding_dim = embedding_dim
         self.num_heads = num_heads
         self.vocab_size = vocab_size
+        self.max_sequence_length = max_sequence_length
+        self.sin = None
+        self.cos = None
 
         # Embeddings
         self.embeddings = TransformerTextEmbeddings(
@@ -74,7 +78,8 @@ class Transformer(nn.Module):
             pad_token_id=pad_token_id,
         )
 
-        # Encoder stack (all layers identical hyperparams)
+
+        # Encoder stack
         self.layers = nn.ModuleList([
             TransformerEncoderBlock(
                 embedding_dim=embedding_dim,
@@ -119,20 +124,21 @@ class Transformer(nn.Module):
         # Prepare per-call attention forward params
         fwd_params = dict(attention_forward_params or {})
 
-        # If using RoPE, build cosine/sine cache for the current sequence length
         if getattr(self.embeddings, "pos_kind", None) == "rope":
             B, N, D = x.shape
-            head_dim = self.embedding_dim // self.num_heads  # per-head dim
-            cos, sin = build_rope_cache(
-                seq_len=N,
-                dim=head_dim,
-                device=x.device,
-                dtype=x.dtype,
-                base=float(fwd_params.get("rope_base", 10000.0)),
-                scale=float(fwd_params.get("rope_scale", 1.0)),
-            )
-            fwd_params["rope_cos"] = cos
-            fwd_params["rope_sin"] = sin
+            if self.sin is None or self.cos is None:
+                head_dim = self.embedding_dim // self.num_heads  # per-head dim
+                self.cos, self.sin = build_rope_cache(
+                    seq_len=self.max_sequence_length,
+                    dim=head_dim,
+                    device=x.device,
+                    dtype=x.dtype,
+                    base=float(fwd_params.get("rope_base", 10000.0)),
+                    scale=float(fwd_params.get("rope_scale", 1.0)),
+                )
+
+            fwd_params["rope_cos"] = self.cos[:, :, :N, :]
+            fwd_params["rope_sin"] = self.sin[:, :, :N, :]
             if position_ids is not None:
                 fwd_params["rope_position_ids"] = position_ids
 
