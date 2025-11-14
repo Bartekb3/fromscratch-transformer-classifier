@@ -1,4 +1,9 @@
 import csv
+import warnings
+from pydantic.warnings import UnsupportedFieldAttributeWarning
+
+warnings.filterwarnings("ignore", category=UnsupportedFieldAttributeWarning)
+
 import wandb
 from pathlib import Path
 from typing import Any, Dict, Literal, Optional

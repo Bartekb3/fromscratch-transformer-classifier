@@ -215,7 +215,7 @@ class FAVORAttention(nn.Module):
         proj = torch.einsum("bhnd,hmd->bhnm", x32, omega32)
 
         if self.stabilize:
-            shift = proj.abs().amax(dim=(2, 3), keepdim=True)
+            shift = proj.abs().amax(dim=-1, keepdim=True)
             exp_pos = torch.exp(proj - shift)
             exp_neg = torch.exp(-proj - shift)
         else:
