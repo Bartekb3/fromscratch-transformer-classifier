@@ -17,6 +17,8 @@ class AttentionBlock(nn.Module):
 
     Args:
         embedding_dim (int): Dimensionality of the input and output embeddings (D).
+        attention_embedding_dim (int | None): Optional dimensionality for attention projections.
+            Allows heads to operate in a space wider or narrower than ``embedding_dim``.
         num_heads (int): Number of parallel attention heads (H). Must divide embed_dim.
         projection_bias (bool, optional): If True, adds learnable biases to input/output
             projection layers.
@@ -26,6 +28,7 @@ class AttentionBlock(nn.Module):
 
     def __init__(self,
                  embedding_dim: int = 768,
+                 attention_embedding_dim: int | None = None,
                  num_heads: int = 12,
                  projection_bias: bool = True,
                  attn_dropout: float = 0.0,
@@ -41,6 +44,7 @@ class AttentionBlock(nn.Module):
 
         common_kwargs = dict(
             embed_dim=embedding_dim,
+            attention_embed_dim=attention_embedding_dim,
             num_heads=num_heads,
             bias=projection_bias,
             attn_dropout=attn_dropout,

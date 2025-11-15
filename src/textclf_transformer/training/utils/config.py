@@ -144,7 +144,8 @@ def arch_kwargs_from_cfg(cfg: Dict[str, Any], hf_tok) -> Dict[str, Any]:
         attn_dropout=attn["attn_dropout"],
         attn_out_dropout=attn["attn_out_dropout"],
         attn_projection_bias=attn["projection_bias"],
-        attention_params = attn[f"{attn_kind}"]
+        attention_params = attn[f"{attn_kind}"],
+        attention_embedding_dim = attn["attention_embedding_dim"]
     )
 
     return kw

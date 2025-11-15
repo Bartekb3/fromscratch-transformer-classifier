@@ -16,6 +16,7 @@ class LSHAttention(nn.Module):
         bias: bool = True,
         attn_dropout: float = 0.0,
         out_dropout: float = 0.0,
+        attention_embed_dim: int | None = None,
         num_hashes: int = 4,
         chunk_size: int = 64,
         mask_within_chunks: bool = True,
@@ -27,6 +28,8 @@ class LSHAttention(nn.Module):
             bias: Whether the projection layers include biases.
             attn_dropout: Dropout probability applied to attention weights.
             out_dropout: Dropout probability applied after the output projection.
+            attention_embed_dim: Optional projection size for Q/K/V/out. Defaults to
+                ``embed_dim`` and must be divisible by ``num_heads``.
             num_hashes: Count of independent LSH rounds used for bucketization.
             chunk_size: Bucket length (tokens) used when performing local attention.
             mask_within_chunks (bool):
@@ -35,7 +38,9 @@ class LSHAttention(nn.Module):
                 If **False**, queries may attend to any key within the 3 x window.
         """
         super().__init__()
-        assert embed_dim % num_heads == 0, "embed_dim must be divisible by num_heads"
+        if attention_embed_dim is None:
+            attention_embed_dim = embed_dim
+        assert attention_embed_dim % num_heads == 0, "attention_embed_dim must be divisible by num_heads"
 
         self.embed_dim = embed_dim
         self.num_heads = num_heads
@@ -43,10 +48,11 @@ class LSHAttention(nn.Module):
         self.chunk_size = chunk_size
         self.dk = embed_dim // num_heads
         self.proj_bias = bias
+        self.mask_within_chunks = mask_within_chunks
 
         # In Reformer, Q and K share the same projection (Q = K)
-        self.Uqv = nn.Linear(embed_dim, 2 * embed_dim, bias=self.proj_bias)
-        self.Uout = nn.Linear(embed_dim, embed_dim, bias=self.proj_bias)
+        self.Uqv = nn.Linear(embed_dim, 2 * attention_embed_dim, bias=self.proj_bias)
+        self.Uout = nn.Linear(attention_embed_dim, embed_dim, bias=self.proj_bias)
 
         self.out_drop = nn.Dropout(out_dropout)
         self.attn_drop = nn.Dropout(attn_dropout)
@@ -192,7 +198,7 @@ class LSHAttention(nn.Module):
         valid_chunks = valid_mask.view(
             B, num_hashes, num_heads, n_chunks, chunk_size)
 
-        def get_next_and_previous_chunk(x_chunks: Tensor, padding_value: int | float | bool) -> Tensor:
+        def _get_next_and_previous_chunk(x_chunks: Tensor, padding_value: int | float | bool) -> Tensor:
             """
             Concatenate each chunk with its previous and next chunks along the sequence dimension.
 
@@ -226,10 +232,10 @@ class LSHAttention(nn.Module):
             return x_concat
 
         # look back to previous and next chunk
-        k_both = get_next_and_previous_chunk(k_chunks, 0.0)
-        v_both = get_next_and_previous_chunk(v_chunks, 0.0)
-        b_both = get_next_and_previous_chunk(b_chunks, BUCKET_PAD_ID)
-        valid_both = get_next_and_previous_chunk(valid_chunks, False)
+        k_both = _get_next_and_previous_chunk(k_chunks, 0.0)
+        v_both = _get_next_and_previous_chunk(v_chunks, 0.0)
+        b_both = _get_next_and_previous_chunk(b_chunks, BUCKET_PAD_ID)
+        valid_both = _get_next_and_previous_chunk(valid_chunks, False)
 
         # Compute attention scores: (B,H#,H, n_chunks, chunk_size, 3*chunk_size)
         scores = torch.matmul(

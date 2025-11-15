@@ -22,6 +22,11 @@ class Transformer(nn.Module):
         vocab_size (int): Vocabulary size.
         max_sequence_length (int): Maximum supported sequence length.
         embedding_dim (int): Hidden size ``D``.
+        attention_embedding_dim (int | None): Optional projection size for attention blocks.
+            When set it controls the dimensionality of the Q/K/V/out projections, enabling
+            expansions (e.g., setting it larger than ``embedding_dim`` for wider heads) or
+            bottlenecks (smaller than ``embedding_dim``). Defaults to ``embedding_dim``.
+            Must remain divisible by ``num_heads``.
         num_layers (int): Number of encoder blocks.
         num_heads (int): Number of attention heads per block.
         mlp_size (int): Hidden size of the feed-forward sublayer.
@@ -48,6 +53,7 @@ class Transformer(nn.Module):
         vocab_size: int,
         max_sequence_length: int = 512,
         embedding_dim: int = 768,
+        attention_embedding_dim: int | None = None,
         num_layers: int = 12,
         num_heads: int = 12,
         mlp_size: int = 3072,
@@ -91,6 +97,7 @@ class Transformer(nn.Module):
         self.layers = nn.ModuleList([
             TransformerEncoderBlock(
                 embedding_dim=embedding_dim,
+                attention_embedding_dim = attention_embedding_dim,
                 num_heads=num_heads,
                 mlp_size=mlp_size,
                 mlp_dropout=mlp_dropout,

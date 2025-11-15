@@ -21,6 +21,9 @@ class MultiheadSelfAttention(nn.Module):
             projection layers. Default is True.
         attn_dropout (float, optional): Dropout probability on attention output weights (after softmax). Default: 0.0 (no dropout).
         out_dropout (float, optional): Dropout probability on output projection. Default: 0.0 (no dropout).
+        attention_embed_dim (int | None): Size of Q/K/V/out projections. When ``None`` it
+            defaults to ``embed_dim``; otherwise must be divisible by ``num_heads``. Useful for
+            widening or bottlenecking attention representations.
 
     ## Forward:
         ### Input:
@@ -42,9 +45,12 @@ class MultiheadSelfAttention(nn.Module):
                  num_heads: int,
                  bias: bool = True,
                  attn_dropout: float = 0.0,
-                 out_dropout: float = 0.0):
+                 out_dropout: float = 0.0,
+                 attention_embed_dim: int | None = None):
         super().__init__()
-        assert embed_dim % num_heads == 0, "embed_dim must be divisible by num_heads"
+        if attention_embed_dim is None:
+            attention_embed_dim = embed_dim
+        assert attention_embed_dim % num_heads == 0, "attention_embed_dim must be divisible by num_heads"
         self.embed_dim = embed_dim
         self.num_heads = num_heads
         self.dk = embed_dim // num_heads
@@ -53,8 +59,8 @@ class MultiheadSelfAttention(nn.Module):
         self.out_drop = nn.Dropout(out_dropout)
 
         # Projections
-        self.Uqkv = nn.Linear(embed_dim, 3*embed_dim, bias=self.proj_bias)
-        self.Uout = nn.Linear(embed_dim, embed_dim, bias=self.proj_bias)
+        self.Uqkv = nn.Linear(embed_dim, 3*attention_embed_dim, bias=self.proj_bias)
+        self.Uout = nn.Linear(attention_embed_dim, embed_dim, bias=self.proj_bias)
 
         self._reset_parameters()
 

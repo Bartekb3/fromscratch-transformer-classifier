@@ -45,7 +45,7 @@ data/tokenized/*
 !data/tokenized/.gitkeep
 
 #docs
-docs/pz/pz*
+docs/pz*
 !pz*.tex
 !pz*.pdf
 

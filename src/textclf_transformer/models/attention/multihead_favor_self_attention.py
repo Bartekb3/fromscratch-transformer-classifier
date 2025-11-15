@@ -54,10 +54,20 @@ class FAVORAttention(nn.Module):
         - stabilize (bool): Subtract per-feature max before exp for numerical stability. Default: True.
         - eps (float): Epsilon for denominator stabilization. Default: 1e-6.
 
-    Forward:
-        forward(x, key_padding_mask) -> (out, attn=None)
-            - x: (B, N, D)
-            - key_padding_mask: (B, N) bool, True=PAD
+    Args:
+        embed_dim: Hidden size entering/leaving the layer.
+        num_heads: Number of attention heads.
+        bias: Whether projection matrices include bias parameters.
+        attn_dropout: Dropout probability applied to attention logits/results (kept for API parity).
+        out_dropout: Dropout probability of the output projection.
+        attention_embed_dim: Size of the intermediate attention space. Defaults to ``embed_dim`` but
+            can be increased or reduced as long as it remains divisible by ``num_heads``.
+        nb_features: Number of random features for FAVOR+'s softmax approximation.
+        ortho_features: Whether to sample orthogonal random matrices.
+        redraw_interval: Frequency (in forward calls) of resampling random features; 0 disables it.
+        phi: Which kernel/feature map to approximate (``'exp'``, ``'elu'``, ``'relu2'``).
+        stabilize: Whether to subtract per-feature maxima before exponentiation.
+        eps: Numerical stability epsilon added to FAVOR denominators.
     """
 
     def __init__(
@@ -68,6 +78,7 @@ class FAVORAttention(nn.Module):
         bias: bool = True,
         attn_dropout: float = 0.0,   # kept for API parity; not used in core FAVOR math
         out_dropout: float = 0.0,
+        attention_embed_dim: int | None = None,
         nb_features: int = 256,
         ortho_features: bool = True,
         redraw_interval: int | None = 0,
@@ -76,7 +87,9 @@ class FAVORAttention(nn.Module):
         eps: float = 1e-6,
     ):
         super().__init__()
-        assert embed_dim % num_heads == 0, "embed_dim must be divisible by num_heads"
+        if attention_embed_dim is None:
+            attention_embed_dim = embed_dim
+        assert attention_embed_dim % num_heads == 0, "attention_embed_dim must be divisible by num_heads"
         self.embed_dim = embed_dim
         self.num_heads = num_heads
         self.dk = embed_dim // num_heads
@@ -86,8 +99,8 @@ class FAVORAttention(nn.Module):
         self.proj_bias = bias
 
         # Projections
-        self.Uqkv = nn.Linear(embed_dim, 3 * embed_dim, bias=self.proj_bias)
-        self.Uout = nn.Linear(embed_dim, embed_dim, bias=self.proj_bias)
+        self.Uqkv = nn.Linear(embed_dim, 3 * attention_embed_dim, bias=self.proj_bias)
+        self.Uout = nn.Linear(attention_embed_dim, embed_dim, bias=self.proj_bias)
 
         # FAVOR+ config
         self.phi_kind = phi.lower()

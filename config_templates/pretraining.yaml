@@ -33,13 +33,12 @@ architecture:
     rope_base: 10000.0
     rope_scale: 1.0
 
-
-
   attention:
     num_heads: 4
     projection_bias: true # (Q/K/V/out) bias
     attn_out_dropout: 0.1 # dropout na projekcji wyjściowej
     attn_dropout: 0.0 # dropout na wagach atencji (po softmax)
+    attention_embedding_dim:
 
     kind: lsh # 'mha' | 'lsh' | 'favor'
     ###attention_params###

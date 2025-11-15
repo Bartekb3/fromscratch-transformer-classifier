@@ -11,6 +11,8 @@ class TransformerEncoderBlock(nn.Module):
 
     Args:
         embedding_dim (int): Dimensionality of the input and output embeddings (D).
+        attention_embedding_dim (int | None): Optional QKV projection dim for the attention sublayer.
+            Defaults to ``embedding_dim`` and must be divisible by ``num_heads``.
         num_heads (int): Number of parallel attention heads (H). Must divide embed_dim.
         mlp_size (int): Hidden size of the FFN (typically 4*D).
         mlp_dropout (float): Dropout prob after FFN second linear (residual dropout).
@@ -23,6 +25,7 @@ class TransformerEncoderBlock(nn.Module):
 
     def __init__(self,
                  embedding_dim: int = 768,
+                 attention_embedding_dim: int | None = None,
                  num_heads: int = 12,
                  mlp_size: int = 3072,
                  mlp_dropout: float = 0.1,
@@ -34,6 +37,7 @@ class TransformerEncoderBlock(nn.Module):
         super().__init__()
 
         self.attention_block = AttentionBlock(embedding_dim=embedding_dim,
+                                              attention_embedding_dim=attention_embedding_dim,
                                               num_heads=num_heads,
                                               projection_bias=attn_projection_bias,
                                               attn_dropout=attn_dropout,
