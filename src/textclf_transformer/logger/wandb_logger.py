@@ -1,6 +1,7 @@
 import csv
 import warnings
 from pydantic.warnings import UnsupportedFieldAttributeWarning
+import time
 
 warnings.filterwarnings("ignore", category=UnsupportedFieldAttributeWarning)
 
@@ -65,6 +66,8 @@ class WandbRun:
                     config=cfg,
                     dir=str(self.exp_dir)
                 )
+                time.sleep(60)  
+                print("One minute sleep for loading wandb!")
                 print(
                     f"[wandb] Initialized run '{run_name}' in project '{project}' ({entity})")
             except Exception as e:
