@@ -9,6 +9,7 @@ from .embeddings.rotary import build_rope_cache
 
 ATTN_KIND = Literal["mha", "lsh", "favor"]
 
+
 class Transformer(nn.Module):
     """
     Backbone Transformer encoder stack used by MLM and classification variants.
@@ -92,12 +93,11 @@ class Transformer(nn.Module):
             pad_token_id=pad_token_id,
         )
 
-
         # Encoder stack
         self.layers = nn.ModuleList([
             TransformerEncoderBlock(
                 embedding_dim=embedding_dim,
-                attention_embedding_dim = attention_embedding_dim,
+                attention_embedding_dim=attention_embedding_dim,
                 num_heads=num_heads,
                 mlp_size=mlp_size,
                 mlp_dropout=mlp_dropout,
@@ -134,20 +134,21 @@ class Transformer(nn.Module):
             input_ids, token_type_ids=token_type_ids, position_ids=position_ids
         )
 
-
         if self.pos_encoding == "rope":
             if self.pos_encoding_params is None:
                 self.pos_encoding_params = {}
-            N = self.max_sequence_length
+            _, N, _ = x.shape
             if self.sin is None or self.cos is None:
                 head_dim = self.embedding_dim // self.num_heads  # per-head dim
                 self.cos, self.sin = build_rope_cache(
-                    seq_len=N,
+                    seq_len=self.max_sequence_length,
                     dim=head_dim,
                     device=x.device,
                     dtype=x.dtype,
-                    base=float(self.pos_encoding_params.get("rope_base", 10000.0)),
-                    scale=float(self.pos_encoding_params.get("rope_scale", 1.0)),
+                    base=float(self.pos_encoding_params.get(
+                        "rope_base", 10000.0)),
+                    scale=float(self.pos_encoding_params.get(
+                        "rope_scale", 1.0)),
                 )
 
                 self.pos_encoding_params["rope_cos"] = self.cos[:, :, :N, :]
@@ -159,7 +160,7 @@ class Transformer(nn.Module):
             x = layer(
                 x,
                 key_padding_mask=attention_mask,
-                rope = self.pos_encoding_params
+                rope=self.pos_encoding_params
             )
 
         return x
