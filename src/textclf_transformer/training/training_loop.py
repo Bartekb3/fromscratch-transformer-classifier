@@ -298,6 +298,7 @@ class TrainingLoop:
             best_val_loss)
 
         for ep in range(start_epoch, epochs):
+            print(f"Epoch: {ep}")
             state.epoch = ep
             total_loss = 0.0
             total_count = 0

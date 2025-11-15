@@ -66,8 +66,8 @@ class WandbRun:
                     config=cfg,
                     dir=str(self.exp_dir)
                 )
-                time.sleep(60)  
                 print("One minute sleep for loading wandb!")
+                time.sleep(60)  
                 print(
                     f"[wandb] Initialized run '{run_name}' in project '{project}' ({entity})")
             except Exception as e:
