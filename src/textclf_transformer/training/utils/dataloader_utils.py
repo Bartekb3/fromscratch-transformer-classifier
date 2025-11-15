@@ -84,7 +84,7 @@ def get_data_loader_from_cfg(cfg: dict[str, Any], kind_ds: Literal["train", "val
     if not dataset_path:
         return None
     ds = load_dataset(dataset_path)
-    max_seq_len = cfg["architecture"]["max_sequence_length"]
+    max_seq_len = cfg["tokenizer"]["max_length"]
     batch_size = cfg["training"]["batch_size"]
 
     if mode == 'finetuning':
