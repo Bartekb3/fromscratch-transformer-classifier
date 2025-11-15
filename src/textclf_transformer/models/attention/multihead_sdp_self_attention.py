@@ -123,10 +123,7 @@ class MultiheadSelfAttention(nn.Module):
         self,
         x,
         key_padding_mask: torch.Tensor | None = None,
-        *,
-        rope_cos: torch.Tensor | None = None,
-        rope_sin: torch.Tensor | None = None,
-        rope_position_ids: torch.LongTensor | None = None,
+        rope: dict | None = None,
     ):
 
         """
@@ -146,11 +143,10 @@ class MultiheadSelfAttention(nn.Module):
                 where True marks positions that should be masked (PAD tokens).
                 Must be of dtype bool. If provided, masked keys are ignored
                 in attention computation.
-            rope_cos / rope_sin (Tensor, optional): Precomputed RoPE tables shaped
-                (1, 1, N, dk) or broadcastable to (B, H, N, dk). If both are provided,
-                rotary embedding is applied to (Q, K) prior to attention.
-            rope_position_ids (LongTensor, optional): (B, N) explicit positions to
-                gather RoPE tables; if None, positions 0..N-1 are used.
+            rope (dict | None): Optional rotary positional cache. When provided it should
+                contain ``rope_cos``/``rope_sin`` tables (broadcastable to (B, H, N, dk))
+                and may also include ``rope_position_ids`` (B, N) used to gather positions
+                from the cache. RoPE is applied to (Q, K) before computing similarities.
 
 
         Returns:
@@ -158,9 +154,6 @@ class MultiheadSelfAttention(nn.Module):
             
             attn (Tensor): Attention weights of shape (B, H, N, N).
         """
-
-        B, N, D = x.shape
-        assert D == self.embed_dim
 
         # qkv projection -> x @ Uqkv -> (B, N, 3D)
         qkv = self.Uqkv(x)
@@ -173,6 +166,11 @@ class MultiheadSelfAttention(nn.Module):
         V = self._split_heads(V, self.num_heads)
 
         # Apply RoPE if provided
+        if rope is None:
+            rope = {}
+        rope_cos = rope.get('rope_cos', None)
+        rope_sin = rope.get('rope_sin', None)
+        rope_position_ids = rope.get('rope_position_ids', None)
         if (rope_cos is not None) and (rope_sin is not None):
             Q, K = apply_rope(Q, K, rope_cos, rope_sin, rope_position_ids)
 

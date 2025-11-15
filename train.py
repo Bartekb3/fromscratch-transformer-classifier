@@ -10,23 +10,8 @@ from src.textclf_transformer import *
 
 ROOT = ensure_project_root(__file__)
 
-def main() -> None:
-    """Parse CLI arguments, build the model, training loop, and run training."""
-    parser = argparse.ArgumentParser(
-        description="Training script: load config, build model/dataloader, and run training."
-    )
-    parser.add_argument(
-        "-n", "--experiment_name",
-        help="Experiment name",
-        required=True,
-    )
-    parser.add_argument(
-        "-m", "--mode",
-        help="Training mode: finetuning or pretraining",
-        required=True,
-        choices=["finetuning", "pretraining"],
-    )
-    args = parser.parse_args()
+def main(args) -> None:
+
     name, mode = args.experiment_name, args.mode
 
     EXP_BASE = ROOT / "experiments" / mode
@@ -76,17 +61,11 @@ def main() -> None:
     val_loader = get_data_loader_from_cfg(cfg, 'val', mode)
 
     training_cfg = cfg["training"]
-
-    attn_cfg = cfg["architecture"]['attention']
-    attn_kind = attn_cfg['kind']
-    attnention_forward_params = attn_cfg[f'forward_{attn_kind}']
-
     logger = WandbRun(cfg, exp_dir)
     loop = TrainingLoop(
         model=model,
         training_cfg=training_cfg,
         logger=logger,
-        attnention_forward_params=attnention_forward_params,
         is_mlm=is_mlm,
         head_cfg=head,
         tokenizer_wrapper=wrapper,
@@ -121,4 +100,19 @@ def main() -> None:
     print(f"[OK] Zapisano checkpoint: {ckpt_path}")
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(
+        description="Training script: load config, build model/dataloader, and run training."
+    )
+    parser.add_argument(
+        "-n", "--experiment_name",
+        help="Experiment name",
+        required=True,
+    )
+    parser.add_argument(
+        "-m", "--mode",
+        help="Training mode: finetuning or pretraining",
+        required=True,
+        choices=["finetuning", "pretraining"],
+    )
+    args = parser.parse_args()
+    main(args)

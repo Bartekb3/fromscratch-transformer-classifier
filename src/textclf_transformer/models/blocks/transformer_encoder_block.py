@@ -46,7 +46,7 @@ class TransformerEncoderBlock(nn.Module):
                                   mlp_size=mlp_size,
                                   dropout=mlp_dropout)
 
-    def forward(self, x, key_padding_mask=None, attention_forward_params: dict | None = None):
+    def forward(self, x, key_padding_mask=None, rope: dict | None = None):
         """
         Args:
             x (Tensor): Input tensor of shape (B, N, D)
@@ -55,11 +55,14 @@ class TransformerEncoderBlock(nn.Module):
                 - True indicates a PAD position that should be ignored in attention.
                 - False indicates a valid token.
                 - If None, no padding positions are masked.
+            rope (dict | None): Optional rotary positional cache passed straight to the attention sublayer.
+                It may contain precomputed ``rope_cos``/``rope_sin`` tables and ``rope_position_ids``
+                gathered from the model's positional encoding configuration.
 
         Returns:
             y (Tensor): Output tensor of shape (B, N, D),
                 result of applying attention and MLP sublayers.
         """
-        x = self.attention_block(x, key_padding_mask, attention_forward_params=attention_forward_params)
+        x = self.attention_block(x, key_padding_mask, rope)
         x = self.mlp_block(x)
         return x

@@ -9,7 +9,7 @@ class TransformerForSequenceClassification(Transformer):
     """
 
     Composition:
-        - Embeddings: token + positional (learned or sinusoidal) + optional token type
+        - Embeddings: token + positional (learned, sinusoidal, or RoPE) + optional token type
         - `num_layers` x `TransformerEncoderBlock`
         - Sequence pooling head (cls/mean/max/min)
         - Task head: sequence classification
@@ -33,7 +33,11 @@ class TransformerForSequenceClassification(Transformer):
         attn_out_dropout (float): Dropout on the attention output projection.
         attn_dropout (float): Dropout applied to attention probabilities.
         attn_projection_bias (bool): Whether the Q/K/V/out projections include bias terms.
-        pos_encoding (str): ``"learned"`` or ``"sinusoidal"`` positional scheme.
+        pos_encoding (str): ``"learned"``, ``"sinusoidal"``, or ``"rope"`` positional scheme.
+            When set to ``"rope"`` the model skips adding absolute positions in the embedding layer
+            and instead relies on rotary attention.
+        pos_encoding_params (dict | None): Optional parameters for the chosen positional scheme
+            (e.g., ``rope_base``/``rope_scale`` to control the RoPE cache).
         type_vocab_size (int | None): Segment (token-type) vocabulary size; 0/``None`` disables segments.
         embedding_dropout (float): Dropout applied to input embeddings.
         pad_token_id (int | None): PAD token id passed to embeddings.
@@ -85,8 +89,6 @@ class TransformerForSequenceClassification(Transformer):
                 tokens ignored by attention and pooling.
             token_type_ids (torch.LongTensor, optional): Segment ids ``(B, N)``; defaults to zeros when omitted.
             position_ids (torch.LongTensor, optional): Explicit position indices ``(B, N)`` for learned positions.
-            attention_forward_params (dict | None, optional): Extra keyword arguments forwarded to the attention module.
-            **kw: Additional keyword arguments accepted by :meth:`Transformer.forward_base`.
         Returns:
             out (dict): A dictionary of:
                 - `sequence_output`: `(B, N, D)` encoder output, if `return_sequence=True`.

@@ -124,7 +124,9 @@ def arch_kwargs_from_cfg(cfg: Dict[str, Any], hf_tok) -> Dict[str, Any]:
 
     arch_cfg = cfg["architecture"]
     attn = arch_cfg['attention']
-    kind = attn['kind']
+    attn_kind = attn['kind']
+    pos_encoding = arch_cfg["pos_encoding"]
+    pos_encoding_params = arch_cfg.get(f"{pos_encoding}", {})
 
     kw = dict(
         vocab_size=vocab_size,
@@ -133,16 +135,16 @@ def arch_kwargs_from_cfg(cfg: Dict[str, Any], hf_tok) -> Dict[str, Any]:
         num_layers=arch_cfg["num_layers"],
         mlp_size=arch_cfg["mlp_size"],
         mlp_dropout=arch_cfg["mlp_dropout"],
-        pos_encoding=arch_cfg["pos_encoding"],
+        pos_encoding=pos_encoding,
+        pos_encoding_params = pos_encoding_params,
         embedding_dropout=arch_cfg["embedding_dropout"],
         pad_token_id=pad_token_id,
-        attention_kind=kind,
+        attention_kind=attn_kind,
         num_heads=attn["num_heads"],
         attn_dropout=attn["attn_dropout"],
         attn_out_dropout=attn["attn_out_dropout"],
-        attn_projection_bias=attn["projection_bias"]
+        attn_projection_bias=attn["projection_bias"],
+        attention_params = attn[f"{attn_kind}"]
     )
-
-    kw['attention_params'] = attn[f"{kind}"]
 
     return kw

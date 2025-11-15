@@ -4,7 +4,7 @@ from .heads.mlm_head import MaskedLanguageModelingHead
 class TransformerForMaskedLM(Transformer):
     """    
     Composition:
-        - Embeddings: token + positional (learned or sinusoidal) + optional token type
+        - Embeddings: token + positional (learned, sinusoidal, or RoPE) + optional token type
         - `num_layers` x `TransformerEncoderBlock`
         - Task head: MLM
 
@@ -20,7 +20,10 @@ class TransformerForMaskedLM(Transformer):
         attn_out_dropout (float): Dropout on the attention output projection.
         attn_dropout (float): Dropout applied to attention probabilities.
         attn_projection_bias (bool): Whether the Q/K/V/out projections include bias terms.
-        pos_encoding (str): ``"learned"`` or ``"sinusoidal"`` positional scheme.
+        pos_encoding (str): ``"learned"``, ``"sinusoidal"``, or ``"rope"`` positional scheme.
+            ``"rope"`` keeps absolute positions out of embeddings and injects them via rotary attention.
+        pos_encoding_params (dict | None): Extra options for positional encodings such as
+            ``rope_base``/``rope_scale`` for RoPE.
         type_vocab_size (int | None): Segment (token-type) vocabulary size; 0/``None`` disables segments.
         embedding_dropout (float): Dropout applied after summing embeddings.
         pad_token_id (int | None): PAD token id passed to embeddings.
@@ -52,8 +55,6 @@ class TransformerForMaskedLM(Transformer):
             attention_mask (torch.Tensor): Boolean mask ``(B, N)`` where ``True`` marks PAD tokens.
             token_type_ids (torch.LongTensor, optional): Segment ids ``(B, N)``.
             position_ids (torch.LongTensor, optional): Explicit position indices ``(B, N)``.
-            attention_forward_params (dict | None, optional): Extra keyword arguments forwarded to the attention module.
-            **kw: Additional keyword arguments accepted by :meth:`Transformer.forward_base`.
 
         Returns:
             out (dict): A dictionary of:

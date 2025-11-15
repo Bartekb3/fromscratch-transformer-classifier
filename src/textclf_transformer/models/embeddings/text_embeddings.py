@@ -10,7 +10,7 @@ class TransformerTextEmbeddings(nn.Module):
     Token + position (+ optional token-type) embeddings with LayerNorm and Dropout.
 
     This module composes token embeddings, absolute positional information
-    (either learned or sinusoidal), and optionally token-type (segment) embeddings
+    (either learned, sinusoidal, or implicit via RoPE), and optionally token-type (segment) embeddings
     into a single representation. The summed embeddings are then normalized with
     LayerNorm and regularized with Dropout. Optionally, representations at PAD
     positions are zeroed out for cosmetic cleanliness (attention masking should
@@ -28,7 +28,8 @@ class TransformerTextEmbeddings(nn.Module):
         embedding_dim (int): Model/embedding dimension `D`.
         max_position_embeddings (int): Maximum supported sequence length.
         type_vocab_size (int): Number of token-type (segment) IDs. If 0, no segments are used.
-        pos_encoding (str): Either `"learned"` (BERT-style; default) or `"sinusoidal"`.
+        pos_encoding (str): `"learned"`, `"sinusoidal"`, or `"rope"` (Rotary Positional Embedding).
+            RoPE defers positional information until attention by rotating queries/keys.
         embedding_dropout (float): Dropout probability applied after LayerNorm.
         pad_token_id (int | None): PAD token id; if provided, its embedding row is zeroed.
     """
@@ -64,7 +65,9 @@ class TransformerTextEmbeddings(nn.Module):
             # RoPE uses rotary on (Q, K) inside attention; no absolute positions are added here.
             self.position = None
         else:
-            raise ValueError(f"Unknown pos_encoding '{pos_encoding}'. Use 'learned' or 'sinusoidal'.")
+            raise ValueError(
+                f"Unknown pos_encoding '{pos_encoding}'. Use 'learned', 'sinusoidal', or 'rope'."
+            )
 
         self.layer_norm = nn.LayerNorm(embedding_dim, eps=LN_EPS)
         self.dropout = nn.Dropout(embedding_dropout)
@@ -99,6 +102,7 @@ class TransformerTextEmbeddings(nn.Module):
             position_ids (LongTensor, optional): Tensor of shape `(B, N)` with absolute positions.
                 For `'learned'` encodings, if `None`, positions default to `arange(N)` broadcast to `(B, N)`.
                 For `'sinusoidal'`, `position_ids` is ignored.
+                For `'rope'`, this tensor is forwarded so that rotary attention can index the cache.
 
         Returns:
             Tensor: Embeddings of shape `(B, N, D)`, layer-normalized and dropout-applied.

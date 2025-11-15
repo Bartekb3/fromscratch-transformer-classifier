@@ -32,8 +32,11 @@ architecture:
   num_layers: 4
   mlp_size: 128
   mlp_dropout: 0.1
-  pos_encoding: learned # 'learned' | 'sinusoidal' | 'rope'
   embedding_dropout: 0.1
+  pos_encoding: rope # 'learned' | 'sinusoidal' | 'rope'
+  rope:
+    rope_base: 10000.0
+    rope_scale: 1.0
 
   attention:
     num_heads: 4
@@ -54,11 +57,6 @@ architecture:
       phi: exp
       stabilize: true
       eps: 1.0e-6
-    ###attention_forward_params###
-    forward_mha:
-    forward_lsh:
-      mask_within_chunks: true
-    forward_favor:
 
 classification_head:
   num_labels: 2

@@ -15,8 +15,8 @@ class Transformer(nn.Module):
 
     Composition:
         - Token/positional/type embeddings with LayerNorm and dropout.
-        - ``num_layers`` identical ``TransformerEncoderBlock`` modules.
-        - Optional attention specialisation per block via ``attention_kind``.
+          - ``num_layers`` identical ``TransformerEncoderBlock`` modules.
+          - Optional attention specialisation per block via ``attention_kind``.
 
     Args:
         vocab_size (int): Vocabulary size.
@@ -29,7 +29,12 @@ class Transformer(nn.Module):
         attn_out_dropout (float): Dropout on the attention output projection.
         attn_dropout (float): Dropout applied to attention probabilities.
         attn_projection_bias (bool): Whether the Q/K/V/out projections include bias terms.
-        pos_encoding (str): ``"learned"`` or ``"sinusoidal"`` positional scheme.
+        pos_encoding (str): ``"learned"``, ``"sinusoidal"``, or ``"rope"`` positional scheme.
+            RoPE keeps absolute positions out of the embedding sum and instead applies
+            rotary phases to (Q, K) during attention.
+        pos_encoding_params (dict | None): Optional parameters for the selected positional scheme.
+            For ``"rope"`` this can include ``rope_base`` and ``rope_scale`` which are used to
+            build the cached cosine/sine tables shared across all layers.
         type_vocab_size (int | None): Segment (token-type) vocabulary size; 0/``None`` disables segments.
         embedding_dropout (float): Dropout applied to input embeddings.
         pad_token_id (int | None): PAD token id passed to embeddings.
@@ -51,6 +56,7 @@ class Transformer(nn.Module):
         attn_dropout: float = 0.0,
         attn_projection_bias: bool = True,
         pos_encoding: str = "learned",
+        pos_encoding_params: dict | None = None,
         type_vocab_size: int | None = 0,
         embedding_dropout: float = 0.1,
         pad_token_id: int | None = 0,
@@ -64,6 +70,8 @@ class Transformer(nn.Module):
         self.num_heads = num_heads
         self.vocab_size = vocab_size
         self.max_sequence_length = max_sequence_length
+        self.pos_encoding_params = pos_encoding_params
+        self.pos_encoding = pos_encoding
         self.sin = None
         self.cos = None
 
@@ -90,7 +98,7 @@ class Transformer(nn.Module):
                 attn_dropout=attn_dropout,
                 attn_projection_bias=attn_projection_bias,
                 attention_kind=attention_kind,
-                attention_params = attention_params
+                attention_params=attention_params
             )
             for _ in range(num_layers)
         ])
@@ -100,7 +108,6 @@ class Transformer(nn.Module):
         input_ids: torch.LongTensor,
         attention_mask: torch.Tensor,
         *,
-        attention_forward_params: dict | None = None,
         token_type_ids: torch.LongTensor | None = None,
         position_ids: torch.LongTensor | None = None
     ):
@@ -109,7 +116,6 @@ class Transformer(nn.Module):
         Args:
             input_ids (LongTensor): ``(B, N)`` token ids.
             attention_mask (Tensor): Boolean mask ``(B, N)`` where ``True`` marks PAD tokens to ignore.
-            attention_forward_params (dict | None): Extra kwargs forwarded to the attention module.
             token_type_ids (LongTensor, optional): ``(B, N)`` segment ids.
             position_ids (LongTensor, optional): ``(B, N)`` explicit positions for learned encodings.
 
@@ -121,32 +127,32 @@ class Transformer(nn.Module):
             input_ids, token_type_ids=token_type_ids, position_ids=position_ids
         )
 
-        # Prepare per-call attention forward params
-        fwd_params = dict(attention_forward_params or {})
 
-        if getattr(self.embeddings, "pos_kind", None) == "rope":
-            B, N, D = x.shape
+        if self.pos_encoding == "rope":
+            if self.pos_encoding_params is None:
+                self.pos_encoding_params = {}
+            N = self.max_sequence_length
             if self.sin is None or self.cos is None:
                 head_dim = self.embedding_dim // self.num_heads  # per-head dim
                 self.cos, self.sin = build_rope_cache(
-                    seq_len=self.max_sequence_length,
+                    seq_len=N,
                     dim=head_dim,
                     device=x.device,
                     dtype=x.dtype,
-                    base=float(fwd_params.get("rope_base", 10000.0)),
-                    scale=float(fwd_params.get("rope_scale", 1.0)),
+                    base=float(self.pos_encoding_params.get("rope_base", 10000.0)),
+                    scale=float(self.pos_encoding_params.get("rope_scale", 1.0)),
                 )
 
-            fwd_params["rope_cos"] = self.cos[:, :, :N, :]
-            fwd_params["rope_sin"] = self.sin[:, :, :N, :]
+                self.pos_encoding_params["rope_cos"] = self.cos[:, :, :N, :]
+                self.pos_encoding_params["rope_sin"] = self.sin[:, :, :N, :]
             if position_ids is not None:
-                fwd_params["rope_position_ids"] = position_ids
+                self.pos_encoding_params["rope_position_ids"] = position_ids
 
         for layer in self.layers:
             x = layer(
                 x,
                 key_padding_mask=attention_mask,
-                attention_forward_params=fwd_params,
+                rope = self.pos_encoding_params
             )
 
         return x

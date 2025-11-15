@@ -18,7 +18,22 @@ class LSHAttention(nn.Module):
         out_dropout: float = 0.0,
         num_hashes: int = 4,
         chunk_size: int = 64,
+        mask_within_chunks: bool = True,
     ):
+        """
+        Args:
+            embed_dim: Hidden size of the transformer model.
+            num_heads: Number of attention heads the hidden size is split into.
+            bias: Whether the projection layers include biases.
+            attn_dropout: Dropout probability applied to attention weights.
+            out_dropout: Dropout probability applied after the output projection.
+            num_hashes: Count of independent LSH rounds used for bucketization.
+            chunk_size: Bucket length (tokens) used when performing local attention.
+            mask_within_chunks (bool):
+                If **True**, queries in a chunk may only attend to keys from the
+                same LSH bucket within the 3 x window (intra-bucket attention).
+                If **False**, queries may attend to any key within the 3 x window.
+        """
         super().__init__()
         assert embed_dim % num_heads == 0, "embed_dim must be divisible by num_heads"
 
@@ -252,13 +267,8 @@ class LSHAttention(nn.Module):
         self,
         x: Tensor,
         padding_mask: Tensor,
-        mask_within_chunks: bool = True,
-        *,
-        rope_cos: torch.Tensor | None = None,
-        rope_sin: torch.Tensor | None = None,
-        rope_position_ids: torch.LongTensor | None = None,
+        rope: dict | None = None
     ) -> Tensor:
-
         """
         Compute Reformer-style LSH self-attention with chunked local windows
         and 1-back/1-forward context.
@@ -285,19 +295,13 @@ class LSHAttention(nn.Module):
             x (Tensor):
                 Input embeddings of shape **[B, N, D]**, where
                 *B* = batch size, *N* = sequence length, *D* = embed_dim.
-            mask_within_chunks (bool):
-                If **True**, queries in a chunk may only attend to keys from the
-                same LSH bucket within the 3 x window (intra-bucket attention).
-                If **False**, queries may attend to any key within the 3 x window.
             padding_mask (Tensor):
                 Boolean tensor of shape **[B, N]** with **True** at padded
                 positions and **False** at real tokens. Padded tokens are ignored
                 as keys and produce zero outputs as queries.
-            rope_cos / rope_sin (Tensor, optional): Precomputed RoPE tables shaped
-                (1, 1, N, dk) or broadcastable to (B, H, N, dk). If both are provided,
-                rotary embedding is applied to (Q, K) prior to attention.
-            rope_position_ids (LongTensor, optional): (B, N) explicit positions to
-                gather RoPE tables; if None, positions 0..N-1 are used.
+            rope (dict | None): Optional rotary positional cache. Provide ``rope_cos``/``rope_sin``
+                tables (broadcastable to (B, H, N, dk)) and optionally ``rope_position_ids`` (B, N)
+                to apply RoPE to Q/K before hashing.
 
         Returns:
             Tensor:
@@ -312,25 +316,24 @@ class LSHAttention(nn.Module):
         qv = self.Uqv(x)  # [B, N, 2*D]
         q, v = qv.chunk(2, dim=-1)
 
-        q = q.unsqueeze(1).expand(
-            B, self.num_hashes, N, D).view(
-            B, self.num_hashes, N, self.num_heads, dk
-        ).transpose(2, 3)
+        q = q.view(B, N, self.num_heads, dk).transpose(
+            1, 2).contiguous()
+        v = v.view(B, N, self.num_heads, dk).transpose(
+            1, 2).contiguous()
 
-        v = v.unsqueeze(1).expand(
-            B, self.num_hashes, N, D).view(
-            B, self.num_hashes, N, self.num_heads, dk
-        ).transpose(2, 3)
-        # q,v: (B,H#,H,N,dk)
-
-        # RoPE in Reformer: Q also serves as K (Q = K). We rotate Q once and
-        # treat it as both Q and K in subsequent steps.
+        # Apply RoPE if provided
+        if rope is None:
+            rope = {}
+        rope_cos = rope.get('rope_cos', None)
+        rope_sin = rope.get('rope_sin', None)
+        rope_position_ids = rope.get('rope_position_ids', None)
         if (rope_cos is not None) and (rope_sin is not None):
-            B_, Hh, H, N_, dk_ = q.shape
-            q_merged = q.reshape(B_ * Hh, H, N_, dk_)  # -> (B*Hh, H, N, dk)
-            q_rot, _ = apply_rope(q_merged, q_merged, rope_cos, rope_sin, rope_position_ids)
-            q = q_rot.reshape(B_, Hh, H, N_, dk_)
+            q, _ = apply_rope(q, q, rope_cos, rope_sin, rope_position_ids)
 
+        q = q.unsqueeze(1).expand(B, self.num_hashes,
+                                  self.num_heads, N, dk).contiguous()
+        v = v.unsqueeze(1).expand(B, self.num_hashes,
+                                  self.num_heads, N, dk).contiguous()
 
         # valid mask - True on 'real' tokens: (B,H#,H,N)
         valid_mask = ~padding_mask_bool[:, None, None, :].expand(
@@ -361,7 +364,7 @@ class LSHAttention(nn.Module):
         ctx = self.chunk_attention(
             q_sorted, q_sorted, v_sorted, buckets,
             valid_mask_sorted,
-            mask_within_chunks=mask_within_chunks)
+            mask_within_chunks=self.mask_within_chunks)
 
         ctx = ctx.contiguous().view(B, self.num_hashes, self.num_heads, N, dk)
 

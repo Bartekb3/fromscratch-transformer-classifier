@@ -41,7 +41,6 @@ class TrainingLoop:
             - ``random_token_p`` (float): Probability of replacing with random token (default 0.1).
         tokenizer_wrapper: Object providing ``mask_input_for_mlm(input_ids, mask_p, mask_token_p, random_token_p)``
             when ``is_mlm=True``.
-        attnention_forward_params: Static kwargs forwarded to the model on every call (e.g., attention caches).
     """
 
     def __init__(
@@ -50,7 +49,6 @@ class TrainingLoop:
         training_cfg: Dict[str, Any],
         logger: WandbRun,
         is_mlm: bool,
-        attnention_forward_params: Dict[str, Any] | None = None,
         head_cfg: Optional[Dict[str, Any]] = None,
         tokenizer_wrapper=None,
     ):
@@ -58,7 +56,6 @@ class TrainingLoop:
         self.model = model
         self.cfg = training_cfg
         self.logger = logger
-        self.attnention_forward_params = attnention_forward_params
         self.is_mlm = is_mlm
         self.head_cfg = head_cfg or {}
         self.tok_wrapper = tokenizer_wrapper
@@ -160,8 +157,7 @@ class TrainingLoop:
             model_inputs = {
                 "input_ids": masked_ids,
                 "attention_mask": attn_mask,
-                "return_sequence": False,
-                "attention_forward_params": self.attnention_forward_params,
+                "return_sequence": False
             }
         else:
             if not rest:
@@ -173,8 +169,7 @@ class TrainingLoop:
                 "input_ids": input_ids,
                 "attention_mask": attn_mask,
                 "return_pooled": False,
-                "return_sequence": False,
-                "attention_forward_params": self.attnention_forward_params,
+                "return_sequence": False
             }
         return model_inputs, labels, effective_count
 

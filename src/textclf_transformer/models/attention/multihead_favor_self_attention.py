@@ -215,7 +215,7 @@ class FAVORAttention(nn.Module):
         proj = torch.einsum("bhnd,hmd->bhnm", x32, omega32)
 
         if self.stabilize:
-            shift = proj.abs().amax(dim=-1, keepdim=True)
+            shift = proj.abs().amax(dim=-1, keepdim=True) #TODO znalezc odpowiednia wartosc nieobciazonej (dim=(2, 3)) stabiliacji moze shift/2
             exp_pos = torch.exp(proj - shift)
             exp_neg = torch.exp(-proj - shift)
         else:
@@ -257,10 +257,7 @@ class FAVORAttention(nn.Module):
         self,
         x: Tensor,
         key_padding_mask: Tensor | None = None,
-        *,
-        rope_cos: torch.Tensor | None = None,
-        rope_sin: torch.Tensor | None = None,
-        rope_position_ids: torch.LongTensor | None = None,
+        rope: dict | None = None
     ):
         """
         FAVOR+ multi-head attention (non-causal).
@@ -268,8 +265,9 @@ class FAVORAttention(nn.Module):
         Args:
             x: (B, N, D) input embeddings.
             key_padding_mask: (B, N) bool, True = pad.
-            rope_cos, rope_sin: optional RoPE tables broadcastable to (B, H, N, dk).
-            rope_position_ids: optional (B, N) explicit positions for RoPE.
+            rope (dict | None): Optional rotary positional cache carrying ``rope_cos``/``rope_sin``
+                tables (broadcastable to (B, H, N, dk)) and optionally ``rope_position_ids`` (B, N)
+                used to index the cache before applying RoPE to Q/K.
 
         Returns:
             out: (B, N, D) contextualized outputs.
@@ -291,7 +289,12 @@ class FAVORAttention(nn.Module):
         K = self._split_heads(K, self.num_heads)
         V = self._split_heads(V, self.num_heads)
 
-        # RoPE
+        # Apply RoPE if provided
+        if rope is None:
+            rope = {}
+        rope_cos = rope.get('rope_cos', None)
+        rope_sin = rope.get('rope_sin', None)
+        rope_position_ids = rope.get('rope_position_ids', None)
         if (rope_cos is not None) and (rope_sin is not None):
             Q, K = apply_rope(Q, K, rope_cos, rope_sin, rope_position_ids)
 

@@ -60,18 +60,19 @@ class AttentionBlock(nn.Module):
         self.layer_norm = nn.LayerNorm(
             normalized_shape=embedding_dim, eps=LN_EPS)
 
-    def forward(self, x, key_padding_mask=None, attention_forward_params: dict | None = None):
+    def forward(self, x, key_padding_mask=None, rope: dict | None = None ):
         """
         Args:
             x (Tensor): Input tensor of shape (B, N, D)
                B = batch size, N = sequence length, D = embedding_dim.
+            key_padding_mask (Tensor, optional): Boolean mask where True marks PAD tokens.
+            rope (dict | None): Rotary positional information (``rope_cos``, ``rope_sin``,
+                optional ``rope_position_ids``) used by attention implementations when ``pos_encoding='rope'``.
 
         Returns:
             y (Tensor): = LayerNorm(x + Dropout(MultiheadSelfAttention(x))), (B,N,D)
         """
-        if attention_forward_params is None:
-            attention_forward_params = {}
 
-        result = self.attention_mechanism(x, key_padding_mask, **attention_forward_params)
+        result = self.attention_mechanism(x, key_padding_mask, rope)
         attn_output = result[0]
         return self.layer_norm(x + attn_output)
