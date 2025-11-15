@@ -74,6 +74,7 @@ class Transformer(nn.Module):
         self.pad_token_id = pad_token_id
         self.attention_kind = attention_kind
         self.embedding_dim = embedding_dim
+        self.attention_embedding_dim = attention_embedding_dim
         self.num_heads = num_heads
         self.vocab_size = vocab_size
         self.max_sequence_length = max_sequence_length
@@ -138,8 +139,14 @@ class Transformer(nn.Module):
             if self.pos_encoding_params is None:
                 self.pos_encoding_params = {}
             _, N, _ = x.shape
-            if self.sin is None or self.cos is None:
-                head_dim = self.embedding_dim // self.num_heads  # per-head dim
+            head_dim = self.attention_embedding_dim // self.num_heads  # per-head dim
+            cache_mismatch = (
+                self.cos is None
+                or self.sin is None
+                or self.cos.device != x.device
+                or self.cos.dtype != x.dtype
+            )
+            if cache_mismatch:
                 self.cos, self.sin = build_rope_cache(
                     seq_len=self.max_sequence_length,
                     dim=head_dim,
@@ -151,10 +158,9 @@ class Transformer(nn.Module):
                         "rope_scale", 1.0)),
                 )
 
-                self.pos_encoding_params["rope_cos"] = self.cos[:, :, :N, :]
-                self.pos_encoding_params["rope_sin"] = self.sin[:, :, :N, :]
-            if position_ids is not None:
-                self.pos_encoding_params["rope_position_ids"] = position_ids
+            # Cache stores full tables; slice per batch length before passing to blocks.
+            self.pos_encoding_params["rope_cos"] = self.cos[:, :, :N, :]
+            self.pos_encoding_params["rope_sin"] = self.sin[:, :, :N, :]
 
         for layer in self.layers:
             x = layer(
