@@ -48,8 +48,6 @@ class MultiheadSelfAttention(nn.Module):
                  out_dropout: float = 0.0,
                  attention_embed_dim: int | None = None):
         super().__init__()
-        if attention_embed_dim is None:
-            attention_embed_dim = embed_dim
         assert attention_embed_dim % num_heads == 0, "attention_embed_dim must be divisible by num_heads"
         self.embed_dim = embed_dim
         self.num_heads = num_heads

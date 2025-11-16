@@ -38,8 +38,6 @@ class LSHAttention(nn.Module):
                 If **False**, queries may attend to any key within the 3 x window.
         """
         super().__init__()
-        if attention_embed_dim is None:
-            attention_embed_dim = embed_dim
         assert attention_embed_dim % num_heads == 0, "attention_embed_dim must be divisible by num_heads"
 
         self.embed_dim = embed_dim
