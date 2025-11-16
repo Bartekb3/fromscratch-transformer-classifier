@@ -74,6 +74,8 @@ class Transformer(nn.Module):
         self.pad_token_id = pad_token_id
         self.attention_kind = attention_kind
         self.embedding_dim = embedding_dim
+        if attention_embedding_dim is None:
+            attention_embedding_dim = embedding_dim
         self.attention_embedding_dim = attention_embedding_dim
         self.num_heads = num_heads
         self.vocab_size = vocab_size
