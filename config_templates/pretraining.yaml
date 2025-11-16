@@ -23,9 +23,9 @@ tokenizer:
   max_length: 512
 
 architecture:
-  embedding_dim: 32
-  num_layers: 4
-  mlp_size: 128
+  embedding_dim: 564
+  num_layers: 5
+  mlp_size: 1054
   mlp_dropout: 0.1
   embedding_dropout: 0.1
   pos_encoding: rope # 'learned' | 'sinusoidal' | 'rope'
@@ -34,11 +34,11 @@ architecture:
     rope_scale: 1.0
 
   attention:
-    num_heads: 4
+    num_heads: 8
     projection_bias: true # (Q/K/V/out) bias
     attn_out_dropout: 0.1 # dropout na projekcji wyjściowej
     attn_dropout: 0.0 # dropout na wagach atencji (po softmax)
-    attention_embedding_dim:
+    attention_embedding_dim: 512
 
     kind: mha # 'mha' | 'lsh' | 'favor'
     ###attention_params###
@@ -61,9 +61,9 @@ mlm_head:
   random_token_p: 0.1
 
 training:
-  batch_size: 6
+  batch_size: 32
   epochs: 3
-  learning_rate: 2.0e-4
+  learning_rate: 2.0e-5
   warmup_ratio: 0.1
   weight_decay: 0.01
   max_grad_norm: 1.0
