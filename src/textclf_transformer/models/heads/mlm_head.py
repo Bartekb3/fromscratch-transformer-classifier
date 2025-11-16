@@ -28,7 +28,7 @@ class MaskedLanguageModelingHead(nn.Module):
             nn.GELU(),
             nn.LayerNorm(embedding_dim, eps=LN_EPS),
         )
-        self.decoder = nn.Linear(embedding_dim, vocab_size, bias=True)
+        self.decoder = nn.Linear(embedding_dim, vocab_size, bias=False)
 
         self._reset_parameters()
 

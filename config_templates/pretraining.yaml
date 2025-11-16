@@ -74,7 +74,7 @@ training:
 
   resume:
     is_resume: false
-    checkpoint_path: checkpoints/model.ckpt
+    checkpoint_path: ../pre_v1/checkpoints/model.ckpt
     strict: true
     load_only_model_state: true # whether to load only model state or everything - optimizer, scheduler etc.
 
