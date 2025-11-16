@@ -74,9 +74,9 @@ class WandbRun:
                 print(f"[WARN] Nie udało się połączyć z W&B: {e}")
                 print("→ Przechodzę w tryb offline (CSV only).")
                 self._wandb_run = None
-
-        self.csv_train_path.parent.mkdir(parents=True, exist_ok=True)
-        self.csv_eval_path.parent.mkdir(parents=True, exist_ok=True)
+        if self.log_metrics_csv:
+            self.csv_train_path.parent.mkdir(parents=True, exist_ok=True)
+            self.csv_eval_path.parent.mkdir(parents=True, exist_ok=True)
 
     def log_train(
         self,
