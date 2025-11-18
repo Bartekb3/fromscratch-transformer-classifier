@@ -89,15 +89,7 @@ class WandbRun:
             metrics: Mapping of metric names to values (without the ``train/`` prefix).
             step: Global step to associate with the metrics.
         """
-        prefixed = {f"train/{k}": v for k, v in metrics.items()}
-
-        data = {
-            k: v for k, v in prefixed.items()
-            if v is not None and getattr(self, f"log_{k.replace('/', '_')}", True)
-        }
-
-        if not data:
-            return
+        data = {f"train/{k}": v for k, v in metrics.items()}
 
         if self._wandb_run:
             self._wandb_run.log(data, step=step)
