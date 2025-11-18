@@ -412,4 +412,4 @@ class TrainingLoop:
             loader: DataLoader for the evaluation split.
         """
         metrics = self._eval_impl(loader)
-        self.logger.log_eval(metrics, step=0, kind="test")
+        self.logger.log_eval(metrics, step=1, kind="test")
