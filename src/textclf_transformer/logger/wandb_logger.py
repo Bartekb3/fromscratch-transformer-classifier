@@ -109,7 +109,10 @@ class WandbRun:
         prefixed = {f"{kind}/{k}": v for k, v in metrics.items()}
 
         if self._wandb_run:
-            self._wandb_run.log(prefixed, step=step)
+            if step is not None:
+                self._wandb_run.log(prefixed, step=step)
+            else:
+                self._wandb_run.log(prefixed)
 
         self._write_csv(self.csv_eval_path, prefixed, step)
 
