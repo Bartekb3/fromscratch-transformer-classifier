@@ -137,7 +137,8 @@ class TrainingLoop:
         """Move tensors to device, perform MLM masking if needed, and build model kwargs."""
 
         if len(batch) < 2:
-            raise ValueError("Batch musi mieć co najmniej (input_ids, attention_mask).")
+            raise ValueError(
+                "Batch musi mieć co najmniej (input_ids, attention_mask).")
 
         input_ids, attn_mask, *rest = batch
 
@@ -161,7 +162,8 @@ class TrainingLoop:
             }
         else:
             if not rest:
-                raise ValueError("Batch dla klasyfikacji musi mieć (input_ids, attention_mask, labels).")
+                raise ValueError(
+                    "Batch dla klasyfikacji musi mieć (input_ids, attention_mask, labels).")
             labels = rest[0].to(self.device)
 
             effective_count = max(1, int(labels.size(0)))
@@ -318,10 +320,13 @@ class TrainingLoop:
 
             avg_epoch_loss = total_loss / max(1, total_count)
             self.logger.log_train(
-                metrics={'avg_epoch_loss': float(avg_epoch_loss)}, step=state.step)
+                metrics={'avg_epoch_loss': float(avg_epoch_loss),
+                         'epoch': {ep + 1}},
+                        step=state.step)
 
             if val_loader is not None:
                 metrics = self._eval_impl(val_loader)
+                metrics.update({'epoch': {ep + 1}})
                 self.logger.log_eval(metrics=metrics, step=state.step)
                 val_loss = metrics['loss']
 
@@ -407,4 +412,4 @@ class TrainingLoop:
             loader: DataLoader for the evaluation split.
         """
         metrics = self._eval_impl(loader)
-        self.logger.log_eval(metrics, kind)
+        self.logger.log_eval(metrics, step=0, kind="test")
