@@ -1,0 +1,183 @@
+\documentclass{article}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{xcolor}
+
+
+\title{Plan eksperymentów}
+\author{Michał Iwaniuk, Bartłomiej Borycki}
+\date{November 2025}
+
+\begin{document}
+
+\maketitle
+
+\section{Rozpatrywane konfiguracje hiperparametrów}
+
+\subsection{Architektura}
+
+Przyjmijmy następujące oznaczenia
+
+\begin{itemize}
+    \item \textbf{$l^t$} – liczba warstw enkodera (liczba bloków Transformer).
+    
+    \item \textbf{$d^{h}$} – rozmiar wektora ukrytego (\textit{hidden size})
+
+    \item \textbf{$d^f$} – rozmiar warstwy pośredniej w feed-forward network
+    (FFN), często nazywany \textit{intermediate size}. W klasycznym BERT
+    zwykle wynosi $4 \cdot d^{h}$.
+    
+    \item \textbf{$h$} – liczba głowic w mechanizmie wielogłowicowej uwagi.
+    
+    \item \textbf{$d^{q|k|v}$} – wymiar przestrzeni zapytań (\textit{query}),
+    kluczy (\textit{key}) oraz wartości (\textit{value}) w każdej głowicy
+    uwagi. (W klasycznym BERT przyjmuje się zazwyczaj $d^{q} = d^{k} = d^{v} =
+    \frac{d^{h}}{h}$)
+\end{itemize}
+
+\subsection{Wspólne parametry treningowe}
+
+\begin{figure}[H]
+\small
+\begin{center}
+\fbox{
+\begin{minipage}{0.92\linewidth}
+
+\medskip
+\textbf{Architektura:}
+MLP dropout: 0.1, 
+Embedding dropout: 0.1, 
+Pozycje: \texttt{rope} (base=10000, scale=1.0).  
+Atencja: projection\_bias=true, 
+attn\_out\_dropout=0.1, 
+attn\_dropout=0.0.
+
+\medskip
+\textbf{MLM head:}
+tie\_mlm\_weights=true, 
+mask\_p=0.15, 
+mask\_token\_p=0.8, 
+random\_token\_p=0.1.
+
+\medskip
+\textbf{Classification head:}
+num\_labels=2, 
+classifier\_dropout=0.1, 
+pooling=\texttt{cls}, 
+pooler\_type=\texttt{bert}.
+
+\medskip
+\textbf{Trening:}
+batch=32 (\texttt{seq\_len}=512) / 2 (\texttt{seq\_len}=8192), 
+lr=$2\mathrm{e}{-5}$, 
+warmup=0.1, 
+wd=0.01, 
+max\_grad\_norm=1.0, 
+grad\_accum=1, 
+AMP=true, 
+loss=cross\_entropy.
+\end{minipage}
+}
+\end{center}
+\end{figure}
+
+
+\subsection{Architektura Bazowa}
+
+Jako standardową architekturę małego modelu BERT przyjmiemy $\text{BERT}_{\text{SMALL}}$
+opisaną w artykule \textit{Well-Read Students Learn Better: On the Importance of Pre-training Compact Models}\\\\
+$\text{BERT}_{\text{SMALL}}$:
+\begin{table}[h]
+\centering
+\begin{tabular}{c c c c c}
+\hline
+$l^{t}$ & $d^{h}$ & $d^{f}$ & $h$ & $d^{q|k|v}$ \\
+\hline
+4 & 512 & 2048 & 8 & 512 \\
+\hline
+\end{tabular}
+\end{table}
+
+\subsection{Szukanie optymalnych parametrow }
+
+W oparciu o architekturę bazową przeprowadzimy eksperymenty mające na celu wyznaczenie optymalnych hiperparametrów dla mechanizmów \textit{FAVOR+} oraz LSH, które zostaną następnie wykorzystane w fazie właściwego treningu. Optymalizacja obejmie następujące parametry:
+
+\begin{itemize}
+    \item \textbf{Mechanizm \textit{FAVOR+}:}
+    Optymalizacji poddany zostanie hiperparametr \texttt{nb\_features}, określający liczbę ortogonalnych wektorów projekcyjnych. Rozpatrzone zostaną wartości proporcjonalne do wymiaru $d_k$ głowy atencji: $0.5 d_k$, $1.0 d_k$, $2.0 d_k$ oraz $4.0 d_k$.
+    
+    \item \textbf{Mechanizm LSH (\textit{Locality-Sensitive Hashing}):}
+    Analizie poddane zostaną trzy kluczowe parametry:
+    \begin{itemize}
+        \item \textbf{Rozmiar fragmentu ($m$):} Testowane wartości to 32, 64 oraz 128.
+        \item \textbf{Liczba funkcji haszujących (\texttt{num\_hashes}):} Sprawdzone zostaną konfiguracje z 4 oraz 8 haszami.
+        \item \textbf{Maskowanie wewnątrz fragmentu (\texttt{mask\_within\_chunks}):} Parametr logiczny, gdzie:
+        \begin{itemize}
+            \item \texttt{True}: zapytania (\textit{queries}) wewnątrz fragmentu mogą zwracać uwagę (\textit{attend}) wyłącznie na klucze z tego samego kubełka LSH w obrębie okna.
+            \item \texttt{False}: zapytania mogą zwracać uwagę na dowolny klucz w obrębie okna.
+        \end{itemize}
+    \end{itemize}
+\end{itemize}
+
+\section{Architektura właściwa (do klasyfikacji)}
+
+Wykorzystamy architektury modeli wyłonione w artykule \textit{AutoTinyBERT: Automatic Hyper-parameter Optimization for Efficient Pre-trained Language Models} jako podstawę do treningu właściwych modeli klasyfikacyjnych.
+
+\begin{table}[h!]
+\centering
+\begin{tabular}{lccccc}
+\hline
+\textbf{$l^t$} &
+\textbf{$d^{h}$} &
+\textbf{$d^f$} &
+\textbf{$h$} &
+\textbf{$d^{q|k|v}$} \\
+\hline
+5 & 564 & 1054 & 8 & 512 \\
+4 & 396 & 624  & 6 & 384 \\
+4 & 432 & 384  & 4 & 256 \\
+3 & 320 & 608  & 4 & 256 \\
+\hline
+\end{tabular}
+\end{table}
+
+Na powyższych architekturach przeprowadzone zostaną procesy uczenia dla
+\begin{itemize}
+    \item \textbf{SDPA},
+    \item \textbf{FAVOR} (z wykorzystaniem optymalnych parametrów wyznaczonych w poprzednim etapie),
+    \item \textbf{LSH} (z wykorzystaniem optymalnych parametrów wyznaczonych w poprzednim etapie).
+\end{itemize}
+
+Dodatkowo, w celu stworzenia punktu odniesienia (\textit{baseline}), wszystkie trzy wymienione typy atencji (SDPA, FAVOR, LSH) zostaną wytrenowane również na architekturze bazowej $\text{BERT}_{\text{SMALL}}$.
+\\
+
+Taki sposób przeprowadzenia eksperymentów ma na celu weryfikacje czy wskazane architektury faktycznie zapewniają najkorzystniejszy stosunek szybkości działania do jakości predykcji również w przypadku metod FAVOR i LSH, analogicznie jak ma to miejsce w standardowych modelach BERT.
+
+
+\section{Trening}
+
+\subsection{Korpus Wikipedii do pretreningu MLM}
+Wybrano podzbiór ok.~200\,000~artykułów.
+\\
+Wybierane dokumenty zawierające przynajmniej jedno ze słów kluczowych:
+\begin{center}
+\texttt{["film", "sport", "business", "science", "technology", "news"]}
+\end{center}
+
+\subsection{TAPT + Fine-tuning(klasyfikacja): IMDB, AG~News i korpus ArXiv}
+\begin{itemize}
+  \item \textbf{IMDB:} \texttt{seq\_len}=512
+  \item \textbf{AG~News:} \texttt{seq\_len}=512
+  \item \textbf{ArXiv~Classification:} \texttt{seq\_len}=8192
+\end{itemize}
+
+\section{Podsumowanie}
+
+\begin{itemize}
+    \item Każdy z trzech mechanizmów atencji (SDPA, FAVOR, LSH) zostanie pretrenowany w pięciu wariantach architektury (bazowy $\text{BERT}_{\text{SMALL}}$ oraz cztery konfiguracje z AutoTinyBERT). Co daje łącznie \textbf{15 modeli}.
+
+    \item Po procesie TAPT + Fine-tuning trzymamy łącznie \textbf{45 finalnych modeli}~, co przełoży się na 45 wyników klasyfikacji podlegających późniejszej analizie.
+\end{itemize}`
+
+
+\end{document}

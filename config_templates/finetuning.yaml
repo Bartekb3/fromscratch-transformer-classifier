@@ -51,6 +51,7 @@ architecture:
     lsh:
       num_hashes: 4
       chunk_size: 64
+      mask_within_chunks: true
     favor:
       nb_features: 256
       ortho_features: true
