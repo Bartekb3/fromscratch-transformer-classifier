@@ -1,7 +1,18 @@
 import math
+import sys
+from pathlib import Path
+
 import torch
 import pytest
 from torch import nn
+
+ROOT = Path(__file__).resolve().parents[3]
+if str(ROOT) not in sys.path:
+    sys.path.append(str(ROOT))
+
+SRC_DIR = ROOT / "src"
+if str(SRC_DIR) not in sys.path:
+    sys.path.append(str(SRC_DIR))
 
 from textclf_transformer.models.attention.multihead_sdp_self_attention import MultiheadSelfAttention
 
@@ -41,7 +52,7 @@ def copy_weights_to_ours(ours: MultiheadSelfAttention, ref_mha: nn.MultiheadAtte
 # --- TESTS ---
 
 def test_shapes(device):
-    # Ensures output/attention shapes are correct
+    """Confirms forward returns (B,N,D) outputs and (B,H,N,N) attention maps, proving head split/merge dimensions are correct and nothing is dropped or reshaped incorrectly."""
     B, N, D, H = 3, 7, 32, 4
     m = make_model(D, H).to(device)
     x = torch.randn(B, N, D, device=device)
@@ -50,7 +61,7 @@ def test_shapes(device):
     assert attn.shape == (B, H, N, N)
 
 def test_masking_zeros_attention_to_masked_keys(device):
-    # Verifies that masked key columns receive ~zero attention (and would be nonzero without the mask).
+    """Masks the last token and checks its attention column is zero while an unmasked run shows nonzero weights, verifying padding masks truly zero out masked keys."""
     B, N, D, H = 2, 6, 32, 4
     m = make_model(D, H).to(device)
     x = torch.randn(B, N, D, device=device)
@@ -71,7 +82,7 @@ def test_masking_zeros_attention_to_masked_keys(device):
 
 
 def test_gradients_flow(device):
-    # Checks gradients flow through inputs and parameters (finite, non-None).
+    """Backpropagates a simple loss and asserts input/parameter grads exist and are finite, indicating the attention graph is differentiable and numerically stable."""
     B, N, D, H = 2, 5, 32, 4
     m = make_model(D, H, attn_dropout=0.0, out_dropout=0.0).to(device).train()
     x = torch.randn(B, N, D, device=device, requires_grad=True)
@@ -89,7 +100,7 @@ def test_gradients_flow(device):
 
 
 def test_deterministic_in_eval_with_no_dropout(device):
-    # Confirms determinism in eval mode (same inputs -> same outputs/attn).
+    """In eval mode with dropout disabled, two passes with same inputs should match exactly for both outputs and attention, confirming determinism for inference reproducibility."""
     B, N, D, H = 2, 5, 32, 4
     m = make_model(D, H, attn_dropout=0.0, out_dropout=0.1).to(device).eval()
     x, kpm = rand_inputs(B, N, D, device=device)
@@ -100,7 +111,7 @@ def test_deterministic_in_eval_with_no_dropout(device):
 
 
 def test_dropout_changes_output_in_train_mode(device):
-    # Ensures dropout causes different outputs/attn between runs in train mode.
+    """In train mode with dropout enabled, different seeds should yield differing outputs/attn, proving dropout randomness is wired and affects both outputs and weights."""
     B, N, D, H = 2, 12, 32, 4
     m = make_model(D, H, attn_dropout=0.2, out_dropout=0.2).to(device).train()
     x, kpm = rand_inputs(B, N, D, device=device)
@@ -115,14 +126,14 @@ def test_dropout_changes_output_in_train_mode(device):
 
 
 def test_assert_divisible_heads():
-    # Validates constructor assertion: embed_dim must be divisible by num_heads.
+    """Asserts constructor enforces embed_dim divisibility by num_heads to avoid malformed head sizes, raising early instead of silently mis-splitting heads."""
     with pytest.raises(AssertionError):
         _ = make_model(embed_dim=30, num_heads=8)
 
 
 @pytest.mark.parametrize("bias", [True, False])
 def test_equivalence_with_torch_multiheadattention(device, bias):
-    # Checks numerical equivalence to nn.MultiheadAttention (same weights, same outputs/attn).
+    """Copies weights from nn.MultiheadAttention and checks outputs/attn match closely, validating implementation parity for both bias settings and confirming SDP math is aligned."""
 
     B, N, D, H = 2, 7, 32, 4
     x, kpm = rand_inputs(B, N, D, device=device, mask_prob=0.4)
@@ -140,7 +151,4 @@ def test_equivalence_with_torch_multiheadattention(device, bias):
 
     assert torch.allclose(out_ours, out_ref, atol=1e-6, rtol=1e-5)
     assert torch.allclose(attn_ours, attn_ref, atol=1e-6, rtol=1e-5)  
-
-
-
 
