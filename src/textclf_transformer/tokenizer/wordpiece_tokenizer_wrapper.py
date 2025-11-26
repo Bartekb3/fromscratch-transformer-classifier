@@ -3,7 +3,7 @@ from transformers import BertTokenizerFast
 import torch
 from torch.utils.data import TensorDataset
 from pathlib import Path
-from typing import Literal, Sequence, Dict
+from typing import Literal, Sequence, Dict, Union, List, Optional
 from tokenizers.processors import TemplateProcessing
 
 
@@ -37,10 +37,10 @@ class WordPieceTokenizerWrapper:
 
     def train(self,
               tokenizer_dir: str,
-              input: str | list[str],
+              input: Union[str, List[str]],
               vocab_size: int = 30000,
               min_frequency: int = 2,
-              special_tokens: list[str] = [
+              special_tokens: List[str] = [
                   "[PAD]", "[UNK]", "[CLS]", "[SEP]", "[MASK]"],
               include_cls: bool = True,
               include_sep: bool = True
@@ -103,10 +103,10 @@ class WordPieceTokenizerWrapper:
             str(tokenizer_dir), use_fast=True)
 
     def encode(self,
-               input: str | list[str],
+               input: Union[str, List[str]],
                max_length: int,
-               labels: Sequence[int] | None = None,
-               return_type: Literal['dict', 'tensordataset'] = 'tensordataset') -> TensorDataset | Dict:
+               labels: Optional[Sequence[int]] = None,
+               return_type: Literal['dict', 'tensordataset'] = 'tensordataset') -> Union[TensorDataset, Dict]:
         """
         Encode text data from file paths or raw strings and produce tensors ready
         for model consumption.
@@ -129,6 +129,7 @@ class WordPieceTokenizerWrapper:
         """
 
         assert return_type in ['dict', 'tensordataset']
+        assert self.tokenizer is not None, "Tokenizer not loaded. Call load() first."
 
         is_input_str = isinstance(input, str)
         if is_input_str:
@@ -150,11 +151,11 @@ class WordPieceTokenizerWrapper:
             texts = input
 
         encoded = self.tokenizer(texts, padding="max_length",
-                      max_length=max_length,
-                      truncation=True,
-                      return_tensors="pt",
-                      return_token_type_ids=False,
-                      add_special_tokens=True)
+                                 max_length=max_length,
+                                 truncation=True,
+                                 return_tensors="pt",
+                                 return_token_type_ids=False,
+                                 add_special_tokens=True)
         encoded['attention_mask'] = encoded['attention_mask'] == 0
 
         if labels is not None:
@@ -172,13 +173,11 @@ class WordPieceTokenizerWrapper:
                       df,
                       text_col: str,
                       max_length: int,
-                      label_col: str | None = None,
-                      tokenizer_dir: str = "./BERT_original") -> TensorDataset:
+                      label_col: Optional[str] = None) -> TensorDataset:
         """
         Encode a pandas DataFrame into a TensorDataset for PyTorch models.
 
         Args:
-            tokenizer_dir (str): Path to the tokenizer directory.
             df (pandas.DataFrame): DataFrame containing the data.
             text_col (str): Name of the column containing text sequences.
             max_length (int): Maximum sequence length for padding/truncation.
@@ -191,20 +190,17 @@ class WordPieceTokenizerWrapper:
                 - labels: (N,) if label_col is provided
         """
         import pandas as pd
+        assert self.tokenizer is not None, "Tokenizer not loaded. Call load() first."
+
         if not isinstance(df, pd.DataFrame):
             raise TypeError("Expected a pandas DataFrame for argument `df`.")
 
         if text_col not in df.columns:
             raise ValueError(f"Column '{text_col}' not found in DataFrame.")
 
-        tokenizer_dir = Path(tokenizer_dir)
-        if self.tokenizer is None or tokenizer_dir != self.tokenizer_dir:
-            self.load(tokenizer_dir)
-        tok = self.tokenizer
-
         texts = df[text_col].astype(str).tolist()
 
-        encoded = tok(
+        encoded = self.tokenizer(
             texts,
             padding="max_length",
             max_length=max_length,
