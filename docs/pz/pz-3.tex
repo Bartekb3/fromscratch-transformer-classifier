@@ -1,0 +1,682 @@
+\documentclass{article}
+\usepackage{caption}
+\usepackage{graphicx} % Wymagane do wstawiania obrazów
+\usepackage[T1]{fontenc} % Zalecane dla lepszej obsługi czcionek
+\usepackage[utf8]{inputenc} % Kodowanie wejściowe, kluczowe dla polskich znaków (dla pdflatex)
+\usepackage{float}
+\usepackage[polish]{babel} % Wsparcie dla języka polskiego (nazwy sekcji, dzielenie wyrazów)
+\usepackage{svg}
+\usepackage{amsmath}
+
+\usepackage{geometry}
+\geometry{a4paper, margin=2cm}
+
+\title{Implementacja transformera oraz eksperymenty z wariantami mechanizmu uwagi (Performer, Reformer) w zadaniach klasyfikacji tekstu\\[0.25em]
+\large Dokumentacja projektu~\textendash{} część~III}
+\author{Bartłomiej Borycki, Michał Iwaniuk}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+\section{Podsumowanie}
+W ramach niniejszego etapu prac zrealizowano kompletną, w pełni modularną implementację architektury Transformera, stanowiącą fundament dla planowanych badań porównawczych. Głównym osiągnięciem jest opracowanie szkieletu modelu, który pozwala na swobodną wymianę kluczowych komponentów obliczeniowych tj. mechanizmów atencji (klasyczne MHA, aproksymacyjne LSH i FAVOR) - bez konieczności modyfikacji pozostałej części systemu.
+
+Stworzono środowisko eksperymentalne, zapewniające pełną powtarzalność i konfigurowalność procesów treningowych. Zaimplementowana infrastruktura integruje techniki optymalizacji uczenia (m.in. mieszana precyzja, akumulacja gradientów) oraz rozbudowany system monitorowania metryk, co umożliwia efektywne przeprowadzenie i analizę zaplanowanych eksperymentów w zadaniach pretreningu oraz klasyfikacji tekstu.
+
+
+\section{Tokenizer}
+
+W projekcie wykorzystano algorytm tokenizacji WordPiece (standard w modelach z rodziny BERT). Aby uprościć procesy trenowania,  przetwarzania danych, zaimplementowano klasę pomocniczą \texttt{WordPieceTokenizerWrapper}.
+
+\subsection{Wrapper tokenizera}
+
+Klasa \texttt{WordPieceTokenizerWrapper} stanowi nakładkę na bibliotekę \texttt{tokenizers} oraz \texttt{transformers}  Hugging Face. Jej głównym celem jest abstrakcja operacji niskopoziomowych i dostarczenia API do przygotowywania danych dla modelu.
+
+\subsubsection{Inicjalizacja i trening}
+Wrapper umożliwia wytrenowanie nowego tokenizera na korpusie tekstowym użytkownika za pomocą metody \texttt{train}. Wykorzystuje ona implementację \texttt{BertWordPieceTokenizer}, która buduje słownik podjednostek (subwords) o zadanej wielkości (domyślnie 30 000 tokenów).
+Kluczowe etapy procesu to:
+\begin{itemize}
+    \item Normalizacja tekstu (zamiana na małe litery, usuwanie akcentów).
+    \item Trening algorytmu WordPiece na wskazanych plikach tekstowych.
+    \item Konfiguracja post-processora, który automatycznie dodaje tokeny specjalne \texttt{[CLS]} na początku i \texttt{[SEP]} na końcu sekwencji, co jest wymagane przez architekturę BERT.
+    \item Zapisanie wytrenowanego modelu (plik \texttt{vocab.txt} oraz \texttt{tokenizer.json}) we wskazanym katalogu.
+\end{itemize}
+
+Metoda \texttt{load} inicjalizuje szybki tokenizer \texttt{BertTokenizerFast}, wykorzystując plik \texttt{vocab.txt} (oraz ewentualnie \texttt{tokenizer.json}).  Na potrzeby eksperymentów będziemy korzystać z gotowego vocab.txt używanego w oryginalnym BERT.
+
+\subsubsection{Przetwarzanie danych (Encoding)}
+Klasa oferuje metody \texttt{encode} oraz \texttt{encode\_pandas} służące do konwersji surowego tekstu na tensory wejściowe modelu.
+Proces ten obejmuje:
+\begin{enumerate}
+    \item Tokenizację tekstu na podjednostki.
+    \item Obcięcie sekwencji do maksymalnej długości (\texttt{max\_length}) lub dopełnienie (padding) tokenem \texttt{[PAD]} do tej długości.
+    \item Generowanie maski atencji (\texttt{attention\_mask}), gdzie wartość \texttt{True}  oznacza tokeny paddingu, które powinny być ignorowane przez mechanizm atencji (odwrotnie niż w implementacji Hugging Face).
+    \item Opcjonalne dołączenie etykiet.
+\end{enumerate}
+Wynikiem operacji jest obiekt \texttt{TensorDataset} gotowy do użycia z \texttt{DataLoader} w PyTorch, zawierający tensory \texttt{input\_ids}, \texttt{attention\_mask} oraz opcjonalnie \texttt{labels}.
+
+\subsubsection{Maskowanie dla MLM}
+Dla potrzeb uczenia nienadzorowanego (Masked Language Modeling), zaimplementowano metodę \texttt{mask\_input\_for\_mlm}. Realizuje ona dynamiczne maskowanie tokenów zgodnie ze strategią opisaną w oryginalnej pracy BERT:
+\begin{itemize}
+    \item Wybór tokenów do predykcji (domyślnie 15\%).
+    \item Zastąpienie 80\% wybranych tokenów tokenem specjalnym \texttt{[MASK]} (domyślnie 80\%).
+    \item Zastąpienie wybranych tokenów losowym słowem ze słownika (domyślnie 10\%).
+    \item Pozostawienie tokenów bez zmian (w celu zachowania spójności reprezentacji, (omyślnie 10\%).
+\end{itemize}
+Metoda zwraca zarówno zamaskowane wejścia, jak i etykiety, gdzie tokeny niepodlegające predykcji oznaczone są wartością -100, co jest standardem dla funkcji kosztu \texttt{CrossEntropyLoss} w PyTorch.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+\section{Architektura transformera}
+
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.8\textwidth]{model.png}
+    \caption{Diagram klas dla Architektury Transformera}
+\end{figure}
+
+
+\subsection{Klasa transformera}
+
+Implementacja architektury opiera się na modułowej hierarchii klas, której fundamentem jest klasa bazowa \texttt{Transformer}, a jej specjalizacje (\texttt{TransformerForSequenceClassification} oraz \texttt{TransformerForMaskedLM}) dostosowują model do konkretnych zadań uczenia maszynowego.
+
+\subsubsection{Model bazowy: Transformer}
+
+Kluczowe parametry konfiguracyjne klasy, definiujące jej strukturę i zachowanie, obejmują:
+\begin{itemize}
+    \item \texttt{vocab\_size}, \texttt{max\_sequence\_length}: Określają rozmiar słownika tokenów oraz maksymalną obsługiwaną długość sekwencji wejściowej.
+    \item \texttt{embedding\_dim} ($D$): Główny wymiar ukryty modelu (rozmiar wektorów osadzeń).
+    \item \texttt{attention\_embedding\_dim}: Opcjonalny wymiar projekcji wewnątrz mechanizmu atencji. Pozwala na sterowanie rozmiarem reprezentacji $Q/K/V$ niezależnie od głównego wymiaru $D$ (nie jest to standard w BERT)
+    \item \texttt{num\_layers}, \texttt{num\_heads}: Liczba warstw enkodera oraz liczba równoległych głów atencji w każdym bloku.
+    \item \texttt{mlp\_size}: Rozmiar warstwy ukrytej w sieciach Feed-Forward (MLP) wewnątrz bloków enkodera.
+    \item \texttt{attention\_kind}: Wybór konkretnej implementacji mechanizmu atencji (np. \texttt{"mha"}, \texttt{"lsh"}, \texttt{"favor"}).
+    \item \texttt{pos\_encoding}: Wybór strategii kodowania pozycji (\texttt{"learned"}, \texttt{"sinusoidal"} lub \texttt{"rope"}).
+\end{itemize}
+
+Kluczowym elementem implementacji jest metoda \texttt{forward\_base}. Realizuje ona przetworzenie indeksów tokenów na reprezentacje wektorowe za pomocą modułu \texttt{TransformerTextEmbeddings}, a następnie iteracyjne przekształcanie ich przez listę modułów \texttt{TransformerEncoderBlock}. Z metody forward\_base zwracana jest sekwencja stanów ukrytych o wymiarach $(B, N, D)$, gdzie $B$ to rozmiar wsadu, a $N$ to długość sekwencji. Klasa Transformer zarządza również dynamicznym obliczaniem i buforowaniem wartości trygonometrycznych dla kodowania pozycyjnego RoPE (Rotary Positional Embeddings), jeśli zostało ono wybrane w konfiguracji (funkcja \texttt{build\_rope\_cache}).
+
+\subsubsection{Model do klasyfikacji sekwencji}
+Klasa \texttt{TransformerForSequenceClassification} rozszerza model bazowy o funkcjonalność niezbędną do klasyfikacji całych tekstów. W konstruktorze inicjalizowany jest dodatkowy moduł \texttt{pooler} (zależny od parametru \texttt{pooling}, np. \texttt{"cls"}, \texttt{"mean"}) oraz głowica klasyfikująca \texttt{SequenceClassificationHead}.
+
+Przepływ danych w metodzie \texttt{forward} obejmuje:
+\begin{enumerate}
+    \item Wywołanie metody \texttt{forward\_base} z klasy nadrzędnej w celu uzyskania kontekstowych reprezentacji tokenów.
+    \item Redukcję sekwencji do pojedynczego wektora $(B, D)$ za pomocą wybranego mechanizmu poolingu.
+    \item Rzutowanie wektora na przestrzeń etykiet za pomocą głowicy klasyfikacyjnej.
+\end{enumerate}
+Model zwraca słownik zawierający zarówno pełną sekwencję wyjściową, wektor po poolingu, jak i logity klasyfikacji $(B, \texttt{num\_labels})$.
+
+\subsubsection{Model Masked Language Modeling (MLM)}
+Klasa \texttt{TransformerForMaskedLM} jest dedykowana do uczenia nienadzorowanego. Rozszerza klasę \texttt{Transformer} o głowicę \texttt{MaskedLanguageModelingHead}, która rzutuje wyjścia z enkodera z powrotem na przestrzeń słownika $(B, N, V)$.
+
+
+Implementacja obsługuje parametr \texttt{tie\_mlm\_weights},  ustawiony na \texttt{True}, wagi warstwy wyjściowej (dekodującej) są współdzielone z wagami macierzy osadzeń wejściowych, co jest standardową praktyką w modelach typu BERT zmniejszającą liczbę parametrów i zapobiegającą przeuczeniu.
+
+
+
+
+
+
+
+
+
+
+
+\subsection{Mechanizmy atencji}
+
+Moduł atencji został zaprojektowany w sposób umożliwiający wymianę mechanizmu uwagi bez ingerencji w pozostałą część architektury. Wybór konkretnej implementacji następuje poprzez rejestr \texttt{ATTENTION\_REGISTRY} na podstawie parametru konfiguracyjnego \texttt{attention\_kind}.
+
+\subsubsection{Abstrakcja bloku atencji}
+Klasa \texttt{AttentionBlock} stanowi standardową implementację dla mechanizmu atencji. Odpowiada ona za:
+\begin{itemize}
+    \item Inicjalizację konkretnej klasy obliczeniowej (\texttt{MultiheadSelfAttention}, \texttt{FavorAttention}, \texttt{LSHAttention}) na podstawie konfiguracji.
+    \item Zastosowanie połączenia rezydualnego (residual connection).
+    \item Normalizację wyjścia za pomocą warstwy \texttt{LayerNorm}.
+\end{itemize}
+Blok ten jest następnie wykorzystywany wewnątrz klasy \texttt{TransformerEncoderBlock}, gdzie występuje w sekwencji przed siecią Feed-Forward (MLP).
+
+\subsubsection{Standardowa atencja wielogłowicowa (MHA)}
+Implementacja \texttt{MultiheadSelfAttention} realizuje klasyczny mechanizm Scaled Dot-Product Attention (SDPA) o złożoności obliczeniowej $O(N^2)$.
+Proces przetwarzania dla sekwencji wejściowej $X \in \mathbb{R}^{B \times N \times D}$ przebiega następująco:
+\begin{enumerate}
+    \item Projekcja wejścia na macierze zapytań ($Q$), kluczy ($K$) i wartości ($V$).
+    \item Podział na $H$ niezależnych głowic o wymiarze $d_k = D/H$.
+    \item Opcjonalne zaaplikowanie rotacyjnego kodowania pozycyjnego (RoPE) na tensory $Q$ i $K$.
+    \item Obliczenie macierzy atencji:
+    $$ \text{Attention}(Q, K, V) = \text{softmax}\left(\frac{QK^T}{\sqrt{d_k}} + M\right)V $$
+    gdzie $M$ to addytywna maska (wartości $-\infty$ dla tokenów paddingu).
+    \item Scalenie wyników ze wszystkich głowic i projekcja liniowa wyjścia.
+\end{enumerate}
+
+\subsubsection{Atencja liniowa FAVOR+ (Performer)}
+Klasa \texttt{FAVORAttention} implementuje mechanizm atencji o złożoności czasowej oraz pamięciowej $O(N)$ wykorzystujący estymację jądra (Kernel Trick). Zamiast obliczać pełną macierz atencji $N \times N$, model aproksymuje funkcję softmax za pomocą mapowania cech $\phi(\cdot)$.
+
+Kluczowe elementy implementacji:
+\begin{itemize}
+    \item \textbf{Ortogonalne cechy losowe (GORF):} Metoda \texttt{\_gaussian\_orthogonal\_random\_matrix} generuje bloki ortogonalnych wektorów losowych poprzez dekompozycję QR macierzy losowej, co zapewnia lepsze pokrycie przestrzeni cech przy mniejszej liczbie próbek ($M$).
+    
+    \item \textbf{Mapowanie cech ($\phi$):} Metoda \texttt{\_phi} dysponuje wariantem transformacji 
+    \texttt{phi\_kind}:
+    \begin{itemize}
+        \item \texttt{"exp"} (metoda \texttt{\_phi\_exp}): Realizuje pozytywne cechy losowe aproksymujące jądro softmax. Wykorzystuje bufor \texttt{\_omega} przechowujący macierz projekcji losowych 
+    \end{itemize}
+
+    \item \textbf{Liczenie uwagi:} Obliczane w metodzie \texttt{forward}:
+    $$ \hat{V} = D^{-1} (Q' (K'^T V)) $$
+    gdzie $Q' = \phi(Q)$, $K' = \phi(K)$, $D$ to czynnik normalizacyjny obliczany jako $D = Q' (K'^T \mathbf{1}_N)$.
+    
+    \item \textbf{Zarządzanie cechami losowymi:} Implementacja wspiera przelosowywanie cech w trakcie treningu (parametr \texttt{redraw\_interval}), co realizuje metoda \texttt{\_maybe\_redraw\_features}. Pozwala to na uniknięcie przeuczenia się modelu do konkretnego zestawu projekcji losowych.
+    
+\end{itemize}
+
+\subsubsection{Atencja LSH (Reformer)}
+Klasa \texttt{LSHAttention} implementuje atencję o złożoności czasowej $O(N \log N)$ oraz pamięciowej $O(N)$ opartą na Locality Sensitive Hashing. Mechanizm ten zakłada, że tokeny powinny zwracać uwagę głównie na tokeny do nich podobne (znajdujące się w tym samym "kubełku" haszującym).
+
+Charakterystyka implementacji:
+\begin{itemize}
+    \item \textbf{Współdzielone Q i K:} Zgodnie z architekturą Reformera, projekcje zapytań i kluczy są tożsame ($Q=K$), co jest wymogiem poprawnego działania LSH w tym kontekście.
+    \item \textbf{Haszowanie i sortowanie:} Wykorzystano losowe rotacje do przypisania tokenów do kubełków (buckets). Następnie sekwencja jest sortowana według indeksów kubełków.
+    \item \textbf{Przetwarzanie w blokach (Chunking):} Posortowana sekwencja jest dzielona na bloki o stałej długości (\texttt{chunk\_size}). Atencja jest obliczana lokalnie, przy czym każdy blok ma dostęp do kontekstu bloku poprzedniego i następnego.
+    \item \textbf{Maskowanie:} Zaimplementowano możliwość wyboru czy tokeny mają zwracać uwagę na tokeny z tego samego bloku ale innego kubełka (\texttt{mask\_within\_chunks}).
+\end{itemize}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+\subsection{Kodowanie pozycyjne}
+
+Implementacja w klasie \texttt{TransformerTextEmbeddings} wspiera trzy podejścia do tego problemu, sterowane parametrem konfiguracyjnym \texttt{pos\_encoding}.
+
+\subsubsection{TransformerTextEmbeddings}
+Klasa ta pełni rolę agregatora, łącząc:
+\begin{itemize}
+    \item \textbf{Osadzenia słów (Word Embeddings):} Standardowa warstwa \texttt{nn.Embedding} mapująca identyfikatory tokenów na wektory o wymiarze $D$.
+    \item \textbf{Osadzenia typów (Token Type Embeddings):} Opcjonalne osadzenia segmentów (np. dla par zdań), dodawane addytywnie.
+    \item \textbf{Informację pozycyjną:} W przypadku kodowania absolutnego (sinusoidalne lub wyuczone), wektory pozycji są dodawane bezpośrednio do sumy osadzeń słów i typów.
+\end{itemize}
+Finalna reprezentacja jest normalizowana (\texttt{LayerNorm}) oraz poddawana regularyzacji (\texttt{Dropout}).
+
+\subsubsection{Kodowanie sinusoidalne (Sinusoidal)}
+Klasa \texttt{SinusoidalPositionalEncoding} implementuje deterministyczny schemat kodowania absolutnego, zgodny z pierwotną architekturą Transformera. Wektory pozycyjne nie są parametrami uczonymi, lecz są wyliczane na podstawie funkcji trygonometrycznych o geometrycznie wzrastających długościach fal.
+
+Dla pozycji $p$ i wymiaru $i$, wartość kodowania wynosi:
+$$
+\begin{aligned}
+PE_{(p, 2i)} &= \sin\left(\frac{p}{10000^{2i/D}}\right) \\
+PE_{(p, 2i+1)} &= \cos\left(\frac{p}{10000^{2i/D}}\right)
+\end{aligned}
+$$
+Implementacja wykorzystuje bufor \texttt{register\_buffer}, co pozwala na wyliczenie macierzy raz przy inicjalizacji modelu i dynamiczne jej "krojenie" (slicing) w zależności od długości aktualnej sekwencji.
+
+
+
+\subsubsection{Wyuczone kodowanie absolutne (Learned)}
+Klasa \texttt{LearnedPositionalEmbedding} realizuje podejście charakterystyczne dla modeli z rodziny BERT. Pozycje modelowane są jako wyuczalne wektory wagi macierzy o wymiarach $(N_{max}, D)$. Każdemu indeksowi pozycji przyporządkowany jest unikalny wektor, który jest optymalizowany w procesie uczenia wstecznego.
+
+\subsubsection{Rotacyjne kodowanie pozycyjne (RoPE)}
+
+W przypadku wyboru opcji \texttt{"rope"} klasa \texttt{TransformerTextEmbeddings} nie dodaje addytywnych wektorów pozycyjnych do wejścia.
+Zamiast tego informacja pozycyjna jest aplikowana \emph{multiplikatywnie} bezpośrednio na tensory zapytań \(Q\) i kluczy \(K\) wewnątrz mechanizmu atencji.
+
+Implementacja w module \texttt{rotary.py} składa się z dwóch etapów:
+\begin{enumerate}
+    \item \textbf{Prekomputacja (\texttt{build\_rope\_cache}):}
+    dla wymiaru głowy \(D\) (parzystego) definiuje się częstotliwości
+    \[
+        \theta_i = 10000^{-\,\frac{2i}{D}},
+        \qquad i=0,1,\dots,\frac{D}{2}-1.
+    \]
+    Następnie dla każdej pozycji \(m\) (oraz każdego \(i\)) wylicza się tablice:
+    \[
+        \cos(m\theta_i), \qquad \sin(m\theta_i).
+    \]
+
+    \item \textbf{Aplikacja (\texttt{apply\_rope}):}
+    dla każdej pary kolejnych składowych \((x_{m,2i}, x_{m,2i+1})\) na pozycji \(m\)
+    wykonuje się rotację o kąt \(m\theta_i\):
+    \[
+    \begin{pmatrix}
+        x'_{m,2i} \\[2pt]
+        x'_{m,2i+1}
+    \end{pmatrix}
+    =
+    \begin{pmatrix}
+        \cos(m\theta_i) & -\sin(m\theta_i) \\
+        \sin(m\theta_i) & \cos(m\theta_i)
+    \end{pmatrix}
+    \begin{pmatrix}
+        x_{m,2i} \\[2pt]
+        x_{m,2i+1}
+    \end{pmatrix}.
+    \]
+\end{enumerate}
+
+
+Implementacja funkcji \texttt{\_rotate\_half} realizuje operację
+\(\mathrm{rotate\_half}([x_{2i},x_{2i+1}]) = [-x_{2i+1}, x_{2i}]\) w sposób zwektoryzowany,
+co umożliwia efektywne obliczenie rotacji bez jawnego tworzenia macierzy rotacji dla każdego tokenu:
+\[
+\mathbf{x}' = \mathbf{x}\odot \cos(m\boldsymbol{\theta}) \;+\; \mathrm{rotate\_half}(\mathbf{x})\odot \sin(m\boldsymbol{\theta}),
+\]
+gdzie \(\odot\) oznacza mnożenie element po elemencie, a \(\boldsymbol{\theta}=(\theta_0,\dots,\theta_{\frac{D}{2}-1})\).
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+\subsection{Pooling}
+
+Celem warstwy poolingu jest redukcja wymiarowości sekwencji stanów ukrytych $H \in \mathbb{R}^{B \times N \times D}$ (zwracanej przez koder) do pojedynczego wektora reprezentacji całego tekstu $h_{pooled} \in \mathbb{R}^{B \times D}$. Jest to operacja niezbędna w zadaniach klasyfikacji sekwencji. Zaimplementowano cztery strategie agregacji:
+
+
+
+\subsubsection{Pooling tokenu CLS (ClsTokenPooling)}
+Standardowa strategia dla modeli typu BERT. Jako reprezentację całej sekwencji przyjmuje się stan ukryty pierwszego tokenu (zwyczajowo \texttt{[CLS]}).
+$$ h_{pooled} = H_{:, 0, :} $$
+
+\subsubsection{Pooling uśredniający (MeanPooling)}
+Strategia polegająca na obliczeniu średniej arytmetycznej z wektorów wszystkich tokenów w sekwencji. Kluczowym elementem implementacji jest obsługa maski paddingu ($M$), aby tokeny wypełniające (PAD) nie wpływały na wartość średniej.
+Dla każdego przykładu w wsadzie:
+$$ h_{pooled} = \frac{\sum_{i=1}^{N} (H_{:, i, :} \cdot \mathbb{1}_{M_i=1})}{\max(1, \sum_{i=1}^{N} \mathbb{1}_{M_i=1})} $$
+Dzielnik (mianownik) jest ograniczany od dołu wartością 1 (\texttt{clamp}), aby uniknąć dzielenia przez zero w przypadku całkowicie puste sekwencji (choć w praktyce rzadkiej).
+
+\subsubsection{Pooling maksymalny i minimalny (MaxPooling, MinPooling)}
+Strategie wybierające odpowiednio największą lub najmniejszą wartość cechy wzdłuż wymiaru sekwencji.
+W celu poprawnej obsługi paddingu, przed wykonaniem redukcji, pozycje zamaskowane są zastępowane wartościami "wartownikami":
+\begin{itemize}
+    \item Dla \textbf{Max Pooling}: pozycje PAD wypełniane są wartością najmniejszą reprezentowalną dla danego typu danych (np. $-\infty$).
+    \item Dla \textbf{Min Pooling}: pozycje PAD wypełniane są wartością największą (np. $+\infty$).
+\end{itemize}
+Gwarantuje to, że tokeny techniczne nie zostaną wybrane jako ekstrema.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+\subsection{Głowice zadaniowe}
+
+Głowice zadaniowe to końcowe moduły sieci, które transformują reprezentację wektorową (sekwencyjną lub zagregowaną) na przestrzeń wyjściową specyficzną dla danego zadania (logits).
+
+
+
+\subsubsection{Głowica do klasyfikacji sekwencji (SequenceClassificationHead)}
+Moduł ten przyjmuje na wejściu wektor po poolingu $(B, D)$ i rzutuje go na przestrzeń etykiet $(B, \text{num\_labels})$. Implementacja wspiera różne architektury "poolera" (warstwy pośredniej), sterowane parametrem \texttt{pooler\_type}:
+
+\begin{itemize}
+    \item \textbf{Styl BERT:} Składa się z warstwy gęstej zachowującej wymiarowość, funkcji aktywacji Tanh, a następnie warstwy wyjściowej.
+    $$ y = \text{Linear}_{out}(\text{Dropout}(\text{Tanh}(\text{Linear}_{in}(x)))) $$
+    \item \textbf{Styl RoBERTa:} Charakteryzuje się dodatkowym Dropoutem na wejściu oraz inną kolejnością operacji.
+    $$ y = \text{Linear}_{out}(\text{Dropout}(\text{Tanh}(\text{Linear}_{in}(\text{Dropout}(x))))) $$
+    \item \textbf{Brak (None):} Bezpośrednie rzutowanie wejścia na wyjście (z uwzględnieniem Dropoutu).
+\end{itemize}
+
+\subsubsection{Głowica modelowania języka (MaskedLanguageModelingHead)}
+Głowica służąca do pretreningu w zadaniu Masked Language Modeling (MLM). Przyjmuje ona sekwencję stanów ukrytych $(B, N, D)$ i zwraca predykcje dla każdego tokenu w słowniku $(B, N, V)$. Struktura głowicy jest zgodna ze standardem BERT i obejmuje:
+\begin{enumerate}
+    \item Transformację nieliniową: Warstwa liniowa $\to$ funkcja aktywacji GELU $\to$ normalizacja LayerNorm.
+    \item Warstwę dekodującą: Projekcja liniowa na rozmiar słownika.
+\end{enumerate}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+\section{Środowisko treningowe}
+
+Środowisko treningowe zostało zaprojektowane z myślą o powtarzalności badań i minimalizacji błędów konfiguracyjnych. System opiera się na plikach konfiguracyjnych w formacie YAML oraz dedykowanych skryptach generujących, które automatyzują tworzenie struktury katalogów i inicjalizację parametrów.
+
+\subsection{Konfiguracja eksperymentów}
+
+Zarządzanie eksperymentami odbywa się poprzez dedykowane skrypty pomocnicze, które automatyzują tworzenie spójnej struktury katalogów (\texttt{experiments/pretraining} oraz \texttt{experiments/finetuning}) i inicjalizację plików konfiguracyjnych. Każde uruchomienie jest w pełni determinowane przez plik \texttt{config.yaml} znajdujący się w katalogu danego eksperymentu.
+
+\subsubsection{Inicjalizacja pretreningu}
+Tworzenie nowego eksperymentu pretreningowego obsługiwane jest przez skrypt \texttt{generate\_pretraining\_experiment.py}. Proces ten przebiega według następującego schematu:
+\begin{enumerate}
+    \item \textbf{Walidacja i struktura:} Skrypt weryfikuje unikalność nazwy eksperymentu w przestrzeni \texttt{experiments/pretraining}, a następnie tworzy dedykowany katalog.
+    \item \textbf{Templating i wznawianie:}
+    \begin{itemize}
+        \item W trybie standardowym: wczytywany jest szablon bazowy z \texttt{config\_templates/pretraining.yaml}.
+        \item W trybie wznawiania (flaga \texttt{-rp}): konfiguracja jest kopiowana z istniejącego eksperymentu, a sekcja \texttt{training.resume} jest automatycznie uzupełniana o ścieżkę do ostatniego checkpointu (\texttt{model.ckpt}) oraz flagę \texttt{is\_resume=True}.
+    \end{itemize}
+    \item \textbf{Konfiguracja ścieżek:} Automatyczne wyznaczenie ścieżki wyjściowej (\texttt{output\_dir}) relatywnej do korzenia projektu (ROOT), co zapewnia przenośność środowiska między różnymi maszynami.
+    \item \textbf{Integracja z W\&B:} Automatyczne przypisanie nazwy uruchomienia (\texttt{run\_name}) dla systemu logowania WandB.
+\end{enumerate}
+
+\subsubsection{Inicjalizacja finetuningu i dziedziczenie}
+Skrypt \texttt{generate\_finetuning\_experiment.py} realizuje logikę niezbędną do przeprowadzenia douczania modelu na zadaniu docelowym. Kluczowym mechanizmem jest tutaj **dziedziczenie konfiguracji architektonicznej**.
+
+Aby zapewnić kompatybilność wag, skrypt wymaga podania nazwy istniejącego eksperymentu pretreningowego (flaga \texttt{-p}) oraz nazwy nowego eksperymentu finetuningowego (flaga \texttt{-f}). Procedura generowania konfiguracji obejmuje:
+\begin{itemize}
+    \item \textbf{Weryfikację źródła:} Sprawdzenie istnienia katalogu i pliku konfiguracyjnego eksperymentu bazowego.
+    \item \textbf{Kopiowanie architektury:} Sekcje \texttt{architecture} oraz \texttt{tokenizer} są kopiowane bezpośrednio z konfiguracji pretreningu do konfiguracji finetuningu. Gwarantuje to, że model docelowy będzie miał identyczne wymiary warstw, liczbę głowic oraz słownik jak model bazowy, co jest warunkiem koniecznym poprawnego załadowania wag.
+    \item \textbf{Relatywizację ścieżek:} Ścieżka do eksperymentu bazowego jest zapisywana w sekcji \texttt{pretrained\_experiment.path} jako ścieżka względna względem korzenia projektu. Umożliwia to skryptowi treningowemu jednoznaczne zlokalizowanie checkpointu pretreningowego niezależnie od środowiska uruchomieniowego.
+\end{itemize}
+
+Dzięki temu podejściu użytkownik nie musi ręcznie przepisywać hiperparametrów architektury, co eliminuje ryzyko pomyłki przy definiowaniu modelu pochodnego.
+
+
+
+
+
+\subsection{Skrypt treningowy}
+
+System treningowy został zaprojektowany w architekturze składającej się ze skryptu treningowego (punkt wejścia) oraz klasy \texttt{TrainingLoop}, która zawiera właściwą logikę optymalizacji modelu. Taka separacja zapewnia przejrzystość kodu i łatwość adaptacji do różnych zadań (pretrening vs finetuning).
+
+\subsubsection{Punkt wejścia i inicjalizacja środowiska}
+Główny skrypt uruchomieniowy odpowiada za zestawienie eksperymentu na podstawie argumentów CLI (nazwa eksperymentu, tryb pracy) oraz pliku konfiguracyjnego. Proces ten przebiega wieloetapowo:
+
+\begin{enumerate}
+    \item \textbf{Determinizm:} Na początku ustawiane są ziarna generatorów liczb losowych (Python, NumPy, PyTorch) za pomocą funkcji \texttt{set\_global\_seed}, co jest kluczowe dla powtarzalności eksperymentów.
+    \item \textbf{Fabryka modelu:} W zależności od trybu pracy (\texttt{mode}), skrypt instancjonuje odpowiednią klasę modelu:
+    \begin{itemize}
+        \item \textbf{Pretrening (MLM):} Inicjalizowany jest \texttt{TransformerForMaskedLM}.
+        \item \textbf{Finetuning:} Inicjalizowany jest \texttt{TransformerForSequenceClassification}. W tym przypadku następuje kluczowy etap transferu wiedzy – wagi są ładowane z checkpointu pretreningowego z flagą \texttt{strict=False}. Pozwala to na załadowanie parametrów kodera (backbone) przy jednoczesnym zignorowaniu braku dopasowania w warstwach wyjściowych (zastąpienie głowicy MLM nową głowicą klasyfikacyjną).
+    \end{itemize}
+    \item \textbf{Przygotowanie danych:} Na podstawie konfiguracji tworzone są instancje \texttt{DataLoader} dla zbiorów treningowych, walidacyjnych i testowych.
+\end{enumerate}
+
+\subsubsection{Logika pętli treningowej (TrainingLoop)}
+Zainicjowany model trafia do obiektu \texttt{TrainingLoop}, który zarządza cyklem życia procesu uczenia. Implementacja ta integruje szereg nowoczesnych technik optymalizacyjnych:
+
+\begin{itemize}
+    \item \textbf{Mieszana precyzja (AMP):} Wykorzystanie \texttt{torch.amp.GradScaler} pozwala na wykonywanie części obliczeń w precyzji FP16/BF16, co przyspiesza trening i redukuje zużycie pamięci VRAM, przy zachowaniu stabilności numerycznej.
+    \item \textbf{Akumulacja gradientów:} Parametr \texttt{grad\_accum\_steps} umożliwia odseparowanie logicznego rozmiaru wsadu od fizycznych ograniczeń pamięci GPU poprzez sumowanie gradientów z wielu kroków przed wykonaniem aktualizacji wag optymalizatorem.
+    \item \textbf{Stabilizacja (Clipping):} Zastosowano przycinanie normy gradientów (\texttt{clip\_grad\_norm\_}) w celu zabezpieczenia przed zjawiskiem eksplodujących gradientów.
+    \item \textbf{Harmonogram uczenia (Scheduler):} Zaimplementowano harmonogram typu \textit{cosine decay} z fazą liniowej rozgrzewki (warmup).
+\end{itemize}
+
+Przepływ danych w pojedynczym kroku treningowym (\texttt{\_train\_step}) obejmuje przygotowanie wsadu, przejście w przód w kontekście \texttt{autocast}, obliczenie straty, skalowanie gradientów oraz warunkową aktualizację wag (w zależności od kroku akumulacji).
+
+\subsubsection{Dynamiczna optymalizacja wsadów}
+W celu zwiększenia wydajności przetwarzania sekwencji o zróżnicowanej długości, zaimplementowano niestandardową funkcję kolacjonującą \texttt{make\_collate\_trim\_to\_longest}.
+W przeciwieństwie do statycznego dopełniania (padding) do maksymalnej długości modelu (np. 512), funkcja ta analizuje każdą paczkę danych (batch) i przycina tensory wejściowe do długości najdłuższego rzeczywistego przykładu w danej paczce. Pozwala to na ograniczenie zbędnych obliczeń na tokenach \texttt{[PAD]}, co jest szczególnie istotne przy wykorzystaniu mechanizmów atencji o złożoności kwadratowej $O(N^2)$.
+
+\subsubsection{Ewaluacja i metryki}
+System ewaluacji automatycznie dostosowuje obliczane metryki do rodzaju zadania:
+\begin{itemize}
+    \item \textbf{Dla MLM:} Podstawową metryką jest perpleksja (perplexity), wyliczana jako $e^{\text{loss}}$.
+    \item \textbf{Dla klasyfikacji:} Wykorzystano bibliotekę \texttt{scikit-learn} do obliczania szerokiego spektrum metryk, w tym: \textit{Accuracy}, \textit{Balanced Accuracy}, \textit{F1 Score} (warianty macro i micro). Dodatkowo monitorowana jest entropia predykcji, służąca jako miara pewności modelu.
+\end{itemize}
+
+\subsubsection{Zarządzanie stanem (Checkpointing)}
+Skrypt obsługuje zaawansowane zarządzanie stanem treningu:
+\begin{itemize}
+    \item \textbf{Zapis najlepszego modelu:} Po każdej epoce następuje walidacja. Jeśli strata walidacyjna jest najniższa w historii, zapisywany jest pełny stan eksperymentu (model, optymalizator, scheduler, skaler) do pliku \texttt{best-model.ckpt}.
+    \item \textbf{Wznawianie (Resume):} W trybie pretreningu możliwa jest kontynuacja przerwanego procesu uczenia. Funkcja \texttt{load\_resume} odtwarza stan wszystkich komponentów, pozwalając na płynne wznowienie obliczeń od ostatniego zapisanego kroku.
+\end{itemize}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+\subsection{Logowanie przebiegu treningu}
+
+Monitorowanie postępów eksperymentów realizowane jest przez hybrydowy system logowania zaimplementowany w klasie \texttt{WandbRun}. Rozwiązanie to integruje chmurową platformę analityczną Weights \& Biases (W\&B) z lokalnym archiwizowaniem danych w formacie CSV, zapewniając redundancję i łatwy dostęp do wyników.
+
+
+
+\subsubsection{Integracja z Weights \& Biases}
+Głównym kanałem zbierania metryk jest serwis W\&B. W ramach projektu utworzono dedykowany zespół \texttt{praca-inzynierska}, gdzie agregowane są wyniki wszystkich eksperymentów.
+Klasa \texttt{WandbRun} odpowiada za:
+\begin{itemize}
+    \item \textbf{Inicjalizację sesji:} Metoda \texttt{\_\_init\_\_} nawiązuje połączenie z projektem określonym w konfiguracji, przesyłając jednocześnie pełny słownik hiperparametrów (\texttt{config}).
+    \item \textbf{Organizacja metryk:} Metody \texttt{log\_train} oraz \texttt{log\_eval} automatycznie dodają odpowiednie prefiksy (\texttt{train/}, \texttt{eval/}, \texttt{test/}) do nazw zmiennych. Pozwala to na przejrzyste grupowanie wykresów.
+\end{itemize}
+
+\begin{center}
+    \includegraphics[width=1\textwidth]{example_run.png}
+    \captionof{figure}{Przykładowe metryki treningu zalogowane w Weights and Biases}
+\end{center}
+
+
+\subsubsection{Lokalny zapis danych (CSV)}
+W przypadku ustawienia w konfiguracji \texttt{log\_metrics\_csv = True} logger utrzymuje lokalną kopię wszystkich metryk. Dane są zapisywane w plikach:
+\begin{itemize}
+    \item \texttt{metrics/train/metrics.csv} – dla kroków treningowych.
+    \item \texttt{metrics/eval/metrics.csv} – dla walidacji i testów.
+\end{itemize}
+Metoda pomocnicza \texttt{\_write\_csv} zarządza otwieraniem plików w trybie dopisywania (\textit{append}) oraz tworzeniem nagłówków kolumn przy pierwszym zapisie. Mechanizm ten gwarantuje dostęp do surowych danych numerycznych nawet w przypadku awarii serwisu zewnętrznego lub konieczności wykonania analiz offline.
+
+
+
+
+
+
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.38\textwidth]{flow.png}
+    \caption{Diagram przepływu dla procesu treningu}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\textwidth]{component.png}
+    \caption{Diagram komponentów systemu}
+\end{figure}
+
+
+
+
+
+
+\section{Parametry modeli i treningu}
+
+Konfiguracja eksperymentów odbywa się za pomocą plików w formacie YAML, które definiują pełny stan hiperparametrów modelu, środowiska treningowego oraz przetwarzania danych. Poniższe tabele prezentują szczegółowy opis wszystkich dostępnych parametrów konfiguracyjnych, podzielonych na sekcje funkcjonalne, wraz z przykładowymi wartościami domyślnymi.
+
+\begin{table}[h]
+\centering
+\caption{Parametry eksperymentu, logowania i tokenizacji}
+\label{tab:params_general}
+\renewcommand{\arraystretch}{1.2}
+\begin{tabular}{|l|l|l|p{6cm}|}
+\hline
+\textbf{Sekcja} & \textbf{Parametr} & \textbf{Przykładowa wartość} & \textbf{Opis} \\ \hline
+\texttt{experiment} & \texttt{name} & \textit{run\_v1} & Unikalna nazwa eksperymentu (ID w W\&B). \\ \cline{2-4}
+ & \texttt{kind} & \texttt{pretraining} & Typ zadania: \texttt{pretraining} lub \texttt{finetuning}. \\ \cline{2-4}
+ & \texttt{output\_dir} & \texttt{experiments/...} & Ścieżka katalogu wyjściowego. \\ \cline{2-4}
+ & \texttt{seed} & \texttt{420} & Ziarno losowości (Python, NumPy, PyTorch). \\ \hline
+\texttt{logging} & \texttt{use\_wandb} & \texttt{true} & Logowanie do Weights \& Biases. \\ \cline{2-4}
+ & \texttt{log\_eval\_metrics} & \texttt{true} & Czy logować metryki walidacyjne. \\ \cline{2-4}
+ & \texttt{log\_metrics\_csv} & \texttt{false} & Równoległy zapis metryk do CSV. \\ \cline{2-4}
+ & \texttt{csv\_...\_path} & \texttt{metrics/train/...} & Ścieżki do plików CSV (trening/eval). \\ \hline
+\texttt{tokenizer} & \texttt{max\_length} & \texttt{512} & Maksymalna długość sekwencji ($N$). \\ \cline{2-4}
+ & \texttt{vocab\_dir} & \texttt{.../BERT\_original} & Katalog ze słownikiem tokenizera. \\ \hline
+\end{tabular}
+\end{table}
+
+\begin{table}[h]
+\centering
+\caption{Hiperparametry architektury Transformera}
+\label{tab:params_arch}
+\renewcommand{\arraystretch}{1.2}
+\begin{tabular}{|l|l|l|p{6cm}|}
+\hline
+\textbf{Sekcja} & \textbf{Parametr} & \textbf{Przykład} & \textbf{Opis} \\ \hline
+\texttt{architecture} & \texttt{embedding\_dim} & \texttt{32} & Wymiar osadzeń i stanów ukrytych ($D$). \\ \cline{2-4}
+ & \texttt{num\_layers} & \texttt{4} & Liczba bloków kodera. \\ \cline{2-4}
+ & \texttt{mlp\_size} & \texttt{128} & Rozmiar warstwy ukrytej w MLP. \\ \cline{2-4}
+ & \texttt{pos\_encoding} & \texttt{rope} & Typ pozycji: \texttt{learned}, \texttt{sinusoidal}, \texttt{rope}. \\ \cline{2-4}
+ & \texttt{rope\_base} & \texttt{10000.0} & Podstawa częstotliwości $\theta$ dla RoPE. \\ \cline{2-4}
+ & \texttt{rope\_scale} & \texttt{1.0} & Skalowanie częstotliwości RoPE. \\ \hline
+\texttt{dropout} & \texttt{mlp\_dropout} & \texttt{0.1} & Dropout w bloku MLP. \\ \cline{2-4}
+ & \texttt{embedding\_dropout} & \texttt{0.1} & Dropout na sumie osadzeń wejściowych. \\ \hline
+\end{tabular}
+\end{table}
+
+\begin{table}[h]
+\centering
+\caption{Parametry mechanizmu atencji}
+\label{tab:params_attn}
+\renewcommand{\arraystretch}{1.2}
+\begin{tabular}{|l|l|l|p{6cm}|}
+\hline
+\textbf{Wariant} & \textbf{Parametr} & \textbf{Przykład} & \textbf{Opis} \\ \hline
+\textbf{Wspólne} & \texttt{kind} & \texttt{lsh} & Typ: \texttt{mha}, \texttt{lsh}, \texttt{favor}. \\ \cline{2-4}
+ & \texttt{num\_heads} & \texttt{4} & Liczba głowic atencji ($H$). \\ \cline{2-4}
+ & \texttt{projection\_bias} & \texttt{true} & Bias w projekcjach Q/K/V/Out. \\ \cline{2-4}
+ & \texttt{attn\_out\_dropout} & \texttt{0.1} & Dropout na wyjściu bloku atencji. \\ \cline{2-4}
+ & \texttt{attn\_dropout} & \texttt{0.0} & Dropout na macierzy atencji (Softmax). \\ \cline{2-4}
+ & \texttt{attention\_emb...} & \texttt{null} & Opcjonalny wymiar projekcji atencji. \\ \hline
+\textbf{LSH} & \texttt{num\_hashes} & \texttt{4} & Liczba rund haszowania. \\ \cline{2-4}
+ & \texttt{chunk\_size} & \texttt{64} & Rozmiar bloku lokalnej atencji. \\ \cline{2-4}
+ & \texttt{mask\_within\_...} & \texttt{true} & Maskowanie między kubełkami w bloku. \\ \hline
+\textbf{Favor} & \texttt{nb\_features} & \texttt{256} & Liczba cech losowych ($M$). \\ \cline{2-4}
+ & \texttt{ortho\_features} & \texttt{true} & Użycie ortogonalnych cech (GORF). \\ \cline{2-4}
+ & \texttt{phi} & \texttt{exp} & Funkcja jądra: \texttt{exp}, \texttt{elu}, \texttt{relu2}. \\ \cline{2-4}
+ & \texttt{stabilize} & \texttt{true} & Stabilizacja numeryczna (odejmowanie max). \\ \cline{2-4}
+ & \texttt{eps} & \texttt{1e-6} & Epsilon dla mianownika. \\ \hline
+\end{tabular}
+\end{table}
+
+\begin{table}[h]
+\centering
+\caption{Hiperparametry procesu treningowego}
+\label{tab:params_train}
+\renewcommand{\arraystretch}{1.2}
+\begin{tabular}{|l|l|l|p{6cm}|}
+\hline
+\textbf{Sekcja} & \textbf{Parametr} & \textbf{Przykład} & \textbf{Opis} \\ \hline
+\texttt{training} & \texttt{batch\_size} & \texttt{6} & Rozmiar wsadu. \\ \cline{2-4}
+ & \texttt{epochs} & \texttt{3} & Liczba epok treningowych. \\ \cline{2-4}
+ & \texttt{learning\_rate} & \texttt{2e-5} & Początkowy współczynnik uczenia. \\ \cline{2-4}
+ & \texttt{warmup\_ratio} & \texttt{0.1} & Procent kroków rozgrzewki. \\ \cline{2-4}
+ & \texttt{weight\_decay} & \texttt{0.01} & Współczynnik zaniku wag (L2). \\ \cline{2-4}
+ & \texttt{grad\_accum\_steps} & \texttt{1} & Kroki akumulacji gradientu. \\ \cline{2-4}
+ & \texttt{max\_grad\_norm} & \texttt{1.0} & Próg przycinania gradientów. \\ \cline{2-4}
+ & \texttt{use\_amp} & \texttt{true} & Mieszana precyzja (Automatic Mixed Precision). \\ \cline{2-4}
+ & \texttt{loss} & \texttt{cross\_entropy} & Funkcja kosztu. \\ \cline{2-4}
+ & \texttt{device} & \texttt{auto} & Urządzenie: \texttt{auto}, \texttt{cuda}, \texttt{cpu}. \\ \hline
+\texttt{resume} & \texttt{is\_resume} & \texttt{false} & Czy wznawiać trening (tylko pretrening). \\ \cline{2-4}
+(Opcjonalne) & \texttt{strict} & \texttt{true} & Czy wymagać pełnej zgodności wag. \\ \hline
+\end{tabular}
+\end{table}
+
+\begin{table}[h!]
+\centering
+\caption{Parametry głowic zadaniowych}
+\label{tab:params_heads}
+\renewcommand{\arraystretch}{1.2}
+\begin{tabular}{|l|l|l|p{6cm}|}
+\hline
+\textbf{Typ głowicy} & \textbf{Parametr} & \textbf{Przykład} & \textbf{Opis} \\ \hline
+\textbf{MLM Head} & \texttt{tie\_mlm\_weights} & \texttt{true} & Współdzielenie wag dekodera i osadzeń. \\ \cline{2-4}
+(Pretrening) & \texttt{mask\_p} & \texttt{0.15} & Prawdopodobieństwo wyboru tokenu. \\ \cline{2-4}
+ & \texttt{mask\_token\_p} & \texttt{0.8} & Szansa na zastąpienie przez \texttt{[MASK]}. \\ \cline{2-4}
+ & \texttt{random\_token\_p} & \texttt{0.1} & Szansa na zastąpienie losowym słowem. \\ \hline
+\textbf{Class. Head} & \texttt{num\_labels} & \texttt{2} & Liczba klas wyjściowych. \\ \cline{2-4}
+(Finetuning) & \texttt{pooling} & \texttt{cls} & Agregacja: \texttt{cls}, \texttt{mean}, \texttt{max}, \texttt{min}. \\ \cline{2-4}
+ & \texttt{pooler\_type} & \texttt{bert} & Warstwa pośrednia: \texttt{bert}, \texttt{roberta}, \texttt{null}. \\ \cline{2-4}
+ & \texttt{classifier\_dropout} & \texttt{0.1} & Dropout przed klasyfikatorem. \\ \hline
+\end{tabular}
+\end{table}
+
+
+
+
+\clearpage
+\section{Środowisko programistyczne}
+
+Eksperymenty przeprowadzono w wyizolowanym środowisku wirtualnym. Poniżej przedstawiono wersje interpretera Python oraz kluczowych bibliotek wykorzystanych w implementacji projektu:
+
+\begin{itemize}
+    \item \textbf{Python:} 3.12.2
+    \item \textbf{PyTorch:} 2.8.0
+    \item \textbf{Transformers:} 4.56.2
+    \item \textbf{Tokenizers:} 0.22.1
+    \item \textbf{WandB:} 0.22.1
+    \item \textbf{Scikit-learn:} 1.6.1
+    \item \textbf{NumPy:} 2.1.3
+    \item \textbf{Pandas:} 2.2.3
+    \item \textbf{PyYAML:} 6.0.2
+\end{itemize}
+
+
+
+
+\end{document}

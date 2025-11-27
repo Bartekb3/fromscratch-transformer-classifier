@@ -45,9 +45,14 @@ data/tokenized/*
 !data/tokenized/.gitkeep
 
 #docs
-docs/pz*
-!pz*.tex
-!pz*.pdf
+docs/pz/*.fls
+docs/pz/*.log
+docs/pz/*.aux
+docs/pz/*.synctex.gz
+docs/pz/*.fdb_latexmk
+docs/pz/_minted
+docs/pz/*.out
+
 
 #other
 *private*
