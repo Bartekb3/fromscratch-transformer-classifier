@@ -158,6 +158,7 @@ class MultiheadSelfAttention(nn.Module):
             
             attn (Tensor): Attention weights of shape (B, H, N, N).
         """
+        _, N, _ = x.shape
 
         # qkv projection -> x @ Uqkv -> (B, N, 3D)
         qkv = self.Uqkv(x)
@@ -176,6 +177,8 @@ class MultiheadSelfAttention(nn.Module):
         rope_sin = rope.get('rope_sin', None)
         rope_position_ids = rope.get('rope_position_ids', None)
         if (rope_cos is not None) and (rope_sin is not None):
+            rope_cos = rope_cos[:, :, :N, :]
+            rope_sin = rope_sin[:, :, :N, :]
             Q, K = apply_rope(Q, K, rope_cos, rope_sin, rope_position_ids)
 
 

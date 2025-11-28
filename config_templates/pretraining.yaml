@@ -8,8 +8,8 @@ experiment:
 logging:
   use_wandb: true
   wandb:
-    entity: praca-inzynierska
-    project: text_classification
+    entity: iwaniuk-michal03-politechnika-warszawska
+    project: bert-training-2
     run_name: __WILL_BE_FILLED__
 
   log_eval_metrics: true
@@ -20,7 +20,7 @@ logging:
 tokenizer:
   wrapper_path: src/textclf_transformer/tokenizer/wordpiece_tokenizer_wrapper.py
   vocab_dir: src/textclf_transformer/tokenizer/BERT_original
-  max_length: 1000
+  max_length: 512
 
 architecture:
   embedding_dim: 32
@@ -40,7 +40,7 @@ architecture:
     attn_dropout: 0.0 # dropout na wagach atencji (po softmax)
     attention_embedding_dim:
 
-    kind: lsh # 'mha' | 'lsh' | 'favor'
+    kind: mha # 'mha' | 'lsh' | 'favor'
     ###attention_params###
     mha:
     lsh:
@@ -64,7 +64,7 @@ mlm_head:
 training:
   batch_size: 6
   epochs: 3
-  learning_rate: 2.0e-4
+  learning_rate: 2.0e-5
   warmup_ratio: 0.1
   weight_decay: 0.01
   max_grad_norm: 1.0

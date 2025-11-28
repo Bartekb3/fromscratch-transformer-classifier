@@ -25,7 +25,7 @@ pretrained_experiment:
 tokenizer:
   wrapper_path: src/textclf_transformer/tokenizer/wordpiece_tokenizer_wrapper.py
   vocab_dir: src/textclf_transformer/tokenizer/BERT_original
-  max_length: 1000
+  max_length: 512
 
 architecture:
   embedding_dim: 32

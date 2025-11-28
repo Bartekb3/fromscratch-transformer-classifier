@@ -332,6 +332,8 @@ class LSHAttention(nn.Module):
         rope_sin = rope.get('rope_sin', None)
         rope_position_ids = rope.get('rope_position_ids', None)
         if (rope_cos is not None) and (rope_sin is not None):
+            rope_cos = rope_cos[:, :, :N, :]
+            rope_sin = rope_sin[:, :, :N, :]
             q, _ = apply_rope(q, q, rope_cos, rope_sin, rope_position_ids)
 
         q = q.unsqueeze(1).expand(B, self.num_hashes,

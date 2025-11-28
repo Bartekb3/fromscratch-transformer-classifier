@@ -161,8 +161,8 @@ class Transformer(nn.Module):
                 )
 
             # Cache stores full tables; slice per batch length before passing to blocks.
-            self.pos_encoding_params["rope_cos"] = self.cos[:, :, :N, :]
-            self.pos_encoding_params["rope_sin"] = self.sin[:, :, :N, :]
+            self.pos_encoding_params["rope_cos"] = self.cos
+            self.pos_encoding_params["rope_sin"] = self.sin
 
         for layer in self.layers:
             x = layer(

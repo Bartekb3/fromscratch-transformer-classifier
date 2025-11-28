@@ -41,6 +41,8 @@ class AttentionBlock(nn.Module):
 
         if attention_params is None:
             attention_params = {}
+        if attention_embedding_dim is None:
+            attention_embedding_dim = embedding_dim
 
         common_kwargs = dict(
             embed_dim=embedding_dim,
