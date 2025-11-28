@@ -79,6 +79,5 @@ class AttentionBlock(nn.Module):
             y (Tensor): = LayerNorm(x + Dropout(MultiheadSelfAttention(x))), (B,N,D)
         """
 
-        result = self.attention_mechanism(x, key_padding_mask, rope)
-        attn_output = result[0]
+        attn_output = self.attention_mechanism(x, key_padding_mask, rope)
         return self.layer_norm(x + attn_output)

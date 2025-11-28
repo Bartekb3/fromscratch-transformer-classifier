@@ -183,7 +183,7 @@ class MultiheadSelfAttention(nn.Module):
 
 
         # scaled dot product attention
-        ctx, attn = self.sdp_attention(
+        ctx, _ = self.sdp_attention(
             Q, K, V, key_padding_mask=key_padding_mask)
 
         # merging heads
@@ -193,4 +193,4 @@ class MultiheadSelfAttention(nn.Module):
         out = self.Uout(ctx)
         out = self.out_drop(out)
 
-        return out, attn
+        return out
