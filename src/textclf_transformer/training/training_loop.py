@@ -95,10 +95,29 @@ class TrainingLoop:
         use_amp = (self.device == "cuda") and use_amp_cfg
         self.scaler = torch.amp.GradScaler(enabled=use_amp)
 
+        no_decay = ["bias", "LayerNorm.weight", "LayerNorm.bias"]
+        param_groups = [
+            {
+                "params": [
+                    p
+                    for n, p in self.model.named_parameters()
+                    if not any(nd in n for nd in no_decay)
+                ],
+                "weight_decay": float(training_cfg.get("weight_decay", 0.0)),
+            },
+            {
+                "params": [
+                    p
+                    for n, p in self.model.named_parameters()
+                    if any(nd in n for nd in no_decay)
+                ],
+                "weight_decay": 0.0,
+            },
+        ]
+
         self.optimizer = AdamW(
-            self.model.parameters(),
+            param_groups,
             lr=float(training_cfg["learning_rate"]),
-            weight_decay=float(training_cfg.get("weight_decay", 0.0)),
         )
 
         self.scheduler = None
