@@ -46,13 +46,15 @@ class MultiheadSelfAttention(nn.Module):
                  bias: bool = True,
                  attn_dropout: float = 0.0,
                  out_dropout: float = 0.0,
-                 attention_embed_dim: int | None = None):
+                 attention_embed_dim: int | None = None,
+                 use_native_sdpa: bool = False):
         super().__init__()
         assert attention_embed_dim % num_heads == 0, "attention_embed_dim must be divisible by num_heads"
         self.embed_dim = embed_dim
         self.num_heads = num_heads
         self.dk = embed_dim // num_heads
         self.proj_bias = bias
+        self.use_native_sdpa = use_native_sdpa
         self.attn_drop = nn.Dropout(attn_dropout)
         self.out_drop = nn.Dropout(out_dropout)
 
@@ -105,23 +107,26 @@ class MultiheadSelfAttention(nn.Module):
 
     def sdp_attention(self, Q, K, V, key_padding_mask):
         # Q,K,V: (B,H,N,dk) -> context (B,H,N,dk), attn (B,H,N,N)
-        B, H, N, dk = Q.shape
-
-        similarity = torch.matmul(
-            Q, K.transpose(-2, -1)) / (dk ** 0.5)   # (B,H,N,N)
-
+        dk = self.dk
         # Key padding mask
+        kp_add = None
         if key_padding_mask is not None:
             kp_add = self._make_kp_additive_mask(
-                key_padding_mask, similarity.dtype)  # (B,1,1,N)
-            # pythorch broadcasts kp_add over (B,H,N,N)
-            similarity = similarity + kp_add
+                key_padding_mask, Q.dtype)  # (B,1,1,N)
 
-        attn = F.softmax(similarity, dim=-1)  # (B,H,N,N)
-        attn = self.attn_drop(attn)
-        ctx = torch.matmul(attn, V)  # (B,H,N,dk)
 
-        return ctx, attn
+        if self.use_native_sdpa:
+            ctx = F.scaled_dot_product_attention(Q, K, V, attn_mask=kp_add, is_causal=False)
+        else:
+            similarity = torch.matmul(
+                Q, K.transpose(-2, -1)) / (dk ** 0.5)   # (B,H,N,N)
+            if kp_add is not None:
+                similarity = similarity + kp_add 
+            attn = F.softmax(similarity, dim=-1)  # (B,H,N,N)
+            attn = self.attn_drop(attn)
+            ctx = torch.matmul(attn, V)  # (B,H,N,dk)
+
+        return ctx
 
     def forward(
         self,
