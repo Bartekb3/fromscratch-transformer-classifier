@@ -1,5 +1,16 @@
+import sys
+from pathlib import Path
+
 import torch
 from torch.testing import assert_close
+
+ROOT = Path(__file__).resolve().parents[3]
+if str(ROOT) not in sys.path:
+    sys.path.append(str(ROOT))
+
+SRC_DIR = ROOT / "src"
+if str(SRC_DIR) not in sys.path:
+    sys.path.append(str(SRC_DIR))
 
 from textclf_transformer.models.attention.multihead_lsh_self_attention import LSHAttention
 
@@ -10,6 +21,7 @@ def _make_identity_lsh_attention(
     chunk_size: int,
     *,
     num_hashes: int = 1,
+    mask_within_chunks: bool = True
 ) -> LSHAttention:
     """Create an LSHAttention instance with projections fixed to identity."""
     attn = LSHAttention(
@@ -20,6 +32,7 @@ def _make_identity_lsh_attention(
         attn_dropout=0.0,
         out_dropout=0.0,
         bias=True,
+        mask_within_chunks=mask_within_chunks
     )
     attn.eval()
 
@@ -38,11 +51,13 @@ def _make_identity_lsh_attention(
 
 # Tests deterministic forward pass without bucket masking.
 def test_lsh_attention_reference_output():
+    """Runs identity-projected LSH attention against a precomputed tensor and expects exact equality, confirming hashing/bucketing math matches the analytical reference."""
     attn = _make_identity_lsh_attention(
         embed_dim=4,
         num_heads=2,
         chunk_size=2,
         num_hashes=1,
+        mask_within_chunks=False,
     )
 
     x = torch.tensor(
@@ -77,7 +92,6 @@ def test_lsh_attention_reference_output():
     with torch.no_grad():
         out = attn(
             x=x,
-            mask_within_chunks=False,
             padding_mask=padding_mask,
         )
 
@@ -86,11 +100,13 @@ def test_lsh_attention_reference_output():
 
 # Tests that enabling mask_within_chunks blocks cross-bucket mixing.
 def test_lsh_attention_masks_cross_bucket_attention():
+    """Enables mask_within_chunks and compares to the unmasked run to show cross-bucket mixing disappears, evidenced by values swapping only within buckets."""
     attn = _make_identity_lsh_attention(
         embed_dim=2,
         num_heads=1,
         chunk_size=2,
         num_hashes=1,
+        mask_within_chunks=False,
     )
 
     x = torch.tensor(
@@ -114,12 +130,11 @@ def test_lsh_attention_masks_cross_bucket_attention():
     with torch.no_grad():
         out_unmasked = attn(
             x=x,
-            mask_within_chunks=False,
             padding_mask=padding_mask,
         )
+        attn.mask_within_chunks = True
         out_masked = attn(
             x=x,
-            mask_within_chunks=True,
             padding_mask=padding_mask,
         )
     # token 0 calculates softmax over [-inf,0,5,0]/(dk**0.5) 
@@ -156,11 +171,13 @@ def test_lsh_attention_masks_cross_bucket_attention():
 
 # Tests that padded tokens stay zero and final length matches the input.
 def test_lsh_attention_zeroes_padded_positions():
+    """Applies padding_mask and expects padded positions remain exact zeros while valid tokens change, ensuring padding does not contribute but length is preserved."""
     attn = _make_identity_lsh_attention(
         embed_dim=2,
         num_heads=1,
         chunk_size=4,
         num_hashes=1,
+        mask_within_chunks=False,
     )
 
     x = torch.tensor(
@@ -205,12 +222,9 @@ def test_lsh_attention_zeroes_padded_positions():
     with torch.no_grad():
         out = attn(
             x=x,
-            mask_within_chunks=False,
             padding_mask=padding_mask,
         )
 
     assert out.shape == x.shape
     assert_close(out, expected, rtol=1e-3, atol=1e-3)
     assert torch.all(out[padding_mask] == 0.0)
-
-test_lsh_attention_masks_cross_bucket_attention()

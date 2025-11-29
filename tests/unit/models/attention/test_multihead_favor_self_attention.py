@@ -4,9 +4,13 @@ from pathlib import Path
 import torch
 import pytest
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path(__file__).resolve().parents[3]
 if str(ROOT) not in sys.path:
     sys.path.append(str(ROOT))
+
+SRC_DIR = ROOT / "src"
+if str(SRC_DIR) not in sys.path:
+    sys.path.append(str(SRC_DIR))
 
 
 from textclf_transformer.models.attention.multihead_favor_self_attention import FAVORAttention
@@ -55,7 +59,7 @@ def rand_inputs(
 
 
 def test_shapes_and_dtype(device):
-    """Checks FAVOR outputs preserve expected shape and dtype of the inputs."""
+    """Runs a forward pass to confirm FAVOR keeps the (B,N,D) shape and dtype identical to inputs, proving head splitting/merging is wired correctly."""
     B, N, D, H = 2, 7, 32, 4
     m = make_favor(embed_dim=D, num_heads=H).to(device)
     x = torch.randn(B, N, D, device=device)
@@ -66,7 +70,7 @@ def test_shapes_and_dtype(device):
 
 
 def test_padding_mask_zeroes_masked_queries(device):
-    """Ensures queries fully masked by key_padding_mask return zeros."""
+    """Masks final tokens and asserts their outputs are exactly zeros, demonstrating the key_padding_mask fully suppresses masked queries."""
     B, N, D, H = 2, 6, 32, 4
     m = make_favor(embed_dim=D, num_heads=H).to(device)
     x = torch.randn(B, N, D, device=device)
@@ -80,7 +84,7 @@ def test_padding_mask_zeroes_masked_queries(device):
 
 
 def test_masked_keys_do_not_influence_unmasked_queries(device):
-    """Validates masked positions cannot leak information into unmasked outputs."""
+    """Perturbs a masked token and shows unmasked outputs stay unchanged while unmasking reintroduces the difference, proving masked keys do not leak."""
     B, N, D, H = 1, 5, 32, 4
     m = make_favor(embed_dim=D, num_heads=H).to(device).eval()
 
@@ -103,7 +107,7 @@ def test_masked_keys_do_not_influence_unmasked_queries(device):
 
 
 def test_eval_mode_is_deterministic_without_dropout(device):
-    """Asserts deterministic outputs in eval mode when dropout is disabled."""
+    """With dropout off and eval mode on, two passes with different seeds should match exactly, confirming deterministic inference."""
     B, N, D, H = 2, 8, 32, 4
     m = make_favor(embed_dim=D, num_heads=H, out_dropout=0.0).to(device).eval()
     x, kpm = rand_inputs(batch_size=B, seq_len=N, embed_dim=D, device=device)
@@ -117,7 +121,7 @@ def test_eval_mode_is_deterministic_without_dropout(device):
 
 
 def test_gradients_flow(device):
-    """Confirms gradients are finite for inputs and key parameters during backward."""
+    """Backpropagates a loss to check gradients exist and are finite for inputs and key parameters, indicating training stability."""
     B, N, D, H = 2, 6, 32, 4
     m = make_favor(embed_dim=D, num_heads=H, out_dropout=0.0).to(device).train()
     x = torch.randn(B, N, D, device=device, requires_grad=True)
@@ -135,7 +139,7 @@ def test_gradients_flow(device):
 
 @pytest.mark.parametrize("phi", ["exp", "elu", "relu2"])
 def test_phi_variants_produce_finite_outputs(device, phi):
-    """Smoke-tests supported random-feature kernels produce finite tensors."""
+    """Smoke-tests all supported random feature maps (exp/elu/relu2) to ensure they yield finite outputs for a typical batch."""
     B, N, D, H = 2, 6, 32, 4
     m = make_favor(embed_dim=D, num_heads=H, phi=phi).to(device).eval()
     x, kpm = rand_inputs(batch_size=B, seq_len=N, embed_dim=D, device=device)
@@ -145,7 +149,7 @@ def test_phi_variants_produce_finite_outputs(device, phi):
 
 
 def test_nb_features_constraints():
-    """Checks constructor guards against invalid nb_features settings."""
+    """Constructors with nb_features too small or not divisible by heads should raise ValueError, guarding against misconfiguration."""
     with pytest.raises(ValueError):
         _ = FAVORAttention(embed_dim=32, num_heads=4, nb_features=0, phi="exp")
 
@@ -154,7 +158,7 @@ def test_nb_features_constraints():
 
 
 def test_stabilize_flag_preserves_outputs(device):
-    """Toggling stabilize should not alter the numerical outputs."""
+    """Creates stabilized/unstabilized twins with identical weights and asserts outputs match, confirming the flag only affects internal numerics."""
     B, N, D, H = 2, 6, 32, 4
     x, kpm = rand_inputs(batch_size=B, seq_len=N, embed_dim=D, device=device)
 

@@ -5,7 +5,7 @@ import torch
 import pytest
 from torch import nn
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path(__file__).resolve().parents[3]
 if str(ROOT) not in sys.path:
     sys.path.append(str(ROOT))
 
@@ -33,7 +33,7 @@ def device():
 
 ### MLPBlock TESTS ###
 def test_mlp_block_structure():
-    """Validates sequential layout matches expected Linear/GELU/Linear/Dropout stack."""
+    """Checks the MLP block layers and shapes align with Linear→GELU→Linear→Dropout, ensuring the architecture matches the intended FFN layout."""
     block = MLPBlock(embedding_dim=16, mlp_size=64, dropout=0.2)
     layers = list(block.mlp)
 
@@ -47,7 +47,7 @@ def test_mlp_block_structure():
 
 
 def test_mlp_block_residual_and_norm(device: torch.device):
-    """Confirms forward path equals manual residual + LayerNorm computation."""
+    """Runs the block on a tensor and compares to a manual x + mlp(x) followed by LayerNorm to confirm residual/norm wiring is correct."""
     torch.manual_seed(0)
     block = MLPBlock(embedding_dim=8, mlp_size=32, dropout=0.0).to(device).eval()
     x = torch.randn(2, 4, 8, device=device)
@@ -62,20 +62,20 @@ def test_mlp_block_residual_and_norm(device: torch.device):
 
 ### AttentionBlock TESTS ###
 def test_attention_block_uses_registry_class():
-    """Checks registry lookup wires the correct attention implementation."""
+    """Instantiates with attention_kind='mha' and asserts the registry resolved MultiheadSelfAttention, catching registry mismatches."""
     block = AttentionBlock(embedding_dim=32, num_heads=4, attention_kind="mha")
     assert isinstance(block.attention_mechanism, MultiheadSelfAttention)
 
 
 def test_attention_block_invalid_kind_raises():
-    """Ensures requesting an unknown attention kind raises a helpful ValueError."""
+    """Provides an unsupported attention_kind and expects a ValueError, verifying misconfiguration is surfaced clearly."""
     with pytest.raises(ValueError) as exc:
         AttentionBlock(attention_kind="not-a-kind")
     assert "Unsupported attention_kind" in str(exc.value)
 
 
 def test_attention_block_residual_path_matches_manual(device: torch.device):
-    """Verifies attention residual + norm branch matches explicit computation."""
+    """Compares block output to manual LayerNorm(x + attention(x)) to ensure residual connection and normalization are applied exactly once."""
     torch.manual_seed(1)
     block = AttentionBlock(
         embedding_dim=16,
@@ -95,7 +95,7 @@ def test_attention_block_residual_path_matches_manual(device: torch.device):
 
 
 def test_attention_block_forwards_extra_params(monkeypatch: pytest.MonkeyPatch):
-    """Asserts init kwargs and dynamic forward kwargs pass unchanged to the attention module."""
+    """Uses a recording attention to verify init kwargs and per-call kwargs (including key_padding_mask) propagate untouched into the mechanism."""
     class RecordingAttention(nn.Module):
         def __init__(self, *args, **kwargs):
             super().__init__()
@@ -132,7 +132,7 @@ def test_attention_block_forwards_extra_params(monkeypatch: pytest.MonkeyPatch):
 
 ### TransformerEncoderBlock TESTS ###
 def test_transformer_encoder_block_matches_submodules(device: torch.device):
-    """Ensures encoder block equals sequential attention->MLP submodules when evaluated standalone."""
+    """Checks that calling the encoder block equals applying its attention then MLP submodules sequentially, validating internal composition."""
     torch.manual_seed(2)
     block = TransformerEncoderBlock(
         embedding_dim=24,
@@ -153,7 +153,7 @@ def test_transformer_encoder_block_matches_submodules(device: torch.device):
 
 
 def test_transformer_encoder_block_forwards_kwargs(monkeypatch: pytest.MonkeyPatch):
-    """Uses spy submodules to confirm key padding masks and forward kwargs propagate correctly."""
+    """Swaps in spy submodules to confirm key_padding_mask and attention_forward_params are forwarded and that MLP receives the attention output."""
     class SpyAttentionBlock(nn.Module):
         def __init__(self, *args, **kwargs):
             super().__init__()
