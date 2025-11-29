@@ -110,14 +110,14 @@ def test_assert_divisible_heads():
         _ = make_model(embed_dim=30, num_heads=8)
 
 
-@pytest.mark.parametrize("bias", [True, False])
-def test_equivalence_with_torch_multiheadattention(device, bias):
+@pytest.mark.parametrize("bias", [True, False], use_native_sdpa=[True, False])
+def test_equivalence_with_torch_multiheadattention(device, bias, use_native_sdpa):
     """Copies weights from nn.MultiheadAttention and checks outputs/attn match closely, validating implementation parity for both bias settings and confirming SDP math is aligned."""
 
     B, N, D, H = 2, 7, 32, 4
     x, kpm = rand_inputs(B, N, D, device=device, mask_prob=0.4)
 
-    ours = make_model(D, H, bias=bias, attn_dropout=0.0, out_dropout=0.0).to(device).eval()
+    ours = make_model(D, H, bias=bias, attn_dropout=0.0, out_dropout=0.0, use_native_sdpa=use_native_sdpa).to(device).eval()
     ref = nn.MultiheadAttention(embed_dim=D, num_heads=H, dropout=0.0,
                                 bias=bias, batch_first=True, device=device).eval()
 
@@ -162,9 +162,6 @@ def test_native_sdpa_equivalence(device, bias):
         attention_embed_dim=D
     ).to(device).eval()
 
-    # The user provided file for MultiheadSelfAttention may only return a single tensor `out`
-    # The original tests seem to expect `out, attn`, which might be from an older version.
-    # We will test assuming only `out` is returned.
     out_native = m_native(x, key_padding_mask=kpm)
     out_manual = m_manual(x, key_padding_mask=kpm)
 
