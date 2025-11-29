@@ -142,5 +142,41 @@ def test_equivalence_with_torch_multiheadattention(device, bias):
     assert torch.allclose(attn_ours, attn_ref, atol=1e-6, rtol=1e-5)  
 
 
+@pytest.mark.parametrize("bias", [True, False])
+def test_native_sdpa_equivalence(device, bias):
+    """
+    Checks if use_native_sdpa=True gives same output as False.
+    """
+    B, N, D, H = 2, 7, 32, 4
+    x, kpm = rand_inputs(B, N, D, device=device, mask_prob=0.4)
 
+    # force no dropout for equivalency check
+    torch.manual_seed(0)
+    m_native = MultiheadSelfAttention(
+        embed_dim=D,
+        num_heads=H,
+        bias=bias,
+        attn_dropout=0.0,
+        out_dropout=0.0,
+        use_native_sdpa=True,
+        attention_embed_dim=D
+    ).to(device).eval()
 
+    torch.manual_seed(0)
+    m_manual = MultiheadSelfAttention(
+        embed_dim=D,
+        num_heads=H,
+        bias=bias,
+        attn_dropout=0.0,
+        out_dropout=0.0,
+        use_native_sdpa=False,
+        attention_embed_dim=D
+    ).to(device).eval()
+
+    # The user provided file for MultiheadSelfAttention may only return a single tensor `out`
+    # The original tests seem to expect `out, attn`, which might be from an older version.
+    # We will test assuming only `out` is returned.
+    out_native = m_native(x, key_padding_mask=kpm)
+    out_manual = m_manual(x, key_padding_mask=kpm)
+
+    assert torch.allclose(out_native, out_manual, atol=1e-6, rtol=1e-5)

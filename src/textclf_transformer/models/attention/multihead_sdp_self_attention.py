@@ -49,6 +49,8 @@ class MultiheadSelfAttention(nn.Module):
                  attention_embed_dim: int | None = None,
                  use_native_sdpa: bool = False):
         super().__init__()
+        if attention_embed_dim is None:
+            attention_embed_dim = embed_dim
         assert attention_embed_dim % num_heads == 0, "attention_embed_dim must be divisible by num_heads"
         self.embed_dim = embed_dim
         self.num_heads = num_heads
@@ -116,12 +118,12 @@ class MultiheadSelfAttention(nn.Module):
 
 
         if self.use_native_sdpa:
-            ctx = F.scaled_dot_product_attention(Q, K, V, attn_mask=kp_add, is_causal=False)
+            ctx = F.scaled_dot_product_attention(Q, K, V, attn_mask=kp_add, is_causal=False, dropout_p=self.attn_drop.p if self.training else 0.0)
         else:
             similarity = torch.matmul(
                 Q, K.transpose(-2, -1)) / (dk ** 0.5)   # (B,H,N,N)
             if kp_add is not None:
-                similarity = similarity + kp_add 
+                similarity = similarity + kp_add
             attn = F.softmax(similarity, dim=-1)  # (B,H,N,N)
             attn = self.attn_drop(attn)
             ctx = torch.matmul(attn, V)  # (B,H,N,dk)
@@ -188,7 +190,7 @@ class MultiheadSelfAttention(nn.Module):
 
 
         # scaled dot product attention
-        ctx, _ = self.sdp_attention(
+        ctx = self.sdp_attention(
             Q, K, V, key_padding_mask=key_padding_mask)
 
         # merging heads

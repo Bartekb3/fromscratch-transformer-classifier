@@ -87,6 +87,8 @@ class FAVORAttention(nn.Module):
         eps: float = 1e-6,
     ):
         super().__init__()
+        if attention_embed_dim is None:
+            attention_embed_dim = embed_dim
         assert attention_embed_dim % num_heads == 0, "attention_embed_dim must be divisible by num_heads"
         self.embed_dim = embed_dim
         self.num_heads = num_heads
