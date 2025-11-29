@@ -56,29 +56,8 @@ def test_shapes(device):
     B, N, D, H = 3, 7, 32, 4
     m = make_model(D, H).to(device)
     x = torch.randn(B, N, D, device=device)
-    out, attn = m(x, key_padding_mask=None)
+    out = m(x, key_padding_mask=None)
     assert out.shape == (B, N, D)
-    assert attn.shape == (B, H, N, N)
-
-def test_masking_zeros_attention_to_masked_keys(device):
-    """Masks the last token and checks its attention column is zero while an unmasked run shows nonzero weights, verifying padding masks truly zero out masked keys."""
-    B, N, D, H = 2, 6, 32, 4
-    m = make_model(D, H).to(device)
-    x = torch.randn(B, N, D, device=device)
-    x[:, -1, :] = 10.0
-
-
-    #mask last token in every batch
-    kpm = torch.zeros(B, N, dtype=torch.bool, device=device)
-    kpm[:, -1] = True
-
-    out, attn = m(x, key_padding_mask=kpm)
-
-    masked_column = attn[..., -1]
-    assert torch.allclose(masked_column, torch.zeros_like(masked_column), atol=1e-6)
-
-    out_nomask, attn_nomask = m(x, None)
-    assert (attn_nomask[..., -1].abs().sum() > 0.0).item()
 
 
 def test_gradients_flow(device):
@@ -147,10 +126,9 @@ def test_equivalence_with_torch_multiheadattention(device, bias):
     out_ref, attn_ref = ref(x, x, x, need_weights=True,
                             key_padding_mask=kpm, average_attn_weights=False)
 
-    out_ours, attn_ours = ours(x, key_padding_mask=kpm)
+    out_ours = ours(x, key_padding_mask=kpm)
 
     assert torch.allclose(out_ours, out_ref, atol=1e-6, rtol=1e-5)
-    assert torch.allclose(attn_ours, attn_ref, atol=1e-6, rtol=1e-5)  
 
 
 @pytest.mark.parametrize("bias", [True, False])

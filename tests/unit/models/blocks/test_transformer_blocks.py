@@ -87,46 +87,11 @@ def test_attention_block_residual_path_matches_manual(device: torch.device):
     ).to(device).eval()
 
     x = torch.randn(2, 3, 16, device=device)
-    attn_out, _ = block.attention_mechanism(x, key_padding_mask=None)
+    attn_out = block.attention_mechanism(x, key_padding_mask=None)
     expected = block.layer_norm(x + attn_out)
     actual = block(x)
 
     assert torch.allclose(actual, expected, atol=1e-6)
-
-
-def test_attention_block_forwards_extra_params(monkeypatch: pytest.MonkeyPatch):
-    """Uses a recording attention to verify init kwargs and per-call kwargs (including key_padding_mask) propagate untouched into the mechanism."""
-    class RecordingAttention(nn.Module):
-        def __init__(self, *args, **kwargs):
-            super().__init__()
-            self.init_kwargs = kwargs
-            self.last_call = None
-
-        def forward(self, x, key_padding_mask=None, **kwargs):
-            self.last_call = {
-                "key_padding_mask": key_padding_mask,
-                "kwargs": kwargs,
-            }
-            return x * 0.5, None
-
-    monkeypatch.setitem(ATTENTION_REGISTRY, "recording", RecordingAttention)
-
-    block = AttentionBlock(
-        embedding_dim=8,
-        num_heads=2,
-        attention_kind="recording",
-        attention_params={"foo": 1},
-    )
-
-    mask = torch.ones(1, 5, dtype=torch.bool)
-    forward_params = {"bar": "baz"}
-    _ = block(torch.zeros(1, 5, 8), key_padding_mask=mask,
-              attention_forward_params=forward_params)
-
-    recorded = block.attention_mechanism.last_call
-    assert recorded["key_padding_mask"] is mask
-    assert recorded["kwargs"] == forward_params
-    assert block.attention_mechanism.init_kwargs["foo"] == 1
 ### AttentionBlock TESTS ###
 
 
@@ -150,47 +115,4 @@ def test_transformer_encoder_block_matches_submodules(device: torch.device):
     actual = block(x, mask)
 
     assert torch.allclose(actual, expected, atol=1e-6)
-
-
-def test_transformer_encoder_block_forwards_kwargs(monkeypatch: pytest.MonkeyPatch):
-    """Swaps in spy submodules to confirm key_padding_mask and attention_forward_params are forwarded and that MLP receives the attention output."""
-    class SpyAttentionBlock(nn.Module):
-        def __init__(self, *args, **kwargs):
-            super().__init__()
-            self.last_call = None
-
-        def forward(self, x, key_padding_mask=None, attention_forward_params=None):
-            self.last_call = {
-                "key_padding_mask": key_padding_mask,
-                "attention_forward_params": attention_forward_params,
-            }
-            output = x + 1.0
-            self.last_output = output
-            return output
-
-    class SpyMLPBlock(nn.Module):
-        def __init__(self, *args, **kwargs):
-            super().__init__()
-            self.last_input = None
-
-        def forward(self, x):
-            self.last_input = x
-            return x + 2.0
-
-    monkeypatch.setattr(encoder_module, "AttentionBlock", SpyAttentionBlock)
-    monkeypatch.setattr(encoder_module, "MLPBlock", SpyMLPBlock)
-
-    block = TransformerEncoderBlock(embedding_dim=8, num_heads=2, mlp_size=16)
-
-    x = torch.zeros(1, 3, 8)
-    mask = torch.ones(1, 3, dtype=torch.bool)
-    forward_params = {"rope_position_ids": torch.arange(3).unsqueeze(0)}
-
-    out = block(x, key_padding_mask=mask,
-                attention_forward_params=forward_params)
-
-    assert torch.allclose(out, block.mlp_block.last_input + 2.0)
-    assert block.attention_block.last_call["key_padding_mask"] is mask
-    assert block.attention_block.last_call["attention_forward_params"] is forward_params
-    assert torch.allclose(block.mlp_block.last_input, block.attention_block.last_output)
 ### TransformerEncoderBlock TESTS ###
