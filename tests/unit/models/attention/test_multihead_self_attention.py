@@ -22,7 +22,7 @@ def device():
 
 # --- UTILS ---
 
-def make_model(embed_dim=32, num_heads=4, bias=True, attn_dropout=0.0, out_dropout=0.0):
+def make_model(embed_dim=32, num_heads=4, bias=True, attn_dropout=0.0, out_dropout=0.0, use_native_sdpa=False):
     torch.manual_seed(0)
     return MultiheadSelfAttention(
         embed_dim=embed_dim,
@@ -30,6 +30,7 @@ def make_model(embed_dim=32, num_heads=4, bias=True, attn_dropout=0.0, out_dropo
         bias=bias,
         attn_dropout=attn_dropout,
         out_dropout=out_dropout,
+        use_native_sdpa=use_native_sdpa
     )
 
 def rand_inputs(B=2, N=5, D=32, device="cpu", dtype=torch.float32, mask_prob=0.3):
@@ -110,7 +111,8 @@ def test_assert_divisible_heads():
         _ = make_model(embed_dim=30, num_heads=8)
 
 
-@pytest.mark.parametrize("bias", [True, False], use_native_sdpa=[True, False])
+@pytest.mark.parametrize("bias", [True, False])
+@pytest.mark.parametrize("use_native_sdpa", [True, False])
 def test_equivalence_with_torch_multiheadattention(device, bias, use_native_sdpa):
     """Copies weights from nn.MultiheadAttention and checks outputs/attn match closely, validating implementation parity for both bias settings and confirming SDP math is aligned."""
 

@@ -21,14 +21,15 @@
 - W&B logging: optional (toggle via `logging.use_wandb`)
 
 ## Key `config.yaml` sections:
-- experiment: name, output_dir, seed
-- tokenizer: wrapper_path, vocab_dir, max_length
-- architecture: max_sequence_length, embedding_dim, num_layers, attention (kind + parameters)
-- training: batch_size, epochs, learning_rate, warmup_ratio, grad_accum_steps, use_amp, device
-- mlm_head (pretraining): mask_p, mask_token_p, random_token_p, tie_mlm_weights
-- classification_head (finetuning): num_labels, pooling, classifier_dropout, pooler_type
-- pretrained_experiment (finetuning): path, checkpoint, inherit: [architecture, tokenizer]
-- data: .pt paths for train/val(/test)
+- experiment — metadata defining the run name, kind, output directory and deterministic seed.
+- logging — controls WandB, CSV dumps and eval logging toggles.
+- tokenizer — wrapper path, vocabulary source, and tokenization length limits.
+- architecture — backbone dimensions, attention style and positional encoding options.
+- mlm_head (pretraining) / classification_head (finetuning) — task-specific output layer settings.
+- training — optimizer/hyperparameter schedule, device selection, AMP, accumulation, and resume controls.
+- pretrained_experiment (finetuning) — links back to the checkpoint that seeds the downstream run.
+- data — paths to serialized `.pt` datasets for train/val/test splits.
 
-## Resuming (pretraining):
-- Set `training.resume.*` in the config and point `checkpoint_path` inside the experiment folder.
+## Resuming training (pretraining)
+- Run `python experiments/generate_pretraining_experiment.py -p <name> -rp <resume_from_name>` to clone an existing experiment; the script copies `config.yaml`, sets `training.resume.is_resume=True` and points `training.resume.checkpoint_path` to the last `model.ckpt`. The existing checkpoint folder becomes the `resume_pretraining_name`.
+- When editing configs manually, set `training.resume.is_resume=True`, provide `training.resume.checkpoint_path` (relative to the resume experiment folder), `resume_pretraining_name` and optionally `strict`/`load_only_model_state` to control what is restored before rerunning `python train.py -n <name> -m pretraining`.

@@ -19,13 +19,13 @@
   2) Create a TensorDataset and save it:
 
 ```python
-    from textclf_transformer.tokenizer wordpiece_tokenizer_wrapper import WordPieceTokenizerWrapper
+    from textclf_transformer.tokenizer.wordpiece_tokenizer_wrapper import WordPieceTokenizerWrapper
     tok = WordPieceTokenizerWrapper()
+    tok.load("src/textclf_transformer/tokenizer/BERT_original")
     ds = tok.encode(
         input="data/raw/your_texts.txt",
         labels=[...],           # optional for finetuning
         max_length=512,
-        tokenizer_dir="src/textclf_transformer/tokenizer/BERT_original",
     )
     import torch, pathlib
     out = pathlib.Path("data/tokenized/YourDataset/train_dataset.pt")
