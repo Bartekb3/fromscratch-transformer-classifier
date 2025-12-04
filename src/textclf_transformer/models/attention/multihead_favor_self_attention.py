@@ -216,26 +216,35 @@ class FAVORAttention(nn.Module):
         self.redraw_interval = int(redraw_interval)
 
 
-    def _phi_exp(self, x: torch.Tensor) -> torch.Tensor:
+    def _phi_exp(self, x: torch.Tensor, is_query: bool, numerical_stabilizer: float = 1e-6) -> torch.Tensor:
         """
-        FAVOR+ random features (Performer)
+        FAVOR+ random features (Performer) - cosh verison,
+        x: tensor [B, H, N, D]
+        is_query: True for Q, False for K
         """
         in_dtype = x.dtype
-        scale = self.dk_fourth_root
-        x32 = x.float() / scale
-        omega32 = self._omega.float()
+        scale = self.dk_fourth_root          # d_k^{1/4}
+        x32 = x.float() / scale              # [B, H, N, D]
+        omega32 = self._omega.float()        # [H, M, D] 
 
+        # projekcje: [B, H, N, M]
         proj = torch.einsum("bhnd,hmd->bhnm", x32, omega32)
 
         if self.stabilize:
-            shift = proj.abs().amax(dim=-1, keepdim=True) #TODO znalezc odpowiednia wartosc nieobciazonej (dim=(2, 3)) stabiliacji moze shift/2
-            exp_pos = torch.exp(proj - shift)
-            exp_neg = torch.exp(-proj - shift)
+            if is_query:
+                # shift per-token
+                shift = proj.abs().amax(dim=-1, keepdim=True)
+            else:
+                # global shift
+                shift = proj.abs().amax(dim=(-1, 2), keepdim=True)
+
+            exp_pos = torch.exp(proj - shift) + numerical_stabilizer
+            exp_neg = torch.exp(-proj - shift) + numerical_stabilizer
         else:
             exp_pos = torch.exp(proj)
             exp_neg = torch.exp(-proj)
 
-        features = torch.cat([exp_pos, exp_neg], dim=-1)
+        features = torch.cat([exp_pos, exp_neg], dim=-1)  # [B, H, N, 2M]
 
         norm = torch.exp(-0.5 * (x32 ** 2).sum(dim=-1, keepdim=True)).clamp_min(1e-6)
         features = norm * features / math.sqrt(self.nb_features)
@@ -255,10 +264,10 @@ class FAVORAttention(nn.Module):
         r = F.relu(x)
         return r * r
 
-    def _phi(self, x: Tensor) -> Tensor:
+    def _phi(self, x: Tensor, is_query: bool) -> Tensor:
         """Dispatch to the configured feature map."""
         if self.phi_kind == "exp":
-            return self._phi_exp(x)
+            return self._phi_exp(x, is_query)
         if self.phi_kind == "elu":
             return self._phi_elu(x)
         if self.phi_kind == "relu2":
@@ -322,8 +331,8 @@ class FAVORAttention(nn.Module):
 
         self._maybe_redraw_features(Q.device, Q.dtype)
 
-        Qf = self._phi(Q)        # (B, H, N, M)
-        Kf = self._phi(K)        # (B, H, N, M)
+        Qf = self._phi(Q, is_query=True)        # (B, H, N, M)
+        Kf = self._phi(K, is_query=False)        # (B, H, N, M)
         Kf = Kf * valid          # zero out masked key features explicitly
 
         # Core FAVOR+ in fp32 for stability
