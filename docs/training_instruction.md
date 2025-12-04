@@ -13,18 +13,18 @@ Minimal, practical guide to run **MLM pretraining** and **classification finetun
 - **Templates & Experiment generators**
   - `config_templates/pretraining.yaml` — template for MLM
   - `config_templates/finetuning.yaml` — template for CLS
-  - `experiments/generate_pretraining_experiment.py` — creates `experiments/pretraining/<name>/`
-  - `experiments/generate_finetuning_experiment.py` — creates `experiments/finetuning/<name>/` (linked to a pretraining run)
+  - `experiments/generate_pretraining_experiment.py` — creates `experiments/pretraining/<name>/` (use `-rp` to clone+resume an older run)
+  - `experiments/generate_finetuning_experiment.py` — creates `experiments/finetuning/<name>/` (links to a pretraining run and copies its tokenizer/architecture)
 - **Generated runs**
-  - `experiments/pretraining/<name>/` → `config.yaml`, `metrics/train/metrics.csv`, `checkpoints/`, `model.ckpt`
-  - `experiments/finetuning/<name>/` → `config.yaml`, `metrics/train|eval/metrics.csv`, `checkpoints/`, `model.ckpt`
+  - `experiments/pretraining/<name>/` → `config.yaml`, `metrics/train/*.csv` (if CSV logging enabled), `checkpoints/`, `model.ckpt`
+  - `experiments/finetuning/<name>/` → `config.yaml`, `metrics/train|eval/*.csv` (if CSV logging enabled), `checkpoints/`, `model.ckpt`
 - **Library (`src/textclf_transformer/`)**
   - `models/` — transformer blocks, heads, and variants (CLS, MLM)
-  - `training/loop.py` — TrainingLoop (AMP, grad accumulation, cosine LR, eval)
-  - `training/dataloader_utils.py` — collate and DataLoader helpers (**expects `True = PAD`**)
+  - `training/training_loop.py` — TrainingLoop (AMP, grad accumulation, cosine LR, eval, checkpointing)
+  - `training/utils/dataloader_utils.py` — collate and DataLoader helpers (**expects `True = PAD`**)
   - `tokenizer/wordpiece_tokenizer_wrapper.py` — wrapper with `load(...)`, `mask_input_for_mlm(...)`
-  - `utils/config.py` — seeding, dynamic import, arch kwargs
-  - `logging/wandb_logger.py` — CSV + optional W&B logging
+  - `training/utils/config.py` — seeding, dynamic import, arch kwargs
+  - `logger/wandb_logger.py` — CSV + optional W&B logging (see `logging.log_metrics_csv` flag)
 
 ---
 
@@ -39,7 +39,7 @@ pip install -r requirements.txt       # contains PyTorch, transformers, tokenize
 ```
 
 Notes:  
-W&B is optional (CSV logs are always written).  
+W&B is optional; local CSV logs are written only when `logging.log_metrics_csv=true` (templates default to false).  
 Pydantic warnings are harmless.
 
 ---
@@ -58,7 +58,7 @@ Dtypes:
 Store as PyTorch objects (e.g., TensorDataset) via torch.save(...).
 
 Batching: provided collate trims to the longest real seq per batch (ignoring PAD)
-and caps to architecture.max_sequence_length.
+and caps to tokenizer.max_length.
 ```
 
 ---
@@ -66,14 +66,15 @@ and caps to architecture.max_sequence_length.
 ## 🧰 Config — what to edit (per experiment config.yaml)
 
 ```
-experiment: name, output_dir, seed
-logging: use_wandb, W&B entity/project/run_name, CSV paths
-tokenizer: wrapper_path, vocab_dir, max_length
-architecture: max_sequence_length, embedding_dim, num_layers, attention, dropouts
-training: device (auto/cpu/cuda), learning_rate, batch_size, epochs, warmup_ratio, use_amp, grad_accum_steps, max_grad_norm
-Pretraining only mlm_head: mask_p, mask_token_p, random_token_p, tie_mlm_weights
-Finetuning only classification_head: num_labels, pooling, classifier_dropout, pooler_type; and pretrained_experiment: path, checkpoint
-data: .pt paths for train / val / test
+- experiment — metadata defining the run name, kind, output directory and deterministic seed.
+- logging — controls WandB, CSV dumps and eval logging toggles; set `log_metrics_csv: true` to emit local CSV metrics (templates default to false).
+- tokenizer — wrapper path, vocabulary source, and tokenization length limits.
+- architecture — backbone dimensions, attention style and positional encoding options.
+- mlm_head (pretraining) / classification_head (finetuning) — task-specific output layer settings.
+- training — optimizer/hyperparameter schedule, device selection, AMP, accumulation, and resume controls:
+    - resume: `is_resume`, `resume_pretrainig_name`, `checkpoint_path` (relative to the *new* experiment dir unless absolute), `strict`, `load_only_model_state` (set to `false` to also restore optimizer/scheduler/scaler/best_val_loss/epoch/step).
+- pretrained_experiment (finetuning) — links back to the checkpoint that seeds the downstream run (filled automatically by the finetuning generator).
+- data — paths to serialized `.pt` datasets for train/val/test splits.
 ```
 
 ---
@@ -81,20 +82,27 @@ data: .pt paths for train / val / test
 ## 🧪 Pretraining (MLM) — create & run
 
 ```
-# Generate
+# Generate a fresh run
 python experiments/generate_pretraining_experiment.py -p <pretrain_name>
+
+# Clone an existing run to resume it (copies config + fills resume block)
+python experiments/generate_pretraining_experiment.py -p <new_name> -rp <old_name>
 
 # Edit experiments/pretraining/<pretrain_name>/config.yaml:
 #   - Set data.train.dataset_path (your MLM .pt)
 #   - Set tokenizer.wrapper_path & tokenizer.vocab_dir
 #   - Adjust architecture, training, and optional mlm_head
+#   - To resume manually: set training.resume.is_resume=true and point
+#     training.resume.checkpoint_path to the checkpoint you want to continue from
+#     (defaults to ../<old_name>/checkpoints/model.ckpt when using -rp)
 
 # Run
 python train.py -n <pretrain_name> -m pretraining
 
 # Outputs:
-#   CSV → metrics/train/metrics.csv
-#   Checkpoint → model.ckpt
+#   Final checkpoint → checkpoints/model.ckpt (model weights only)
+#   Best checkpoint (if val set) → checkpoints/best-model.ckpt (full state incl. optimizer/scheduler/scaler)
+#   CSV metrics → metrics/train/*.csv when logging.log_metrics_csv=true; otherwise W&B only
 #   Optional W&B run
 ```
 
@@ -103,20 +111,21 @@ python train.py -n <pretrain_name> -m pretraining
 ## 🎯 Finetuning (CLS) — create & run
 
 ```
-# Generate from pretraining
+# Generate from pretraining (copies architecture/tokenizer from the pretraining config)
 python experiments/generate_finetuning_experiment.py -f <finetune_name> -p <pretrain_name>
 
 # Edit experiments/finetuning/<finetune_name>/config.yaml:
 #   - Set data.train/val/test.dataset_path (your CLS .pt)
-#   - Confirm pretrained_experiment.path + checkpoint exist
+#   - Confirm pretrained_experiment.path + checkpoint exist (model.ckpt from pretraining)
 #   - Set classification_head.num_labels (+ pooling/dropout if needed)
 
 # Run
 python train.py -n <finetune_name> -m finetuning
 
 # Outputs:
-#   CSV → metrics/train/metrics.csv, metrics/eval/metrics.csv
-#   Checkpoint → model.ckpt
+#   Final checkpoint → checkpoints/model.ckpt (model weights only)
+#   Best checkpoint (if val set) → checkpoints/best-model.ckpt
+#   CSV metrics → metrics/train/*.csv, metrics/eval/*.csv when logging.log_metrics_csv=true; otherwise W&B only
 #   Optional W&B run
 ```
 
@@ -127,21 +136,13 @@ python train.py -n <finetune_name> -m finetuning
 ```
 - Mask semantics: collate expects True = PAD (pad_is_true_mask=True)
 - Tokenizer wrapper: must implement load(vocab_dir) and mask_input_for_mlm(...)
-- Create tensors on input_ids.device to avoid CUDA/CPU mismatch
+- Datasets: encode() in WordPiece wrapper already flips attention_mask to bool with PAD=True
+- Collate trims each batch to the longest real sequence and caps to tokenizer.max_length
 - Device selection: training.device: auto uses CUDA if available; forcing cuda without CUDA raises an error
 - Mixed precision: training.use_amp: true (CUDA only) for speed
 - LR schedule: cosine with optional linear warmup via training.warmup_ratio
-- Logging: toggle W&B with logging.use_wandb; CSV is always written
-```
-
----
-
-## 🆘 Common Pitfalls
-
-```
-- Device mismatch in MLM masking → ensure random tensors/masks in mask_input_for_mlm are on input_ids.device
-- Finetuning checkpoint missing → verify pretrained_experiment.path and checkpoint in finetune config
-- Seq length issues → architecture.max_sequence_length should cover your padded length; collate trims per-batch
+- Logging: toggle W&B with logging.use_wandb; enable logging.log_metrics_csv for local CSV fallback/offline use
+- Test split: evaluated automatically only for finetuning when data.test.dataset_path is set
 ```
 
 ---
@@ -151,7 +152,9 @@ python train.py -n <finetune_name> -m finetuning
 ```
 # Pretraining
 python experiments/generate_pretraining_experiment.py -p pre_v1
+# (resume example) python experiments/generate_pretraining_experiment.py -p pre_v1b -rp pre_v1
 # edit: experiments/pretraining/pre_v1/config.yaml
+#        set logging.log_metrics_csv=true if you need local CSV logs
 python train.py -n pre_v1 -m pretraining
 
 # Finetuning

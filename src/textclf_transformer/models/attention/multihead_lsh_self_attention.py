@@ -46,13 +46,16 @@ class LSHAttention(nn.Module):
         self.num_heads = num_heads
         self.num_hashes = num_hashes
         self.chunk_size = chunk_size
-        self.dk = embed_dim // num_heads
+        self.attention_embed_dim = attention_embed_dim
+        self.dk = attention_embed_dim // num_heads
         self.proj_bias = bias
         self.mask_within_chunks = mask_within_chunks
 
         # In Reformer, Q and K share the same projection (Q = K)
-        self.Uqv = nn.Linear(embed_dim, 2 * attention_embed_dim, bias=self.proj_bias)
-        self.Uout = nn.Linear(attention_embed_dim, embed_dim, bias=self.proj_bias)
+        self.Uqv = nn.Linear(
+            embed_dim, 2 * attention_embed_dim, bias=self.proj_bias)
+        self.Uout = nn.Linear(attention_embed_dim,
+                              embed_dim, bias=self.proj_bias)
 
         self.out_drop = nn.Dropout(out_dropout)
         self.attn_drop = nn.Dropout(attn_dropout)
@@ -111,23 +114,23 @@ class LSHAttention(nn.Module):
 
     def random_hash(self, x: Tensor, n_buckets: int) -> Tensor:
         B, num_hashes, num_heads, N, dk = x.shape
+        with torch.no_grad():
+            # Random hashing matrix R: (H#, H, dk, nb/2)
+            R = torch.randn(
+                num_hashes, num_heads, dk, n_buckets // 2,
+                device=x.device, dtype=x.dtype
+            )
+            R = R / torch.norm(R, dim=2, keepdim=True)
 
-        # Random hashing matrix R: (H#, H, dk, nb/2)
-        R = torch.randn(
-            num_hashes, num_heads, dk, n_buckets // 2,
-            device=x.device, dtype=x.dtype
-        )
-        R = R / torch.norm(R, dim=2, keepdim=True)
+            # x: (B,H#,H,N,dk)
+            # R: (H#,H,dk,n_buckets)
+            projections = torch.einsum(
+                'BhHNd, hHdn -> BhHNn', x.detach(), R)  # x@R
 
-        # x: (B,H#,H,N,dk)
-        # R: (H#,H,dk,n_buckets)
-        projections = torch.einsum(
-            'BhHNd, hHdn -> BhHNn', x, R)  # x@R
-
-        hash_values = torch.argmax(
-            torch.cat([projections, -projections], dim=-1), dim=-1
-        )
-        # hash: (B,H#,H,N)
+            hash_values = torch.argmax(
+                torch.cat([projections, -projections], dim=-1), dim=-1
+            )
+            # hash: (B,H#,H,N)
         return hash_values
 
     def get_permutation_from_hash(self, hash_codes: torch.Tensor):
@@ -316,7 +319,7 @@ class LSHAttention(nn.Module):
 
         # additional pad to make number of buckets (N/chunk_size) even
         x, padding_mask_bool, n_pad = self.pad_to_even_buckets(x, padding_mask)
-        B, N, D = x.shape
+        B, N, _ = x.shape
         dk = self.dk
 
         qv = self.Uqv(x)  # [B, N, 2*D]
@@ -383,7 +386,7 @@ class LSHAttention(nn.Module):
 
         # mean over hash rounds
         ctx_unsorted = ctx_unsorted.transpose(
-            2, 3).reshape(B, self.num_hashes, N, D)
+            2, 3).reshape(B, self.num_hashes, N, self.attention_embed_dim)
         ctx_mean = ctx_unsorted.mean(dim=1)
 
         # Final output projection

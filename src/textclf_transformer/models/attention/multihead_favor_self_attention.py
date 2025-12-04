@@ -92,7 +92,7 @@ class FAVORAttention(nn.Module):
         assert attention_embed_dim % num_heads == 0, "attention_embed_dim must be divisible by num_heads"
         self.embed_dim = embed_dim
         self.num_heads = num_heads
-        self.dk = embed_dim // num_heads
+        self.dk = attention_embed_dim // num_heads
         self.dk_fourth_root = self.dk ** 0.25
 
         self.out_drop = nn.Dropout(out_dropout)
