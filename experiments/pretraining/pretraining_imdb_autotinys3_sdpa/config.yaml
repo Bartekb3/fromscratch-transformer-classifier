@@ -1,50 +1,42 @@
-# === PRETRAINING CONFIG ===
 experiment:
-  name: __WILL_BE_FILLED__
+  name: pretraining_wikipedia_autotinys3_sdpa
   kind: pretraining
-  output_dir: experiments/pretraining/__WILL_BE_FILLED__
+  output_dir: experiments/pretraining/pretraining_wikipedia_autotinys3_sdpa
   seed: 420
-
 logging:
   use_wandb: true
   wandb:
     entity: praca-inzynierska
     project: text_classification
-    run_name: __WILL_BE_FILLED__
-
+    run_name: pretraining_wikipedia_autotinys3_sdpa
   log_eval_metrics: true
   log_metrics_csv: false
   log_gpu_memory: true
   csv_train_metrics_path: metrics/train/metrics.csv
   csv_eval_metrics_path: metrics/eval/metrics.csv
-
 tokenizer:
   wrapper_path: src/textclf_transformer/tokenizer/wordpiece_tokenizer_wrapper.py
   vocab_dir: src/textclf_transformer/tokenizer/BERT_original
   max_length: 512
-
 architecture:
-  embedding_dim: 32
+  embedding_dim: 432
   num_layers: 4
-  mlp_size: 128
+  mlp_size: 384
   mlp_dropout: 0.1
   embedding_dropout: 0.1
-  pos_encoding: rope # 'learned' | 'sinusoidal' | 'rope'
+  pos_encoding: rope
   rope:
     rope_base: 10000.0
     rope_scale: 1.0
-
   attention:
-    attention_embedding_dim:
+    attention_embedding_dim: 256
     num_heads: 4
-    projection_bias: true # (Q/K/V/out) bias
-    attn_out_dropout: 0.1 # dropout na projekcji wyjściowej
-    attn_dropout: 0.0 # dropout na wagach atencji (po softmax)
-
-    kind: mha # 'mha' | 'lsh' | 'favor'
-    ###attention_params###
+    projection_bias: true
+    attn_out_dropout: 0.1
+    attn_dropout: 0.0
+    kind: mha
     mha:
-      use_native_sdpa: false
+      use_native_sdpa: true
     lsh:
       num_hashes: 4
       chunk_size: 64
@@ -55,35 +47,30 @@ architecture:
       redraw_interval: 0
       phi: exp
       stabilize: true
-      eps: 1.0e-6
-
+      eps: 1.0e-06
 mlm_head:
   tie_mlm_weights: true
   mask_p: 0.15
   mask_token_p: 0.8
   random_token_p: 0.1
-
 training:
-  batch_size: 6
-  epochs: 3
-  learning_rate: 2.0e-5
+  batch_size: 64
+  epochs: 10
+  learning_rate: 2.0e-05
   warmup_ratio: 0.1
   weight_decay: 0.01
   max_grad_norm: 1.0
   grad_accum_steps: 1
   use_amp: true
   loss: cross_entropy
-  device: auto # 'gpu' | 'cpu' | 'auto'
-
+  device: auto
   resume:
     is_resume: false
     resume_pretrainig_name: __WILL_BE_FILLED__
     checkpoint_path: ../__WILL_BE_FILLED__/checkpoints/model.ckpt
     strict: true
-    load_only_model_state: true # whether to load only model state or everything - optimizer, scheduler etc.
-
+    load_only_model_state: true
 data:
   train:
-    dataset_path: data/tokenized/IMDB/train_dataset.pt
-  val:
-    dataset_path: data/tokenized/IMDB/val_dataset.pt
+    dataset_path: data/tokenized/train_dataset.pt
+

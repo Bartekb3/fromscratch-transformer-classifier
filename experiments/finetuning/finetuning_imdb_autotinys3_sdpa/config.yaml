@@ -1,0 +1,77 @@
+experiment:
+  name: finetuning_imdb_autotinys3_sdpa
+  kind: finetuning
+  output_dir: experiments/finetuning/finetuning_imdb_autotinys3_sdpa
+  seed: 420
+logging:
+  use_wandb: true
+  wandb:
+    entity: praca-inzynierska
+    project: text_classification
+    run_name: finetuning_imdb_autotinys3_sdpa
+  log_eval_metrics: true
+  log_metrics_csv: false
+  log_gpu_memory: true
+  csv_train_metrics_path: metrics/train/metrics.csv
+  csv_eval_metrics_path: metrics/eval/metrics.csv
+pretrained_experiment:
+  name: pretraining_wikipedia_autotinys3_sdpa
+  path: experiments/pretraining/pretraining_imdb_autotinys3_sdpa
+  checkpoint: checkpoints/model.ckpt
+tokenizer:
+  wrapper_path: src/textclf_transformer/tokenizer/wordpiece_tokenizer_wrapper.py
+  vocab_dir: src/textclf_transformer/tokenizer/BERT_original
+  max_length: 512
+architecture:
+  embedding_dim: 432
+  num_layers: 4
+  mlp_size: 384
+  mlp_dropout: 0.1
+  embedding_dropout: 0.1
+  pos_encoding: rope
+  rope:
+    rope_base: 10000.0
+    rope_scale: 1.0
+  attention:
+    attention_embedding_dim: 256
+    num_heads: 4
+    projection_bias: true
+    attn_out_dropout: 0.1
+    attn_dropout: 0.0
+    kind: mha
+    mha:
+      use_native_sdpa: true
+    lsh:
+      num_hashes: 4
+      chunk_size: 64
+      mask_within_chunks: false
+    favor:
+      nb_features: 256
+      ortho_features: true
+      redraw_interval: 0
+      phi: exp
+      stabilize: true
+      eps: 1.0e-06
+classification_head:
+  num_labels: 2
+  classifier_dropout: 0.1
+  pooling: cls
+  pooler_type: bert
+training:
+  batch_size: 64
+  epochs: 10
+  learning_rate: 2.0e-04
+  warmup_ratio: 0.1
+  weight_decay: 0.01
+  max_grad_norm: 1.0
+  grad_accum_steps: 1
+  use_amp: true
+  loss: cross_entropy
+  device: auto
+data:
+  train:
+    dataset_path: data/tokenized/train_dataset.pt
+  val:
+    dataset_path: data/tokenized/val_dataset.pt
+  test:
+    dataset_path: data/tokenized/test_dataset.pt

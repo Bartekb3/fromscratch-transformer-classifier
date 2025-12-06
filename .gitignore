@@ -56,8 +56,4 @@ docs/pz/*.out
 
 #other
 *private*
-experiments/finetuning/*
-!experiments/finetuning/.gitkeep
-experiments/pretraining/*
-!experiments/pretraining/.gitkeep
 .DS_Store
