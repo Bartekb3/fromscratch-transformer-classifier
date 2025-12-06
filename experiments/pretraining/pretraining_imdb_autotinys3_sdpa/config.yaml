@@ -1,14 +1,14 @@
 experiment:
-  name: pretraining_wikipedia_autotinys3_sdpa
+  name: pretraining_imdb_autotinys3_sdpa
   kind: pretraining
-  output_dir: experiments/pretraining/pretraining_wikipedia_autotinys3_sdpa
+  output_dir: experiments/pretraining/pretraining_imdb_autotinys3_sdpa
   seed: 420
 logging:
   use_wandb: true
   wandb:
     entity: praca-inzynierska
     project: text_classification
-    run_name: pretraining_wikipedia_autotinys3_sdpa
+    run_name: pretraining_imdb_autotinys3_sdpa
   log_eval_metrics: true
   log_metrics_csv: false
   log_gpu_memory: true
@@ -55,7 +55,7 @@ mlm_head:
   random_token_p: 0.1
 training:
   batch_size: 64
-  epochs: 10
+  epochs: 30
   learning_rate: 2.0e-05
   warmup_ratio: 0.1
   weight_decay: 0.01
@@ -65,12 +65,11 @@ training:
   loss: cross_entropy
   device: auto
   resume:
-    is_resume: false
-    resume_pretrainig_name: __WILL_BE_FILLED__
-    checkpoint_path: ../__WILL_BE_FILLED__/checkpoints/model.ckpt
+    is_resume: true
+    resume_pretrainig_name: pretraining_wikipedia_autotinys3_sdpa
+    checkpoint_path: ../pretraining_wikipedia_autotinys3_sdpa/checkpoints/model.ckpt
     strict: true
     load_only_model_state: true
 data:
   train:
-    dataset_path: data/tokenized/train_dataset.pt
-
+    dataset_path: data/tokenized/wiki_dataset.pt
