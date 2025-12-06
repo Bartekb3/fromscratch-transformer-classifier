@@ -79,6 +79,11 @@ training:
   use_amp: true
   loss: cross_entropy
   device: auto
+  head_lr_mult: 1.0       
+  backbone_lr_mult: 0.5    
+  freeze_n_layers: 3       
+  freeze_epochs: 1       
+  freeze_embeddings: true 
 
 data:
   train:

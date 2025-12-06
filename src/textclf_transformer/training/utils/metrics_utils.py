@@ -27,6 +27,8 @@ def compute_mlm_metrics(total_loss: float, total_tokens: int) -> Dict[str, float
 
 
 def _numpy_softmax(logits: np.ndarray) -> np.ndarray:
+    # Use float64 to avoid half-precision underflow when logits come from AMP
+    logits = logits.astype(np.float64, copy=False)
     shifted = logits - np.max(logits, axis=1, keepdims=True)
     exp_values = np.exp(shifted)
     denom = np.sum(exp_values, axis=1, keepdims=True)
