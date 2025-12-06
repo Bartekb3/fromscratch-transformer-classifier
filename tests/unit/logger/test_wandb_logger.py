@@ -4,6 +4,7 @@ from pathlib import Path
 
 import pytest
 import wandb
+import torch
 
 from textclf_transformer.logger.wandb_logger import WandbRun
 
@@ -21,6 +22,8 @@ class DummyRun:
 
 
 def test_wandb_disabled_writes_csv(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
+    monkeypatch.setattr(torch.cuda, "is_available", lambda: False)
+
     cfg = {"logging": {"use_wandb": False, "log_metrics_csv": True}}
     run = WandbRun(cfg, exp_dir=tmp_path)
 
@@ -44,6 +47,8 @@ def test_wandb_disabled_writes_csv(monkeypatch: pytest.MonkeyPatch, tmp_path: Pa
 
 
 def test_wandb_enabled_logs_and_finishes(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
+    monkeypatch.setattr(torch.cuda, "is_available", lambda: False)
+
     dummy_run = DummyRun()
     init_calls = {}
 
@@ -71,3 +76,29 @@ def test_wandb_enabled_logs_and_finishes(monkeypatch: pytest.MonkeyPatch, tmp_pa
     assert dummy_run.logged[0] == {"data": {"train/loss": 1.0}, "step": 2}
     assert dummy_run.logged[1] == {"data": {"test/acc": 0.9}, "step": None}
     assert dummy_run.finished
+
+
+def test_log_train_records_gpu_memory(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
+    dummy_run = DummyRun()
+
+    monkeypatch.setattr(wandb, "init", lambda **kwargs: dummy_run)
+    monkeypatch.setattr(time, "sleep", lambda *args, **kwargs: None)
+    monkeypatch.setattr(torch.cuda, "is_available", lambda: True)
+    monkeypatch.setattr(torch.cuda, "current_device", lambda: 0)
+    monkeypatch.setattr(torch.cuda, "reset_peak_memory_stats", lambda *args, **kwargs: None)
+    monkeypatch.setattr(torch.cuda, "max_memory_allocated", lambda *args, **kwargs: 1024 * 1024 * 1024)
+
+    cfg = {
+        "logging": {
+            "use_wandb": True,
+            "log_metrics_csv": False,
+        }
+    }
+
+    run = WandbRun(cfg, exp_dir=tmp_path)
+    run.log_train({"loss": 1.0}, step=3)
+
+    logged = dummy_run.logged[0]
+    assert logged["step"] == 3
+    assert logged["data"]["train/loss"] == 1.0
+    assert logged["data"]["train/gpu_mem_peak_mb"] == pytest.approx(1024)

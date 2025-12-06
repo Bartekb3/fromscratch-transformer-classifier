@@ -6,6 +6,7 @@ import time
 warnings.filterwarnings("ignore", category=UnsupportedFieldAttributeWarning)
 
 import wandb
+import torch
 from pathlib import Path
 from typing import Any, Dict, Literal, Optional
 
@@ -28,11 +29,9 @@ class WandbRun:
                     - ``use_wandb`` (bool)
                     - ``csv_train_metrics_path`` (str)
                     - ``csv_eval_metrics_path`` (str)
-                    - ``log_train_loss`` (bool)
-                    - ``log_train_lr`` (bool)
-                    - ``log_train_grad_norm`` (bool)
                     - ``log_eval_metrics`` (bool)
-                    -  ``log_metrics_csv``: (bool)
+                    - ``log_metrics_csv``: (bool)
+                    - ``log_gpu_memory`` (bool)
                     - ``wandb`` (dict) with keys: ``entity``, ``project``, ``run_name``
             exp_dir: Base directory for this experiment; used for W&B run dir
                 and CSV output paths.
@@ -41,6 +40,7 @@ class WandbRun:
         self.exp_dir = Path(exp_dir)
         log_cfg = cfg.get("logging", {})
         self.log_metrics_csv = log_cfg.get("log_metrics_csv", True)
+        self.log_gpu_memory = bool(log_cfg.get("log_gpu_memory", True))
 
         self.use_wandb = bool(log_cfg.get("use_wandb", True))
         self.csv_train_path = self.exp_dir / log_cfg.get(
@@ -53,6 +53,8 @@ class WandbRun:
         self.log_eval_metrics = log_cfg.get("log_eval_metrics", True)
 
         self._wandb_run = None
+        self._gpu_logging_enabled = False
+        self._gpu_device_index: Optional[int] = None
         if self.use_wandb:
             wandb_cfg = log_cfg.get("wandb", {})
             entity = wandb_cfg.get("entity", None)
@@ -74,6 +76,10 @@ class WandbRun:
                 print(f"[WARN] Nie udało się połączyć z W&B: {e}")
                 print("→ Przechodzę w tryb offline (CSV only).")
                 self._wandb_run = None
+
+        if self.log_gpu_memory:
+            self._enable_gpu_memory_tracking()
+
         if self.log_metrics_csv:
             self.csv_train_path.parent.mkdir(parents=True, exist_ok=True)
             self.csv_eval_path.parent.mkdir(parents=True, exist_ok=True)
@@ -89,7 +95,10 @@ class WandbRun:
             metrics: Mapping of metric names to values (without the ``train/`` prefix).
             step: Global step to associate with the metrics.
         """
-        data = {f"train/{k}": v for k, v in metrics.items()}
+        combined_metrics = dict(metrics)
+        combined_metrics.update(self._gpu_memory_metrics())
+
+        data = {f"train/{k}": v for k, v in combined_metrics.items()}
 
         if self._wandb_run:
             self._wandb_run.log(data, step=step)
@@ -139,6 +148,38 @@ class WandbRun:
         """Finish the underlying W&B run if active."""
         if self._wandb_run:
             self._wandb_run.finish()
+
+    def _enable_gpu_memory_tracking(self) -> None:
+        """Start tracking peak GPU memory if CUDA is available."""
+        if not torch.cuda.is_available():
+            return
+        try:
+            self._gpu_device_index = torch.cuda.current_device()
+            try:
+                torch.cuda.reset_peak_memory_stats(self._gpu_device_index)
+            except TypeError:
+                torch.cuda.reset_peak_memory_stats()
+            self._gpu_logging_enabled = True
+        except Exception as exc:
+            print(f"[WARN] Pominięto śledzenie pamięci GPU: {exc}")
+            self._gpu_logging_enabled = False
+
+    def _gpu_memory_metrics(self) -> Dict[str, float]:
+        """Return current peak GPU memory usage in MiB, if tracking is enabled."""
+        if not self._gpu_logging_enabled:
+            return {}
+        try:
+            device = (
+                self._gpu_device_index
+                if self._gpu_device_index is not None
+                else torch.cuda.current_device()
+            )
+            max_mem_bytes = torch.cuda.max_memory_allocated(device)
+            return {"gpu_mem_peak_mb": max_mem_bytes / (1024 * 1024)}
+        except Exception as exc:
+            print(f"[WARN] Nie udało się pobrać statystyk pamięci GPU: {exc}")
+            self._gpu_logging_enabled = False
+            return {}
 
     @classmethod
     def from_config(cls, cfg: Dict[str, Any], exp_dir: Path) -> "WandbRun":

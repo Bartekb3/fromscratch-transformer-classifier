@@ -14,6 +14,7 @@ logging:
 
   log_eval_metrics: true
   log_metrics_csv: false
+  log_gpu_memory: true
   csv_train_metrics_path: metrics/train/metrics.csv
   csv_eval_metrics_path: metrics/eval/metrics.csv
 
