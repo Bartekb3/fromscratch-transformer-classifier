@@ -15,7 +15,7 @@ logging:
   csv_train_metrics_path: metrics/train/metrics.csv
   csv_eval_metrics_path: metrics/eval/metrics.csv
 pretrained_experiment:
-  name: pretraining_wikipedia_autotinys3_sdpa
+  name: pretraining_imdb_autotinys3_sdpa
   path: experiments/pretraining/pretraining_imdb_autotinys3_sdpa
   checkpoint: checkpoints/model.ckpt
 tokenizer:
@@ -60,7 +60,7 @@ classification_head:
 training:
   batch_size: 64
   epochs: 10
-  learning_rate: 2.0e-04
+  learning_rate: 2.0e-05
   warmup_ratio: 0.1
   weight_decay: 0.01
   max_grad_norm: 1.0
