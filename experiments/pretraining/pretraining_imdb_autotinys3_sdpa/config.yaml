@@ -72,4 +72,4 @@ training:
     load_only_model_state: true
 data:
   train:
-    dataset_path: data/tokenized/wiki_dataset.pt
+    dataset_path: data/tokenized/train_dataset.pt
