@@ -61,6 +61,7 @@ class TrainingLoop:
         self.tok_wrapper = tokenizer_wrapper
 
         # Optional LR multipliers and temporary freezing to stabilize finetuning
+        self.freeze = bool(training_cfg.get("freeze", False))
         self.head_lr_mult = float(training_cfg.get("head_lr_mult", 1.0))
         self.backbone_lr_mult = float(training_cfg.get("backbone_lr_mult", 1.0))
         self.freeze_n_layers = int(training_cfg.get("freeze_n_layers", 0))
@@ -143,7 +144,7 @@ class TrainingLoop:
 
     def _maybe_freeze_backbone(self, current_epoch: int) -> None:
         """Freeze bottom layers/embeddings for the first ``freeze_epochs`` epochs."""
-        if self.freeze_epochs <= 0 or self.freeze_n_layers <= 0:
+        if self.freeze_epochs <= 0 or not self.freeze:
             return
         should_freeze = current_epoch < self.freeze_epochs
 
