@@ -80,7 +80,8 @@ training:
   loss: cross_entropy
   device: auto
   head_lr_mult: 1.0       
-  backbone_lr_mult: 0.5    
+  backbone_lr_mult: 0.5  
+  freeze: true  
   freeze_n_layers: 3       
   freeze_epochs: 1       
   freeze_embeddings: true 
