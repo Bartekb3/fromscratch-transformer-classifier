@@ -8,8 +8,8 @@ experiment:
 logging:
   use_wandb: true
   wandb:
-    entity: iwaniuk-michal03-politechnika-warszawska
-    project: bert-training-2
+    entity: praca-inzynierska
+    project: text_classification
     run_name: __WILL_BE_FILLED__
 
   log_eval_metrics: true
