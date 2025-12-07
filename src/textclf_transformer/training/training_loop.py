@@ -60,6 +60,13 @@ class TrainingLoop:
         self.head_cfg = head_cfg or {}
         self.tok_wrapper = tokenizer_wrapper
 
+        # Optional LR multipliers and temporary freezing to stabilize finetuning
+        self.head_lr_mult = float(training_cfg.get("head_lr_mult", 1.0))
+        self.backbone_lr_mult = float(training_cfg.get("backbone_lr_mult", 1.0))
+        self.freeze_n_layers = int(training_cfg.get("freeze_n_layers", 0))
+        self.freeze_epochs = int(training_cfg.get("freeze_epochs", 0))
+        self.freeze_embeddings = bool(training_cfg.get("freeze_embeddings", False))
+
         wanted = (training_cfg.get("device") or "auto").lower()
         cuda_avail = torch.cuda.is_available()
 
@@ -96,23 +103,33 @@ class TrainingLoop:
         self.scaler = torch.amp.GradScaler(enabled=use_amp)
 
         no_decay = ["bias", "LayerNorm.weight", "LayerNorm.bias"]
+        weight_decay = float(training_cfg.get("weight_decay", 0.0))
+        base_lr = float(training_cfg["learning_rate"])
+
+        # Build param groups that separate head/backbone and decay/non-decay with custom LR multipliers.
+        grouped: Dict[Tuple[float, float], List[nn.Parameter]] = {}
+
+        def _is_head_param(name: str) -> bool:
+            if self.is_mlm:
+                return False
+            return name.startswith(("classifier", "pooler"))
+
+        for name, param in self.model.named_parameters():
+            if not param.requires_grad:
+                continue
+            is_no_decay = any(nd in name for nd in no_decay)
+            decay = 0.0 if is_no_decay else weight_decay
+            lr_mult = self.head_lr_mult if _is_head_param(name) else self.backbone_lr_mult
+            key = (decay, lr_mult)
+            grouped.setdefault(key, []).append(param)
+
         param_groups = [
             {
-                "params": [
-                    p
-                    for n, p in self.model.named_parameters()
-                    if not any(nd in n for nd in no_decay)
-                ],
-                "weight_decay": float(training_cfg.get("weight_decay", 0.0)),
-            },
-            {
-                "params": [
-                    p
-                    for n, p in self.model.named_parameters()
-                    if any(nd in n for nd in no_decay)
-                ],
-                "weight_decay": 0.0,
-            },
+                "params": params,
+                "weight_decay": decay,
+                "lr": base_lr * lr_mult,
+            }
+            for (decay, lr_mult), params in grouped.items()
         ]
 
         self.optimizer = AdamW(
@@ -123,6 +140,23 @@ class TrainingLoop:
         self.scheduler = None
         self.max_grad_norm = float(training_cfg.get("max_grad_norm", 1.0))
         self.grad_accum_steps = int(training_cfg.get("grad_accum_steps", 1))
+
+    def _maybe_freeze_backbone(self, current_epoch: int) -> None:
+        """Freeze bottom layers/embeddings for the first ``freeze_epochs`` epochs."""
+        if self.freeze_epochs <= 0 or self.freeze_n_layers <= 0:
+            return
+        should_freeze = current_epoch < self.freeze_epochs
+
+        def _set_requires_grad(module: nn.Module, flag: bool):
+            for p in module.parameters():
+                p.requires_grad = flag
+
+        if hasattr(self.model, "layers"):
+            for idx, layer in enumerate(self.model.layers):
+                if idx < self.freeze_n_layers:
+                    _set_requires_grad(layer, not should_freeze)
+        if self.freeze_embeddings and hasattr(self.model, "embeddings"):
+            _set_requires_grad(self.model.embeddings, not should_freeze)
 
     def _build_scheduler(self, total_steps: int) -> None:
         """Construct a cosine LR scheduler with optional warmup.
@@ -321,6 +355,7 @@ class TrainingLoop:
         for ep in range(start_epoch, epochs):
             print(f"Epoch: {ep}")
             state.epoch = ep
+            self._maybe_freeze_backbone(ep)
             total_loss = 0.0
             total_count = 0
             for batch in train_loader:
@@ -339,13 +374,15 @@ class TrainingLoop:
 
             avg_epoch_loss = total_loss / max(1, total_count)
             self.logger.log_train(
-                metrics={'avg_epoch_loss': float(avg_epoch_loss),
-                         'epoch': {ep + 1}},
-                        step=state.step)
+                metrics={
+                    'avg_epoch_loss': float(avg_epoch_loss),
+                    'epoch': ep + 1,
+                },
+                step=state.step)
 
             if val_loader is not None:
                 metrics = self._eval_impl(val_loader)
-                metrics.update({'epoch': {ep + 1}})
+                metrics.update({'epoch': ep + 1})
                 self.logger.log_eval(metrics=metrics, step=state.step)
                 val_loss = metrics['loss']
 
