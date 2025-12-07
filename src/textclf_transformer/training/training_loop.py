@@ -168,21 +168,27 @@ class TrainingLoop:
         follows a cosine schedule until ``total_steps``.
         """
         warmup_ratio = float(self.cfg.get("warmup_ratio", 0.0))
+        min_lr_ratio = float(self.cfg.get("min_lr_ratio", 0.0))
         warmup_steps = int(total_steps * warmup_ratio)
 
         if warmup_steps <= 0:
             self.scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
-                self.optimizer, T_max=max(total_steps, 1)
+                self.optimizer, 
+                T_max=max(total_steps, 1),
+                eta_min=float(self.optimizer.param_groups[0]["lr"]) * min_lr_ratio
             )
             return
 
         def lr_lambda(current_step: int):
             if current_step < warmup_steps:
                 return float(current_step) / float(max(1, warmup_steps))
+            
             progress = float(current_step - warmup_steps) / float(
                 max(1, total_steps - warmup_steps)
             )
-            return 0.5 * (1.0 + math.cos(math.pi * progress))
+            # Cosine decay from 1.0 down to min_lr_ratio
+            cosine_decay = 0.5 * (1.0 + math.cos(math.pi * progress))
+            return min_lr_ratio + (1.0 - min_lr_ratio) * cosine_decay
 
         self.scheduler = torch.optim.lr_scheduler.LambdaLR(
             self.optimizer, lr_lambda)
