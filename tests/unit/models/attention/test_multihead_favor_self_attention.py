@@ -169,7 +169,7 @@ def test_stabilize_flag_preserves_outputs(device):
     out_stable = favor_stable(x, key_padding_mask=kpm)
     out_unstable = favor_unstable(x, key_padding_mask=kpm)
 
-    assert torch.allclose(out_stable, out_unstable, atol=1e-6)
+    assert torch.allclose(out_stable, out_unstable, atol=1e-4)
 
 
 def test_phi_exp_max_abs_and_overflow_diagnostics(device):

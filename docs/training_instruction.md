@@ -46,7 +46,6 @@ Pydantic warnings are harmless.
 
 ## 📦 Data Format (expected)
 
-```
 Pretraining (MLM) sample: (input_ids, attention_mask)
 Finetuning (CLS) sample: (input_ids, attention_mask, labels)
 
@@ -59,13 +58,11 @@ Store as PyTorch objects (e.g., TensorDataset) via torch.save(...).
 
 Batching: provided collate trims to the longest real seq per batch (ignoring PAD)
 and caps to tokenizer.max_length.
-```
 
 ---
 
 ## 🧰 Config — what to edit (per experiment config.yaml)
 
-```
 - experiment — metadata defining the run name, kind, output directory and deterministic seed.
 - logging — controls WandB, CSV dumps and eval logging toggles; set `log_metrics_csv: true` to emit local CSV metrics (templates default to false).
 - tokenizer — wrapper path, vocabulary source, and tokenization length limits.
@@ -75,13 +72,12 @@ and caps to tokenizer.max_length.
     - resume: `is_resume`, `resume_pretrainig_name`, `checkpoint_path` (relative to the *new* experiment dir unless absolute), `strict`, `load_only_model_state` (set to `false` to also restore optimizer/scheduler/scaler/best_val_loss/epoch/step).
 - pretrained_experiment (finetuning) — links back to the checkpoint that seeds the downstream run (filled automatically by the finetuning generator).
 - data — paths to serialized `.pt` datasets for train/val/test splits.
-```
 
 ---
 
 ## 🧪 Pretraining (MLM) — create & run
 
-```
+``` bash
 # Generate a fresh run
 python experiments/generate_pretraining_experiment.py -p <pretrain_name>
 
@@ -110,7 +106,7 @@ python train.py -n <pretrain_name> -m pretraining
 
 ## 🎯 Finetuning (CLS) — create & run
 
-```
+``` bash
 # Generate from pretraining (copies architecture/tokenizer from the pretraining config)
 python experiments/generate_finetuning_experiment.py -f <finetune_name> -p <pretrain_name>
 
@@ -135,7 +131,6 @@ python train.py -n <finetune_name> -m finetuning
 
 ```
 - Mask semantics: collate expects True = PAD (pad_is_true_mask=True)
-- Tokenizer wrapper: must implement load(vocab_dir) and mask_input_for_mlm(...)
 - Datasets: encode() in WordPiece wrapper already flips attention_mask to bool with PAD=True
 - Collate trims each batch to the longest real sequence and caps to tokenizer.max_length
 - Device selection: training.device: auto uses CUDA if available; forcing cuda without CUDA raises an error
@@ -149,10 +144,11 @@ python train.py -n <finetune_name> -m finetuning
 
 ## ⛳ Cheat Sheet (copy & run)
 
-```
+``` bash
 # Pretraining
 python experiments/generate_pretraining_experiment.py -p pre_v1
-# (resume example) python experiments/generate_pretraining_experiment.py -p pre_v1b -rp pre_v1
+# (resume example) 
+python experiments/generate_pretraining_experiment.py -p pre_v1b -rp pre_v1
 # edit: experiments/pretraining/pre_v1/config.yaml
 #        set logging.log_metrics_csv=true if you need local CSV logs
 python train.py -n pre_v1 -m pretraining
