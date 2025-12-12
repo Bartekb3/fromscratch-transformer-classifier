@@ -9,7 +9,6 @@ logging:
     entity: praca-inzynierska
     project: text_classification
     run_name: FILL_NAME
-
   log_eval_metrics: true
   log_metrics_csv: false
   log_gpu_memory: true
@@ -58,6 +57,7 @@ training:
   batch_size: FILL_TRAIN
   epochs: 20
   learning_rate: 2.0e-05
+  min_lr_ratio: 0.2
   warmup_ratio: 0.1
   weight_decay: 0.01
   max_grad_norm: 1.0

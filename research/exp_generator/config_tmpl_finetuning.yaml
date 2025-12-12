@@ -18,7 +18,6 @@ pretrained_experiment:
   name: FILL_PRE_NAME
   path: experiments/pretraining/FILL_PRE_NAME
   checkpoint: checkpoints/model.ckpt
-
 tokenizer:
   wrapper_path: src/textclf_transformer/tokenizer/wordpiece_tokenizer_wrapper.py
   vocab_dir: src/textclf_transformer/tokenizer/BERT_original
@@ -58,13 +57,12 @@ classification_head:
   classifier_dropout: FILL_TRAIN
   pooling: FILL_TRAIN
   pooler_type: bert
-
 training:
   batch_size: FILL_TRAIN
   epochs: 10
   learning_rate: 2.0e-4
   warmup_ratio: 0.1
-  min_lr_ratio: 0.0
+  min_lr_ratio: 0.2
   weight_decay: 0.01
   max_grad_norm: 1.0
   grad_accum_steps: 1
