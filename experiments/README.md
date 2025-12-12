@@ -6,10 +6,10 @@
 ## Experiment generators:
 - Pretraining (MLM):
   - Create: `python experiments/generate_pretraining_experiment.py -p <pre_name>`
-  - Result: `experiments/pretraining/<pre_name>/config.yaml` and `metrics/train/`
+  - Result: `experiments/pretraining/<pre_name>/config.yaml`
 - Finetuning (CLS):
   - Create: `python experiments/generate_finetuning_experiment.py -f <fin_name> -p <pre_name>`
-  - Result: `experiments/finetuning/<fin_name>/config.yaml` and `metrics/train/`, `metrics/eval/`
+  - Result: `experiments/finetuning/<fin_name>/config.yaml`
 
 ## Running training:
 - Pretraining: `python train.py -n <pre_name> -m pretraining`

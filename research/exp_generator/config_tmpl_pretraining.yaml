@@ -1,0 +1,74 @@
+experiment:
+  name: FILL_NAME
+  kind: pretraining
+  output_dir: experiments/pretraining/FILL_NAME
+  seed: 420
+logging:
+  use_wandb: true
+  wandb:
+    entity: praca-inzynierska
+    project: text_classification
+    run_name: FILL_NAME
+  log_eval_metrics: true
+  log_metrics_csv: false
+  log_gpu_memory: true
+  csv_train_metrics_path: metrics/train/metrics.csv
+  csv_eval_metrics_path: metrics/eval/metrics.csv
+tokenizer:
+  wrapper_path: src/textclf_transformer/tokenizer/wordpiece_tokenizer_wrapper.py
+  vocab_dir: src/textclf_transformer/tokenizer/BERT_original
+  max_length: FILL_ARCH
+architecture:
+  embedding_dim: 
+  num_layers: FILL_ARCH
+  mlp_size: FILL_ARCH
+  mlp_dropout: 0.1
+  embedding_dropout: 0.1
+  pos_encoding: rope
+  rope:
+    rope_base: 10000.0
+    rope_scale: 1.0
+  attention:
+    attention_embedding_dim: 
+    num_heads: FILL_ARCH
+    projection_bias: true
+    attn_out_dropout: 0.1
+    attn_dropout: 0.0
+    kind: FILL_ARCH
+    mha:
+      use_native_sdpa: true
+    lsh:
+      num_hashes: FILL_ARCH
+      chunk_size: FILL_ARCH
+      mask_within_chunks: false
+    favor:
+      nb_features: FILL_ARCH
+      ortho_features: true
+      redraw_interval: 0
+      phi: exp
+      stabilize: true
+      eps: 1.0e-06
+mlm_head:
+  tie_mlm_weights: true
+  mask_p: 0.15
+  mask_token_p: 0.8
+  random_token_p: 0.1
+training:
+  batch_size: FILL_TRAIN
+  epochs: 20
+  learning_rate: 2.0e-05
+  min_lr_ratio: 0.2
+  warmup_ratio: 0.1
+  weight_decay: 0.01
+  max_grad_norm: 1.0
+  grad_accum_steps: 1
+  use_amp: true
+  loss: cross_entropy
+  device: auto
+  resume:
+    is_resume: false
+    resume_pretrainig_name: FILL_PRE_NAME
+    checkpoint_path: ../FILL_PRE_NAME/checkpoints/model.ckpt
+    strict: true
+    load_only_model_state: true
+data:
