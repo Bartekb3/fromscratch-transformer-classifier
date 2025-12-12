@@ -15,7 +15,7 @@ import yaml
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-TPL = ROOT / "config_templates" / "pretraining.yaml"
+TPL = ROOT / "experiments" / "config_templates" / "pretraining.yaml"
 BASE = ROOT / "experiments" / "pretraining"
 
 

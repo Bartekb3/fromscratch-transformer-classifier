@@ -1,10 +1,14 @@
 import importlib.util
 from pathlib import Path
-from typing import Dict, Any, Tuple
+from typing import Dict, Any, Tuple, Union
 import random
 import os
 import numpy as np
 import torch
+
+from .train_utils import ensure_project_root
+
+PROJECT_ROOT = ensure_project_root(Path(__file__).resolve())
 
 
 def set_global_seed(seed: int) -> None:
@@ -52,7 +56,8 @@ def load_tokenizer_wrapper_from_cfg(tok_cfg: Dict[str, Any]):
     """Load a tokenizer wrapper class from a file and initialize it from disk.
 
     The configuration must provide:
-        - ``wrapper_path``: path to a Python file defining ``WordPieceTokenizerWrapper``,
+        - ``wrapper_path``: path (absolute or relative to the project root) to a Python file
+          defining ``WordPieceTokenizerWrapper``,
         - ``vocab_dir``: directory with tokenizer assets to be passed to ``wrapper.load(...)``.
 
     After loading, the function returns both the wrapper instance and the underlying
@@ -67,17 +72,17 @@ def load_tokenizer_wrapper_from_cfg(tok_cfg: Dict[str, Any]):
     Raises:
         AttributeError: If the module does not define ``WordPieceTokenizerWrapper``.
     """
-    wrapper_path = tok_cfg["wrapper_path"]
-    vocab_dir = tok_cfg["vocab_dir"]
+    wrapper_path = _resolve_project_path(tok_cfg["wrapper_path"])
+    vocab_dir = _resolve_project_path(tok_cfg["vocab_dir"])
 
-    module = _import_module_from_path(wrapper_path)
+    module = _import_module_from_path(str(wrapper_path))
     if not hasattr(module, "WordPieceTokenizerWrapper"):
         raise AttributeError(
             f"Plik {wrapper_path} nie definiuje klasy WordPieceTokenizerWrapper."
         )
     WrapperCls = getattr(module, "WordPieceTokenizerWrapper")
     wrapper = WrapperCls()
-    wrapper.load(vocab_dir)
+    wrapper.load(str(vocab_dir))
     return wrapper
 
 
@@ -149,3 +154,15 @@ def arch_kwargs_from_cfg(cfg: Dict[str, Any], hf_tok) -> Dict[str, Any]:
     )
 
     return kw
+
+
+def _resolve_project_path(path_value: Union[str, Path]) -> Path:
+    """Resolve ``path_value`` to an absolute path, preferring the repository root."""
+    path = Path(path_value)
+    if path.is_absolute():
+        return path
+
+    candidate = PROJECT_ROOT / path
+    if candidate.exists():
+        return candidate
+    return path

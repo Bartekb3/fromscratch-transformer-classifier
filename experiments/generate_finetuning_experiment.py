@@ -18,7 +18,7 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-TPL = ROOT / "config_templates" / "finetuning.yaml"
+TPL = ROOT / "experiments" / "config_templates" / "finetuning.yaml"
 PRE_BASE = ROOT / "experiments" / "pretraining"
 BASE = ROOT / "experiments" / "finetuning"
 
