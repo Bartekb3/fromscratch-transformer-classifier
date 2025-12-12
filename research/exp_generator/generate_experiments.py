@@ -1,6 +1,5 @@
 from itertools import product
 from pathlib import Path
-from importlib import import_module
 import argparse
 import yaml
 
@@ -224,11 +223,11 @@ def generate_exp(mode,
 
     exp_dir = ROOT / "experiments" / mode / folder_name
     exp_dir.mkdir(parents=True, exist_ok=True)
+    (exp_dir / "checkpoints").mkdir(parents=True, exist_ok=True)
     out_cfg = exp_dir / "config.yaml"
     out_cfg.write_text(yaml.dump(cfg, sort_keys=False,
                        allow_unicode=True), encoding="utf-8")
-
-
+    
 def main():
 
     p = product(MODES, ARCHITECTURES, ATTENTIONS, DATASETS)

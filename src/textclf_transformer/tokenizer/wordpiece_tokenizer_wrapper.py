@@ -7,6 +7,43 @@ from typing import Literal, Sequence, Dict, Union, List, Optional
 from tokenizers.processors import TemplateProcessing
 
 
+def _find_project_root(start: Path) -> Optional[Path]:
+    start = start.resolve()
+    for candidate in (start, *start.parents):
+        if (candidate / "src" / "textclf_transformer").exists():
+            return candidate
+    return None
+
+
+def _resolve_existing_dir(path: Union[str, Path]) -> Path:
+    path = Path(path)
+    candidates: List[Path] = []
+
+    if path.is_absolute():
+        candidates.append(path)
+    else:
+        candidates.append(Path.cwd() / path)
+
+        cwd_root = _find_project_root(Path.cwd())
+        if cwd_root is not None:
+            candidates.append(cwd_root / path)
+
+        module_root = _find_project_root(Path(__file__).resolve())
+        if module_root is not None and module_root != cwd_root:
+            candidates.append(module_root / path)
+
+    for candidate in candidates:
+        if candidate.exists() and candidate.is_dir():
+            return candidate
+
+    attempted = "\n".join(f"- {c}" for c in candidates) if candidates else f"- {path}"
+    raise FileNotFoundError(
+        f"Tokenizer directory not found: {path}\n"
+        f"Attempted:\n{attempted}\n"
+        "Tip: if running from a notebook in a subfolder, pass an absolute path or a path relative to the repo root."
+    )
+
+
 class WordPieceTokenizerWrapper:
     """
     A wrapper around Hugging Face's `BertWordPieceTokenizer` and `BertTokenizerFast`
@@ -93,11 +130,8 @@ class WordPieceTokenizerWrapper:
         tokenizer.save_model(str(tokenizer_dir))
         tokenizer.save(str(tokenizer_dir / "tokenizer.json"))
 
-    def load(self, tokenizer_dir: str = "./BERT_original") -> None:
-        tokenizer_dir = Path(tokenizer_dir)
-        if not tokenizer_dir.exists():
-            raise FileNotFoundError(
-                f"Tokenizer directory not found: {tokenizer_dir}")
+    def load(self, tokenizer_dir: Union[str, Path] = "./BERT_original") -> None:
+        tokenizer_dir = _resolve_existing_dir(tokenizer_dir)
         self.tokenizer_dir = tokenizer_dir
         self.tokenizer = BertTokenizerFast.from_pretrained(
             str(tokenizer_dir), use_fast=True)
