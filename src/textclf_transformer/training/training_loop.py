@@ -277,6 +277,9 @@ class TrainingLoop:
             averaging (number of examples for classification, valid tokens for MLM).
         """
         self.model.train()
+        
+        if self.device == "cuda":
+            torch.cuda.reset_peak_memory_stats()
 
         device_type = "cuda" if self.device == "cuda" else "cpu"
         use_autocast = self.scaler.is_enabled()
