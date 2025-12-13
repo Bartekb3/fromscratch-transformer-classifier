@@ -89,8 +89,11 @@ training:
 
 data:
   train:
+    shuffle: true
     dataset_path: data/tokenized/train_dataset.pt
   val:
+    shuffle: false
     dataset_path: data/tokenized/val_dataset.pt
   test:
+    shuffle: false
     dataset_path: data/tokenized/test_dataset.pt

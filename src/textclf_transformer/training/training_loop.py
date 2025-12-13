@@ -338,6 +338,8 @@ class TrainingLoop:
             scaler_state: Optional AMP GradScaler state dict to restore.
             best_val_loss: Best validation loss observed so far; defaults to ``inf`` when ``None``.
         """
+        if train_loader is None:
+            raise ValueError("Train loader not provided")
         total_steps = max(1, epochs * math.ceil(len(train_loader) /
                           max(1, self.grad_accum_steps)))
         self._build_scheduler(total_steps)

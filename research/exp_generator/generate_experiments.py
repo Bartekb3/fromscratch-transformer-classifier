@@ -133,14 +133,18 @@ DATASETS = ["wikipedia", "imdb", "hyperpartisan", "arxiv"]
 
 def build_data(mode: str, dataset_name: str) -> dict:
     train_path = f"data/tokenized/{dataset_name}_train.pt"
-    data = {"train": {"dataset_path": train_path}}
+    train_shuffle = (dataset_name != 'wikipedia')
+    data = {"train": {"dataset_path": train_path,
+                      "shuffle": train_shuffle}}
     if dataset_name == "wikipedia":
         return data
     val_path = f"data/tokenized/{dataset_name}_val.pt"
-    data["val"] = {"dataset_path": val_path}
+    data["val"] = {"dataset_path": val_path,
+                   "shuffle": False}
+    test_path = f"data/tokenized/{dataset_name}_test.pt"
     if mode != "pretraining":
-        data["test"] = {
-            "dataset_path": f"data/tokenized/{dataset_name}_test.pt"}
+        data["test"] = {"dataset_path": test_path,
+                        "shuffle": False}
     return data
 
 

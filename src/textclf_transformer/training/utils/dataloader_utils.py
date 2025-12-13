@@ -81,6 +81,7 @@ def load_dataset(pt_path: str | Path):
 def get_data_loader_from_cfg(cfg: dict[str, Any], kind_ds: Literal["train", "val", "test"], mode: Literal['pretraining', 'finetuning']):
     """Instantiate a ``DataLoader`` for the dataset described under ``cfg['data'][kind_ds]["dataset_path"]``. """
     dataset_path = cfg["data"].get(f"{kind_ds}", {}).get("dataset_path", None)
+    shuffle = cfg["data"].get(f"{kind_ds}", {}).get("shuffle")
     if not dataset_path:
         return None
     ds = load_dataset(dataset_path)
@@ -94,7 +95,6 @@ def get_data_loader_from_cfg(cfg: dict[str, Any], kind_ds: Literal["train", "val
         collate_fn = make_collate_trim_to_longest(
             drop_labels_if_present=True, max_seq_len=max_seq_len)
 
-    shuffle = (kind_ds == "train")
     return DataLoader(
         ds,
         batch_size=batch_size,

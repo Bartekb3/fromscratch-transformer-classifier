@@ -55,7 +55,7 @@ mlm_head:
   random_token_p: 0.1
 training:
   batch_size: FILL_TRAIN
-  epochs: 15
+  epochs: 10
   learning_rate: FILL_TRAIN
   warmup_ratio: 0.1
   min_lr_ratio: 0.5
