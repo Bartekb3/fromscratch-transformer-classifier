@@ -64,11 +64,11 @@ mlm_head:
   random_token_p: 0.1
 
 training:
-  batch_size: 6
-  epochs: 3
+  batch_size: 64
+  epochs: 15
   learning_rate: 2.0e-5
   warmup_ratio: 0.1
-  min_lr_ratio: 0.0
+  min_lr_ratio: 0.2
   weight_decay: 0.01
   max_grad_norm: 1.0
   grad_accum_steps: 1
@@ -85,6 +85,6 @@ training:
 
 data:
   train:
-    dataset_path: data/tokenized/IMDB/train_dataset.pt
+    dataset_path: data/tokenized/train_dataset.pt
   val:
-    dataset_path: data/tokenized/IMDB/val_dataset.pt
+    dataset_path: data/tokenized/val_dataset.pt

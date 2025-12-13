@@ -29,9 +29,9 @@ tokenizer:
   max_length: 512
 
 architecture:
-  embedding_dim: 32
+  embedding_dim: 512
   num_layers: 4
-  mlp_size: 128
+  mlp_size: 2048
   mlp_dropout: 0.1
   embedding_dropout: 0.1
   pos_encoding: rope # 'learned' | 'sinusoidal' | 'rope'
@@ -41,7 +41,7 @@ architecture:
 
   attention:
     attention_embedding_dim:
-    num_heads: 4
+    num_heads: 8
     projection_bias: true # (Q/K/V/out) bias
     attn_out_dropout: 0.1 # dropout na projekcji wyjściowej
     attn_dropout: 0.0 # dropout na wagach atencji (po softmax)
@@ -69,11 +69,11 @@ classification_head:
   pooler_type: bert # 'bert' | 'roberta' | null
 
 training:
-  batch_size: 6
-  epochs: 3
-  learning_rate: 2.0e-5
+  batch_size: 64
+  epochs: 10
+  learning_rate: 2.0e-4
   warmup_ratio: 0.1
-  min_lr_ratio: 0.0
+  min_lr_ratio: 0.2
   weight_decay: 0.01
   max_grad_norm: 1.0
   grad_accum_steps: 1
@@ -89,8 +89,8 @@ training:
 
 data:
   train:
-    dataset_path: data/tokenized/IMDB/train_dataset.pt
+    dataset_path: data/tokenized/train_dataset.pt
   val:
-    dataset_path: data/tokenized/IMDB/val_dataset.pt
+    dataset_path: data/tokenized/val_dataset.pt
   test:
-    dataset_path: data/tokenized/IMDB/test_dataset.pt
+    dataset_path: data/tokenized/test_dataset.pt
