@@ -60,7 +60,7 @@ classification_head:
 training:
   batch_size: FILL_TRAIN
   epochs: 10
-  learning_rate: 2.0e-4
+  learning_rate: FILL_TRAIN
   warmup_ratio: 0.1
   min_lr_ratio: 0.2
   weight_decay: 0.01

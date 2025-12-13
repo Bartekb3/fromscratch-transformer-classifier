@@ -195,6 +195,14 @@ def generate_exp(mode,
 
         cfg["classification_head"]["num_labels"] = NUM_LABELS[dataset_name]
 
+        cfg['training']['learning_rate'] = 3e-5
+    else:
+        if dataset_name == 'wikipedia': 
+            cfg['training']['learning_rate'] = 5e-4
+        else:
+            cfg['training']['learning_rate'] = 2e-4
+
+
     # DATA
     cfg["data"] = build_data(mode, dataset_name)
 
