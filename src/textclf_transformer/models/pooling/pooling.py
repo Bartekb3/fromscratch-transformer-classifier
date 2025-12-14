@@ -19,6 +19,7 @@ class ClsTokenPooling(nn.Module):
     def forward(self, x: torch.Tensor, key_padding_mask: torch.Tensor | None = None):
         """
         Args:
+        
             x (Tensor): Encoder outputs of shape (B, N, D).
             key_padding_mask (Tensor, optional): Boolean mask of shape (B, N);
                 accepted but unused in this pooling variant.
