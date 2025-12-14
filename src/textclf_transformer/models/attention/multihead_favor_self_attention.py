@@ -222,6 +222,7 @@ class FAVORAttention(nn.Module):
         x: tensor [B, H, N, D]
         is_query: True for Q, False for K
         """
+        
         in_dtype = x.dtype
         scale = self.dk_fourth_root          # d_k^{1/4}
         x32 = x.float() / scale              # [B, H, N, D]
@@ -336,28 +337,29 @@ class FAVORAttention(nn.Module):
         Kf = Kf * valid          # zero out masked key features explicitly
 
         # Core FAVOR+ in fp32 for stability
-        Qf32 = Qf.to(torch.float32)
-        Kf32 = Kf.to(torch.float32)
-        V32  = V.to(torch.float32)
-        valid32 = valid.to(torch.float32)
+        with torch.amp.autocast('cuda', enabled=False):
+            Qf32 = Qf.to(torch.float32)
+            Kf32 = Kf.to(torch.float32)
+            V32  = V.to(torch.float32)
+            valid32 = valid.to(torch.float32)
 
-        S32 = torch.einsum("bhnm,bhnd->bhmd", Kf32, V32)
+            S32 = torch.einsum("bhnm,bhnd->bhmd", Kf32, V32)
 
 
-        Ksum32 = Kf32.sum(dim=2) # (B, H, M)
-        den32 = torch.einsum("bhnm,bhm->bhn", Qf32, Ksum32).unsqueeze(-1)
+            Ksum32 = Kf32.sum(dim=2) # (B, H, M)
+            den32 = torch.einsum("bhnm,bhm->bhn", Qf32, Ksum32).unsqueeze(-1)
 
-        # Slightly larger eps for half/bfloat16 inputs
-        eps_val = self.eps if x.dtype == torch.float32 else max(self.eps, 1e-5)
-        den32 = den32.clamp_min(eps_val)
+            # Slightly larger eps for half/bfloat16 inputs
+            eps_val = self.eps if x.dtype == torch.float32 else max(self.eps, 1e-5)
+            den32 = den32.clamp_min(eps_val)
 
-        # num = φ(Q) S → (B, H, N, dk)
-        num32 = torch.einsum("bhnm,bhmd->bhnd", Qf32, S32)
-        ctx32 = num32 / den32
-        ctx32 = ctx32 * valid32  
+            # num = φ(Q) S → (B, H, N, dk)
+            num32 = torch.einsum("bhnm,bhmd->bhnd", Qf32, S32)
+            ctx32 = num32 / den32
+            ctx32 = ctx32 * valid32  
 
-        # Merge heads → output proj
-        ctx = ctx32.to(Q.dtype)
+            # Merge heads → output proj
+            ctx = ctx32.to(Q.dtype)
         out = self._merge_heads(ctx)
         out = self.Uout(out)
         out = self.out_drop(out)
