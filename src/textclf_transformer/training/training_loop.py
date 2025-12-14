@@ -419,7 +419,7 @@ class TrainingLoop:
                     torch.save(best_payload, best_path)
             
             if test_loader is not None:
-                metrics = self._eval_impl(val_loader)
+                metrics = self._eval_impl(test_loader)
                 metrics.update({'epoch': ep + 1})
                 self.logger.log_eval(metrics=metrics, step=state.step, kind='test')
 
