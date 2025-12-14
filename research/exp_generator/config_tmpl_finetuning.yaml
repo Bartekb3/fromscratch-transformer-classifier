@@ -59,7 +59,7 @@ classification_head:
   pooler_type: bert
 training:
   batch_size: FILL_TRAIN
-  epochs: 8
+  epochs: FILL_TRAIN
   learning_rate: FILL_TRAIN
   warmup_ratio: 0.1
   min_lr_ratio: 0.2
@@ -73,6 +73,6 @@ training:
   backbone_lr_mult: 1.0
   freeze: FILL_TRAIN
   freeze_n_layers: FILL_TRAIN
-  freeze_epochs: 4
+  freeze_epochs: FILL_TRAIN
   freeze_embeddings: true
 data:

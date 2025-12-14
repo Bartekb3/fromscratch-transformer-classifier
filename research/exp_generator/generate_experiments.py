@@ -200,8 +200,28 @@ def generate_exp(mode,
         cfg["classification_head"]["num_labels"] = NUM_LABELS[dataset_name]
 
         cfg['training']['learning_rate'] = 3e-5
+
+
+        if dataset_name == 'imdb':
+            epochs = 8
+        elif dataset_name == 'arxiv':
+            epochs = 2
+        else:
+            epochs = 4
+        cfg['training']['epochs'] = epochs
+        cfg['training']['freeze_epochs'] = int(epochs/2)
+        
     else:
-        cfg['training']['epochs'] = 15 if dataset_name == 'imdb' else 10
+        cfg['training']['batch_size'] = int(32768/max_length)
+
+        if dataset_name == 'imdb':
+            epochs = 15
+        elif dataset_name == 'arxiv':
+            epochs = 2
+        else:
+            epochs = 10
+        cfg['training']['epochs'] = epochs
+
         if dataset_name == 'wikipedia': 
             cfg['training']['learning_rate'] = 5e-4
         else:
