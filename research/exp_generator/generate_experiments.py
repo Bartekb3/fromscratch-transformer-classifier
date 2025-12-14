@@ -43,7 +43,7 @@ elif exp == 'E2':
 
     ATTENTIONS = ["lsh", "favor"]
 
-    NUM_HASHES = [4, 8]
+    NUM_HASHES = [2, 4]
     CHUNK_SIZE = [64, 128]
     LSH_GRID = list(product(NUM_HASHES, CHUNK_SIZE))
 
