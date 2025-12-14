@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import math
+import time
 from pathlib import Path
 from typing import Any, Dict, List, Literal, Optional, Tuple
 import torch
@@ -318,6 +319,7 @@ class TrainingLoop:
         train_loader: DataLoader,
         epochs: int,
         val_loader: Optional[DataLoader] = None,
+        test_loader: Optional[DataLoader] = None,
         start_epoch: int = 0,
         start_step: int = 0,
         optimizer_state: Optional[Dict[str, Any]] = None,
@@ -395,7 +397,7 @@ class TrainingLoop:
             if val_loader is not None:
                 metrics = self._eval_impl(val_loader)
                 metrics.update({'epoch': ep + 1})
-                self.logger.log_eval(metrics=metrics, step=state.step)
+                self.logger.log_eval(metrics=metrics, step=state.step, kind='eval')
                 val_loss = metrics['loss']
 
                 if val_loss < best_val:
@@ -415,6 +417,12 @@ class TrainingLoop:
                         "checkpoints" / "best-model.ckpt"
                     best_path.parent.mkdir(parents=True, exist_ok=True)
                     torch.save(best_payload, best_path)
+            
+            if test_loader is not None:
+                metrics = self._eval_impl(val_loader)
+                metrics.update({'epoch': ep + 1})
+                self.logger.log_eval(metrics=metrics, step=state.step, kind='test')
+
 
     @torch.no_grad()
     def _eval_impl(self, loader: DataLoader) -> Dict[str, float]:
@@ -427,6 +435,10 @@ class TrainingLoop:
         self.model.eval()
         device_type = "cuda" if self.device == "cuda" else "cpu"
         use_autocast = self.scaler.is_enabled()
+
+        if self.device == "cuda":
+            torch.cuda.synchronize()
+        t0 = time.perf_counter()
 
         # mlm evaluation
         if self.is_mlm:
@@ -442,7 +454,8 @@ class TrainingLoop:
                 total_loss += loss.item() * float(effective_count)
                 total_tokens += effective_count
             self.model.train()
-            return compute_mlm_metrics(total_loss, total_tokens)
+            metrics = compute_mlm_metrics(total_loss, total_tokens)
+            return metrics
 
         # classification evaluation
         total_loss, total_weight = 0.0, 0
@@ -462,15 +475,19 @@ class TrainingLoop:
             labels_batches.append(labels.detach().cpu())
 
         self.model.train()
+        if self.device == "cuda":
+            torch.cuda.synchronize()
         avg_loss = total_loss / max(1, total_weight)
         logits_tensor = torch.cat(logits_batches, dim=0)
         labels_tensor = torch.cat(labels_batches, dim=0)
-        return compute_classification_metrics(
+        metrics = compute_classification_metrics(
             logits_tensor,
             labels_tensor,
             avg_loss=avg_loss,
             total_weight=total_weight,
         )
+        metrics["inference_time_s"] = float(time.perf_counter() - t0)
+        return metrics
 
     @torch.no_grad()
     def evaluate(self, loader: DataLoader, kind: Literal["eval", "test"]) -> None:
@@ -480,4 +497,4 @@ class TrainingLoop:
             loader: DataLoader for the evaluation split.
         """
         metrics = self._eval_impl(loader)
-        self.logger.log_eval(metrics, step=None, kind="test")
+        self.logger.log_eval(metrics, step=None, kind=kind)

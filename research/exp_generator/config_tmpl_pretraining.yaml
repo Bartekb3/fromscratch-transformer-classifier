@@ -19,7 +19,7 @@ tokenizer:
   vocab_dir: src/textclf_transformer/tokenizer/BERT_original
   max_length: FILL_ARCH
 architecture:
-  embedding_dim:
+  embedding_dim: FILL_ARCH
   num_layers: FILL_ARCH
   mlp_size: FILL_ARCH
   mlp_dropout: 0.1
@@ -29,7 +29,7 @@ architecture:
     rope_base: 10000.0
     rope_scale: 1.0
   attention:
-    attention_embedding_dim:
+    attention_embedding_dim: FILL_ARCH
     num_heads: FILL_ARCH
     projection_bias: true
     attn_out_dropout: 0.1
@@ -55,7 +55,7 @@ mlm_head:
   random_token_p: 0.1
 training:
   batch_size: FILL_TRAIN
-  epochs: 10
+  epochs: FILL_TRAIN
   learning_rate: FILL_TRAIN
   warmup_ratio: 0.1
   min_lr_ratio: 0.5

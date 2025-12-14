@@ -201,6 +201,7 @@ def generate_exp(mode,
 
         cfg['training']['learning_rate'] = 3e-5
     else:
+        cfg['training']['epochs'] = 15 if dataset_name == 'imdb' else 10
         if dataset_name == 'wikipedia': 
             cfg['training']['learning_rate'] = 5e-4
         else:

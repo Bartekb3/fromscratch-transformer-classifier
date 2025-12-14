@@ -59,6 +59,7 @@ def main(args) -> None:
     # get data loaders and create training loop
     train_loader = get_data_loader_from_cfg(cfg, 'train', mode)
     val_loader = get_data_loader_from_cfg(cfg, 'val', mode)
+    test_loader = get_data_loader_from_cfg(cfg, 'test', mode)
 
     training_cfg = cfg["training"]
     logger = WandbRun(cfg, exp_dir)
@@ -86,13 +87,9 @@ def main(args) -> None:
         train_loader,
         epochs=training_cfg["epochs"],
         val_loader=val_loader,
+        test_loader=test_loader,
         **resume_kwargs
     )
-    
-    # evaluate on test dataset (only for finetuning)
-    test_loader = get_data_loader_from_cfg(cfg, 'test', mode)
-    if test_loader:
-        loop.evaluate(test_loader, 'test')
 
     # save final model 
     ckpt_path = save_model_state(model.state_dict(), exp_dir / "checkpoints")
