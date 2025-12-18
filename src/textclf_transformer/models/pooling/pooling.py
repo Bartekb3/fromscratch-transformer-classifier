@@ -1,6 +1,39 @@
 import torch
 from torch import nn
 
+class SepExperimentalPooling(nn.Module):
+
+    def __init__(self, step: int = 512):
+        super().__init__()
+        self.step = step
+
+
+    def forward(self, x: torch.Tensor, key_padding_mask: torch.Tensor | None = None):
+        """
+        Args:
+            x (Tensor): Encoder outputs of shape (B, N, D).
+            key_padding_mask (Tensor, optional): Boolean mask of shape (B, N) where
+                True marks PAD tokens to be excluded.
+
+        Returns:
+            Tensor: Pooled representation of shape (B, D).
+        """
+        # Select tokens at indices 0, step, 2*step, ...
+        x_sub = x[:, ::self.step]  # (B, N_sub, D)
+
+        if key_padding_mask is None:
+            return x_sub.mean(dim=1)
+
+        # Select mask values at the same indices
+        mask_sub = key_padding_mask[:, ::self.step]  # (B, N_sub)
+        
+        # Logic mirroring MeanPooling for the subset
+        valid_mask = ~mask_sub  # True for valid (non-PAD)
+        denom = valid_mask.sum(dim=1, keepdim=True).clamp(min=1).to(x.dtype)
+        masked_x = x_sub * valid_mask.unsqueeze(-1).to(x.dtype)
+        
+        return masked_x.sum(dim=1) / denom
+    
 class ClsTokenPooling(nn.Module):
     """
     Pooling layer that returns the representation of the first token in the sequence

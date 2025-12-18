@@ -1,9 +1,9 @@
 from typing import Literal
 from .transformer import Transformer
-from .pooling.pooling import ClsTokenPooling, MeanPooling, MaxPooling, MinPooling
+from .pooling.pooling import ClsTokenPooling, MeanPooling, MaxPooling, MinPooling, SepExperimentalPooling
 from .heads.classifier_head import SequenceClassificationHead
 
-POOL_KIND = Literal["cls", "mean", "max", "min"]
+POOL_KIND = Literal["cls", "mean", "max", "min", "sep_512"]
 
 class TransformerForSequenceClassification(Transformer):
     """
@@ -62,6 +62,9 @@ class TransformerForSequenceClassification(Transformer):
             self.pooler = MaxPooling()
         elif pooling == "min":
             self.pooler = MinPooling()
+        elif 'sep_' in pooling:
+            _, step = pooling.split("_")
+            self.pooler = SepExperimentalPooling(step=int(step))
         else:
             raise ValueError(f"Unknown pooling '{pooling}'.")
 

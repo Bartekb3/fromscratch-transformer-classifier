@@ -1,6 +1,8 @@
 import sys
 from pathlib import Path
+from types import MethodType
 
+import pytest
 import torch
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -12,15 +14,17 @@ if str(SRC_DIR) not in sys.path:
     sys.path.append(str(SRC_DIR))
 
 from textclf_transformer.models.pooling.pooling import (
+    SepExperimentalPooling,
     ClsTokenPooling,
     MeanPooling,
     MaxPooling,
     MinPooling,
 )
+from textclf_transformer.models.transformer_classification import TransformerForSequenceClassification
 
 
 def test_cls_token_pooling_returns_first_token_and_ignores_mask():
-    """Ensures CLS pooling always returns the first token embedding and that provided masks have no effect, so pooled vectors equal x[:,0,:] regardless of padding."""
+    """Ensures CLS pooling returns the first token representation and that provided masks have no effect."""
     x = torch.randn(2, 4, 3)
     mask = torch.tensor([[False, True, False, True], [True, True, False, False]])
     pooling = ClsTokenPooling()
@@ -108,3 +112,22 @@ def test_min_pooling_masks_out_padded_tokens():
     out_all_mask = pooling(x, key_padding_mask=all_mask)
     pos_inf = torch.full_like(out_all_mask, torch.finfo(x.dtype).max)
     assert torch.allclose(out_all_mask, pos_inf)
+
+
+def test_sep_experimental_pooling_subsamples_then_means_and_respects_mask():
+    x = torch.tensor(
+        [
+            [[1.0, 1.0], [2.0, 2.0], [3.0, 3.0], [4.0, 4.0], [5.0, 5.0]],
+        ]
+    )
+    pooling = SepExperimentalPooling(step=2)
+
+    out = pooling(x, key_padding_mask=None)
+    expected = torch.tensor([[(1.0 + 3.0 + 5.0) / 3, (1.0 + 3.0 + 5.0) / 3]])
+    assert torch.allclose(out, expected)
+
+    # Mask out index 2 in the selected subset [0, 2, 4]; mean over indices [0, 4].
+    mask = torch.tensor([[False, False, True, False, False]])
+    out_masked = pooling(x, key_padding_mask=mask)
+    expected_masked = torch.tensor([[(1.0 + 5.0) / 2, (1.0 + 5.0) / 2]])
+    assert torch.allclose(out_masked, expected_masked)

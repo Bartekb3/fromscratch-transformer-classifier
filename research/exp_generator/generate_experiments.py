@@ -26,8 +26,6 @@ if exp == 'E1':
 
     FREEZE_N_LAYERS = [0, 1, 2]
     CLF_DROPOUT = [0.1, 0.2]
-    POOLING = ['cls', 'mean']
-    GRID = list(product(FREEZE_N_LAYERS, CLF_DROPOUT, POOLING))
 
 elif exp == 'E2':
 
@@ -274,6 +272,11 @@ def main():
             if mode == "finetuning":
                 if dataset_name == "wikipedia":
                     continue
+                if dataset_name == 'imdb':
+                    POOLING = ['cls', 'mean']
+                else: # arxiv | hyperpartisian
+                    POOLING = ['cls', 'sep_512']
+                GRID = list(product(FREEZE_N_LAYERS, CLF_DROPOUT, POOLING))
                 for grid in GRID:
                     freeze_n_layers, clf_dropout, pooling = grid
                     folder_name = f"E1_{mode}_{dataset_name}_{architecture}_{attention_mechanism}_f{freeze_n_layers}_d{clf_dropout}_{pooling}"
