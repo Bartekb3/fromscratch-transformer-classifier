@@ -121,12 +121,13 @@ def test_main_pretraining_invokes_resume_and_fit(monkeypatch: pytest.MonkeyPatch
             self.eval_calls = []
             loop_instances.append(self)
 
-        def fit(self, train_loader, epochs, val_loader=None, **resume_kwargs):
+        def fit(self, train_loader, epochs, val_loader=None, test_loader=None, **resume_kwargs):
             self.fit_calls.append(
                 {
                     "train_loader": train_loader,
                     "epochs": epochs,
                     "val_loader": val_loader,
+                    "test_loader": test_loader,
                     "resume": resume_kwargs,
                 }
             )
@@ -147,6 +148,7 @@ def test_main_pretraining_invokes_resume_and_fit(monkeypatch: pytest.MonkeyPatch
     assert loop.is_mlm is True
     assert loop.fit_calls[0]["train_loader"] == "train_loader"
     assert loop.fit_calls[0]["val_loader"] == "val_loader"
+    assert loop.fit_calls[0]["test_loader"] is None
     assert loop.fit_calls[0]["epochs"] == cfg["training"]["epochs"]
     assert loop.fit_calls[0]["resume"] == {"start_epoch": 1, "start_step": 2}
     assert loop.eval_calls == []  # test loader is None
@@ -235,15 +237,18 @@ def test_main_finetuning_loads_pretrained_and_evaluates(monkeypatch: pytest.Monk
             self.eval_calls = []
             loop_instances.append(self)
 
-        def fit(self, train_loader, epochs, val_loader=None, **resume_kwargs):
+        def fit(self, train_loader, epochs, val_loader=None, test_loader=None, **resume_kwargs):
             self.fit_calls.append(
                 {
                     "train_loader": train_loader,
                     "epochs": epochs,
                     "val_loader": val_loader,
+                    "test_loader": test_loader,
                     "resume": resume_kwargs,
                 }
             )
+            if test_loader is not None:
+                self.evaluate(test_loader, kind="test")
 
         def evaluate(self, loader, kind):
             self.eval_calls.append((loader, kind))
@@ -259,6 +264,7 @@ def test_main_finetuning_loads_pretrained_and_evaluates(monkeypatch: pytest.Monk
     assert loop.is_mlm is False
     assert loop.fit_calls[0]["train_loader"] == "train_loader"
     assert loop.fit_calls[0]["val_loader"] == "val_loader"
+    assert loop.fit_calls[0]["test_loader"] == "test_loader"
     assert loop.fit_calls[0]["resume"] == {}
     assert loop.eval_calls == [("test_loader", "test")]
 

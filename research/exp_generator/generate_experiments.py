@@ -110,9 +110,9 @@ NUM_LABELS = {
 # TODO - exp1
 BEST_FT_PARAMS = {  
     "imdb": {
-        "freeze_n_layers": 1,
-        "clf_dropout": 0.1,
-        "pooling": "cls"
+        "freeze_n_layers": 2,
+        "clf_dropout": 0.2,
+        "pooling": "mean"
     },
     "hyperpartisan": {
         "freeze_n_layers": 1,
@@ -156,9 +156,9 @@ def generate_exp(mode,
                  clf_dropout=None,
                  freeze_n_layers=None,
                  pooling=None,
-                 num_hashes=8,
+                 num_hashes=2,
                  chunk_size=128,
-                 nb_features=0.5):
+                 nb_features=0.25):
 
     cfg = yaml.safe_load(Path(TEMPLATES[mode]).read_text(encoding="utf-8"))
 
@@ -199,15 +199,19 @@ def generate_exp(mode,
 
         cfg["classification_head"]["num_labels"] = NUM_LABELS[dataset_name]
 
-        cfg['training']['learning_rate'] = 3e-5
 
 
         if dataset_name == 'imdb':
             epochs = 8
+            lr = 3e-5
         elif dataset_name == 'arxiv':
             epochs = 2
-        else:
+            lr = 1e-5
+        else: #hyperpartisan
             epochs = 4
+            lr = 2e-5
+
+        cfg['training']['learning_rate'] = lr
         cfg['training']['epochs'] = epochs
         cfg['training']['freeze_epochs'] = int(epochs/2)
         
@@ -218,7 +222,7 @@ def generate_exp(mode,
             epochs = 15
         elif dataset_name == 'arxiv':
             epochs = 2
-        else:
+        else: #hyperpartisan | wikipedia
             epochs = 10
         cfg['training']['epochs'] = epochs
 
