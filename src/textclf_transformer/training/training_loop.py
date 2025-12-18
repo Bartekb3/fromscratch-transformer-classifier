@@ -142,6 +142,56 @@ class TrainingLoop:
         self.scheduler = None
         self.max_grad_norm = float(training_cfg.get("max_grad_norm", 1.0))
         self.grad_accum_steps = int(training_cfg.get("grad_accum_steps", 1))
+        if self.grad_accum_steps < 1:
+            raise ValueError(
+                f"`grad_accum_steps` must be >= 1, got: {self.grad_accum_steps}"
+            )
+        self._last_grad_norm: float = 0.0
+        self._last_update_skipped: bool = False
+
+    def _compute_grad_norm(self) -> float:
+        """Compute total grad norm (L2) across all parameters with grads."""
+        grads: List[torch.Tensor] = []
+        for p in self.model.parameters():
+            if p.grad is None:
+                continue
+            if p.grad.is_sparse:
+                grads.append(p.grad.coalesce().values())
+            else:
+                grads.append(p.grad)
+
+        if not grads:
+            return 0.0
+
+        device = grads[0].device
+        total_norm_sq = torch.zeros((), device=device, dtype=torch.float32)
+        for g in grads:
+            total_norm_sq += g.detach().float().norm(2).pow(2)
+        return total_norm_sq.sqrt().item()
+
+    def _clip_grads_by_norm(self, total_norm: float, max_norm: float) -> None:
+        """Clip gradients in-place by global norm if needed.
+
+        Expects gradients to be unscaled already when AMP is enabled.
+        """
+        if max_norm <= 0:
+            return
+        if not math.isfinite(total_norm) or total_norm <= 0:
+            return
+
+        clip_coef = max_norm / (total_norm + 1e-6)
+        if clip_coef >= 1.0:
+            return
+
+        for p in self.model.parameters():
+            if p.grad is None:
+                continue
+            if p.grad.is_sparse:
+                grad = p.grad.coalesce()
+                grad._values().mul_(clip_coef)
+                p.grad = grad
+            else:
+                p.grad.detach().mul_(clip_coef)
 
     def _maybe_freeze_backbone(self, current_epoch: int) -> None:
         """Freeze bottom layers/embeddings for the first ``freeze_epochs`` epochs."""
@@ -274,8 +324,8 @@ class TrainingLoop:
 
         Returns:
             Tuple[float, float, int]: Unnormalized loss value (before dividing by accumulation steps),
-            gradient norm prior to clipping (``nan`` if not computed), and weighting factor used for
-            averaging (number of examples for classification, valid tokens for MLM).
+            gradient norm prior to clipping (forward-filled between optimizer steps), and weighting
+            factor used for averaging (number of examples for classification, valid tokens for MLM).
         """
         self.model.train()
         
@@ -284,7 +334,9 @@ class TrainingLoop:
 
         device_type = "cuda" if self.device == "cuda" else "cpu"
         use_autocast = self.scaler.is_enabled()
-        grad_norm_before_clip = float("nan")
+        is_update_step = (state.step + 1) % self.grad_accum_steps == 0
+        grad_norm_before_clip = self._last_grad_norm
+        self._last_update_skipped = False
 
         model_inputs, labels, effective_count = self._prepare_batch(batch)
         logits, loss = self._forward_logits_and_loss(
@@ -295,21 +347,37 @@ class TrainingLoop:
         )
 
         loss_value = loss.item()
+        if not math.isfinite(loss_value):
+            raise FloatingPointError(f"Non-finite loss at step={state.step}: {loss_value}")
+
         loss = loss / self.grad_accum_steps
         self.scaler.scale(loss).backward()
 
-        if (state.step + 1) % self.grad_accum_steps == 0:
-            if self.max_grad_norm and self.max_grad_norm > 0:
-                self.scaler.unscale_(self.optimizer)
-                grad_norm_before_clip = torch.nn.utils.clip_grad_norm_(
-                    self.model.parameters(), self.max_grad_norm).item()
+        if is_update_step:
+            # Make grads FP32/real-scale for inspection/clipping on update steps.
+            self.scaler.unscale_(self.optimizer)
+            grad_norm_before_clip = self._compute_grad_norm()
+            self._last_grad_norm = grad_norm_before_clip
 
-            self.scaler.step(self.optimizer)
-            self.scaler.update()
-            self.optimizer.zero_grad(set_to_none=True)
+            if not math.isfinite(grad_norm_before_clip):
+                # Avoid poisoning weights with NaNs/Infs; AMP scaler will adjust on update().
+                self._last_update_skipped = True
+                if self.scaler.is_enabled():
+                    self.scaler.step(self.optimizer)
+                    self.scaler.update()
+                self.optimizer.zero_grad(set_to_none=True)
+            else:
+                if self.max_grad_norm and self.max_grad_norm > 0:
+                    self._clip_grads_by_norm(
+                        total_norm=grad_norm_before_clip, max_norm=self.max_grad_norm
+                    )
 
-            if self.scheduler is not None:
-                self.scheduler.step()
+                self.scaler.step(self.optimizer)
+                self.scaler.update()
+                self.optimizer.zero_grad(set_to_none=True)
+
+                if self.scheduler is not None:
+                    self.scheduler.step()
 
         state.step += 1
         return float(loss_value), grad_norm_before_clip, effective_count
@@ -380,6 +448,9 @@ class TrainingLoop:
                     'loss': loss,
                     'lr': self.optimizer.param_groups[0]["lr"],
                     'grad_norm': grad_norm_before_clip,
+                    'is_update_step': int(state.step % self.grad_accum_steps == 0),
+                    'accum_step': int(((state.step - 1) % self.grad_accum_steps) + 1),
+                    'update_skipped': int(self._last_update_skipped),
                 }
 
                 self.logger.log_train(metrics=metrics, step=state.step)
