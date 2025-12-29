@@ -113,6 +113,34 @@ class Transformer(nn.Module):
             for _ in range(num_layers)
         ])
 
+    @staticmethod
+    def _rope():
+        if self.pos_encoding_params is None:
+            self.pos_encoding_params = {}
+        _, N, _ = x.shape
+        head_dim = self.attention_embedding_dim // self.num_heads  # per-head dim
+        cache_mismatch = (
+            self.cos is None
+            or self.sin is None
+            or self.cos.device != x.device
+            or self.cos.dtype != x.dtype
+        )
+        if cache_mismatch:
+            self.cos, self.sin = build_rope_cache(
+                seq_len=self.max_sequence_length,
+                dim=head_dim,
+                device=x.device,
+                dtype=x.dtype,
+                base=float(self.pos_encoding_params.get(
+                    "rope_base", 10000.0)),
+                scale=float(self.pos_encoding_params.get(
+                    "rope_scale", 1.0)),
+            )
+
+        # Cache stores full tables; slice per batch length before passing to blocks.
+        self.pos_encoding_params["rope_cos"] = self.cos
+        self.pos_encoding_params["rope_sin"] = self.sin
+
     def forward_base(
         self,
         input_ids: torch.LongTensor,
@@ -138,31 +166,7 @@ class Transformer(nn.Module):
         )
 
         if self.pos_encoding == "rope":
-            if self.pos_encoding_params is None:
-                self.pos_encoding_params = {}
-            _, N, _ = x.shape
-            head_dim = self.attention_embedding_dim // self.num_heads  # per-head dim
-            cache_mismatch = (
-                self.cos is None
-                or self.sin is None
-                or self.cos.device != x.device
-                or self.cos.dtype != x.dtype
-            )
-            if cache_mismatch:
-                self.cos, self.sin = build_rope_cache(
-                    seq_len=self.max_sequence_length,
-                    dim=head_dim,
-                    device=x.device,
-                    dtype=x.dtype,
-                    base=float(self.pos_encoding_params.get(
-                        "rope_base", 10000.0)),
-                    scale=float(self.pos_encoding_params.get(
-                        "rope_scale", 1.0)),
-                )
-
-            # Cache stores full tables; slice per batch length before passing to blocks.
-            self.pos_encoding_params["rope_cos"] = self.cos
-            self.pos_encoding_params["rope_sin"] = self.sin
+            self._rope()
 
         for layer in self.layers:
             x = layer(

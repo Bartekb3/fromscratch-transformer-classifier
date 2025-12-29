@@ -52,6 +52,9 @@ docs/pz/*.synctex.gz
 docs/pz/*.fdb_latexmk
 docs/pz/_minted
 docs/pz/*.out
+docs/pz/*.toc
+docs/thesis/*
+docs/seminarium/*
 
 
 #other

@@ -7,24 +7,18 @@ Minimal, practical guide to run **MLM pretraining** and **classification finetun
 ## 🗺 Repo Map (where things live)
 
 - **CLI (run this)**
-  - `train.py` — run training with a mode flag:
+  - `train.py` — run training with a mode flag and experiment name:
     - `-m pretraining` for MLM pretraining
     - `-m finetuning` for classification finetuning
+    - `-n <name>` for experiment name
 - **Templates & Experiment generators**
-  - `config_templates/pretraining.yaml` — template for MLM
-  - `config_templates/finetuning.yaml` — template for CLS
+  - `experiments/config_templates/pretraining.yaml` — template for MLM
+  - `experiments/config_templates/finetuning.yaml` — template for CLS
   - `experiments/generate_pretraining_experiment.py` — creates `experiments/pretraining/<name>/` (use `-rp` to clone+resume an older run)
   - `experiments/generate_finetuning_experiment.py` — creates `experiments/finetuning/<name>/` (links to a pretraining run and copies its tokenizer/architecture)
 - **Generated runs**
-  - `experiments/pretraining/<name>/` → `config.yaml`, `metrics/train/*.csv` (if CSV logging enabled), `checkpoints/`, `model.ckpt`
+  - `experiments/pretraining/<name>/` → `config.yaml`, `metrics/train|eval/*.csv` (if CSV logging enabled), `checkpoints/`, `model.ckpt`
   - `experiments/finetuning/<name>/` → `config.yaml`, `metrics/train|eval/*.csv` (if CSV logging enabled), `checkpoints/`, `model.ckpt`
-- **Library (`src/textclf_transformer/`)**
-  - `models/` — transformer blocks, heads, and variants (CLS, MLM)
-  - `training/training_loop.py` — TrainingLoop (AMP, grad accumulation, cosine LR, eval, checkpointing)
-  - `training/utils/dataloader_utils.py` — collate and DataLoader helpers (**expects `True = PAD`**)
-  - `tokenizer/wordpiece_tokenizer_wrapper.py` — wrapper with `load(...)`, `mask_input_for_mlm(...)`
-  - `training/utils/config.py` — seeding, dynamic import, arch kwargs
-  - `logger/wandb_logger.py` — CSV + optional W&B logging (see `logging.log_metrics_csv` flag)
 
 ---
 
@@ -35,12 +29,13 @@ python -m venv .venv
 source .venv/bin/activate            # Windows: .\.venv\Scripts\Activate.ps1
 
 pip install --upgrade pip
-pip install -r requirements.txt       # contains PyTorch, transformers, tokenizers, wandb, etc.
+pip install -r requirements.txt
 ```
 
-Notes:  
-W&B is optional; local CSV logs are written only when `logging.log_metrics_csv=true` (templates default to false).  
-Pydantic warnings are harmless.
+> Notes:
+>
+> - W&B is optional; local CSV logs are written only when `logging.log_metrics_csv=true` (templates default to false).
+> - Pydantic warnings are harmless.
 
 ---
 
@@ -50,9 +45,9 @@ Pretraining (MLM) sample: (input_ids, attention_mask)
 Finetuning (CLS) sample: (input_ids, attention_mask, labels)
 
 Dtypes:
-  input_ids: LongTensor
-  attention_mask: BoolTensor (True = PAD)
-  labels: LongTensor
+input_ids: LongTensor
+attention_mask: BoolTensor (True = PAD)
+labels: LongTensor
 
 Store as PyTorch objects (e.g., TensorDataset) via torch.save(...).
 
@@ -69,7 +64,8 @@ and caps to tokenizer.max_length.
 - architecture — backbone dimensions, attention style and positional encoding options.
 - mlm_head (pretraining) / classification_head (finetuning) — task-specific output layer settings.
 - training — optimizer/hyperparameter schedule, device selection, AMP, accumulation, and resume controls:
-    - resume: `is_resume`, `resume_pretrainig_name`, `checkpoint_path` (relative to the *new* experiment dir unless absolute), `strict`, `load_only_model_state` (set to `false` to also restore optimizer/scheduler/scaler/best_val_loss/epoch/step).
+  - **pretraining-specific** resume: `is_resume`, `resume_pretrainig_name`, `checkpoint_path` (relative to the _new_ experiment dir unless absolute), `strict`, `load_only_model_state` (set to `false` to also restore optimizer/scheduler/scaler/best_val_loss/epoch/step).
+  - **finetuning-specific**: `head_lr_mult`, `backbone_lr_mult` (różne LR dla głowy i backbone'u), `freeze`, `freeze_n_layers`, `freeze_epochs`, `freeze_embeddings` (zamrażanie warstw na początku treningu).
 - pretrained_experiment (finetuning) — links back to the checkpoint that seeds the downstream run (filled automatically by the finetuning generator).
 - data — paths to serialized `.pt` datasets for train/val/test splits.
 
@@ -77,7 +73,7 @@ and caps to tokenizer.max_length.
 
 ## 🧪 Pretraining (MLM) — create & run
 
-``` bash
+```bash
 # Generate a fresh run
 python experiments/generate_pretraining_experiment.py -p <pretrain_name>
 
@@ -106,7 +102,7 @@ python train.py -n <pretrain_name> -m pretraining
 
 ## 🎯 Finetuning (CLS) — create & run
 
-``` bash
+```bash
 # Generate from pretraining (copies architecture/tokenizer from the pretraining config)
 python experiments/generate_finetuning_experiment.py -f <finetune_name> -p <pretrain_name>
 
@@ -144,10 +140,10 @@ python train.py -n <finetune_name> -m finetuning
 
 ## ⛳ Cheat Sheet (copy & run)
 
-``` bash
+```bash
 # Pretraining
 python experiments/generate_pretraining_experiment.py -p pre_v1
-# (resume example) 
+# (resume example)
 python experiments/generate_pretraining_experiment.py -p pre_v1b -rp pre_v1
 # edit: experiments/pretraining/pre_v1/config.yaml
 #        set logging.log_metrics_csv=true if you need local CSV logs

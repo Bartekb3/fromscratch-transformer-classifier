@@ -65,7 +65,7 @@ training:
   min_lr_ratio: 0.2
   weight_decay: 0.01
   max_grad_norm: 1.0
-  grad_accum_steps: 1
+  grad_accum_steps: FILL_TRAIN
   use_amp: true
   loss: cross_entropy
   device: auto

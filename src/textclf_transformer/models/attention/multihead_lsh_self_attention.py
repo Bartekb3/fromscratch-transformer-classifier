@@ -275,7 +275,7 @@ class LSHAttention(nn.Module):
     def forward(
         self,
         x: Tensor,
-        padding_mask: Tensor,
+        key_padding_mask: Tensor,
         rope: dict | None = None
     ) -> Tensor:
         """
@@ -318,7 +318,8 @@ class LSHAttention(nn.Module):
         """
 
         # additional pad to make number of buckets (N/chunk_size) even
-        x, padding_mask_bool, n_pad = self.pad_to_even_buckets(x, padding_mask)
+        x, padding_mask_bool, n_pad = self.pad_to_even_buckets(
+            x, key_padding_mask)
         B, N, _ = x.shape
         dk = self.dk
 

@@ -2,7 +2,7 @@
 
 Package: `src/textclf_transformer`
 
-- **[models/](./textclf_transformer/models/README.md)** — Transformer (encoder-only) and variants
+- **[models/](./textclf_transformer/models/README.md)** — Transformer BERT like model
   - attention/, blocks/, embeddings/, pooling/, heads/
   - `transformer.py` — backbone
   - `transformer_classification.py` — classification variant (logits)

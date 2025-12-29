@@ -2,6 +2,7 @@ import math
 import torch
 from torch import Tensor
 
+
 def _rotate_half(x: Tensor) -> Tensor:
     """
     Rotate pairs of features (even, odd) by 90 degrees:
@@ -16,12 +17,13 @@ def _rotate_half(x: Tensor) -> Tensor:
     x1, x2 = x[..., ::2], x[..., 1::2]
     return torch.stack((-x2, x1), dim=-1).reshape_as(x)
 
+
 @torch.no_grad()
 def build_rope_cache(
     seq_len: int,
     dim: int,
-    device = None,
-    dtype = torch.float32,
+    device=None,
+    dtype=torch.float32,
     base: float = 10000.0,
     scale: float = 1.0,
 ) -> tuple[Tensor, Tensor]:
@@ -50,8 +52,10 @@ def build_rope_cache(
     half = dim // 2
 
     # Frequencies (float32 for numerical stability, then cast)
-    theta = 1.0 / (base ** (torch.arange(0, half, device=device, dtype=torch.float32) / half))
-    pos = torch.arange(seq_len, device=device, dtype=torch.float32).unsqueeze(1)  # (seq_len, 1)
+    theta = 1.0 / \
+        (base ** (torch.arange(0, half, device=device, dtype=torch.float32) / half))
+    pos = torch.arange(seq_len, device=device,
+                       dtype=torch.float32).unsqueeze(1)  # (seq_len, 1)
     freqs = (pos * theta.unsqueeze(0)) * scale  # (seq_len, half)
 
     emb = torch.cat([freqs, freqs], dim=-1)     # (seq_len, dim)
@@ -59,6 +63,7 @@ def build_rope_cache(
     sin = emb.sin().to(dtype=dtype)[None, None, ...]
 
     return cos, sin
+
 
 def apply_rope(
     q: Tensor,
@@ -86,7 +91,8 @@ def apply_rope(
     """
     if position_ids is not None:
         # Expand and gather per position
-        idx = position_ids[:, None, :, None].expand(-1, q.size(1), -1, q.size(-1))
+        idx = position_ids[:, None, :,
+                           None].expand(-1, q.size(1), -1, q.size(-1))
         cos = cos.expand(q.size(0), q.size(1), -1, -1).gather(2, idx)
         sin = sin.expand(q.size(0), q.size(1), -1, -1).gather(2, idx)
     else:

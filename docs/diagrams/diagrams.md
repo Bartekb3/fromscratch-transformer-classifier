@@ -68,80 +68,90 @@ flowchart TB
 classDiagram
 direction TB
 
-
     class TransformerForSequenceClassification {
-	    +ClsTokenPooling|MeanPooling|MaxPooling|MinPooling pooler
+	    +[ ClsTokenPooling|MeanPooling|MaxPooling|
+        MinPooling|SepExperimentalPooling pooler ]
 	    +SequenceClassificationHead classifier
-	    +forward()
+	    +forward(return_pooled: bool, return_sequence: bool)
     }
 
     class TransformerForMaskedLM {
 	    +MaskedLanguageModelingHead mlm
-	    +forward()
+	    +forward(return_sequence: bool)
     }
 
     class Transformer {
 	    +TransformerTextEmbeddings embeddings
-	    +List~TransformerEncoderBlock~ layers
-	    +forward_base()
+	    +ModuleList~TransformerEncoderBlock~ layers
+	    +forward_base(input_ids, attention_mask, token_type_ids, position_ids)
     }
 
     class TransformerEncoderBlock {
 	    +AttentionBlock attention_block
 	    +MLPBlock mlp_block
-	    +forward()
+	    +forward(x, key_padding_mask, rope: dict)
     }
+    v
 
     class TransformerTextEmbeddings {
 	    +Embedding word_embeddings
 	    +Embedding token_type_embeddings
-        +[LearnedPositionalEmbedding|
-        SinusoidalPositionalEncoding|None position]
+        +[ LearnedPositionalEmbedding|
+        SinusoidalPositionalEncoding position ]
 	    +LayerNorm layer_norm
 	    +Dropout dropout
-	    +forward()
-    }
-
-    class AttentionBlock {
-	    +MultiheadSelfAttention|LSHAttention|FAVORAttention attention_mechanism
-	    +LayerNorm layer_norm
-	    +forward()
+	    +forward(input_ids, token_type_ids, position_ids)
     }
 
     class MLPBlock {
 	    +Sequential mlp
 	    +LayerNorm layer_norm
-	    +forward()
+	    +forward(x)
     }
+
+
+    class AttentionBlock {
+	    +[ MultiheadSelfAttention|LSHAttention|
+        FAVORAttention attention_mechanism ]
+	    +LayerNorm layer_norm
+	    +forward(x, key_padding_mask, rope: dict)
+    }
+
 
     class MultiheadSelfAttention {
 	    +Linear Uqkv
 	    +Linear Uout
-	    +forward()
+        +Dropout attn_drop
+        +Dropout out_drop
+	    +forward(x, key_padding_mask, rope: dict)
     }
 
     class LSHAttention {
 	    +Linear Uqv
 	    +Linear Uout
-	    +forward()
+        +Dropout out_drop
+        +Dropout attn_drop
+	    +forward(x, padding_mask, rope: dict)
     }
 
     class FAVORAttention {
 	    +Linear Uqkv
 	    +Linear Uout
-	    +forward()
+        +Dropout out_drop
+	    +forward(x, key_padding_mask, rope: dict)
     }
 
     class SequenceClassificationHead {
 	    +Identity|Sequential pooler
+        +Dropout dropout
 	    +Linear classifier
-	    +forward()
+	    +forward(pooled_hidden)
     }
 
     class MaskedLanguageModelingHead {
 	    +Sequential transform
 	    +Linear decoder
-	    +forward()
+	    +forward(hidden)
     }
 
     TransformerForSequenceClassification --|> Transformer

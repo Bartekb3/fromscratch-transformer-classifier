@@ -1,6 +1,7 @@
 # From-Scratch Transformer Classifier
- A concise, modular PyTorch implementation for text classification, with optional MLM pretraining. The goal is to provide a clear, reproducible baseline that is easy to read, extend, and run.
- 
+
+A concise, modular PyTorch implementation for text classification, with optional MLM pretraining. The goal is to provide a clear, reproducible baseline that is easy to read, extend, and run.
+
 ## Quick install
 
 ```bash
@@ -27,6 +28,7 @@ python train.py -n ft_v1  -m finetuning
 ```
 
 ## For detail see:
+
 - [Repository structure](docs/repo_structure_documentation.md)
 
 - [Training how-to (install, configs, commands)](docs/training_instruction.md)

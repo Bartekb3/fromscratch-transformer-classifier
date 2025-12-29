@@ -65,7 +65,8 @@ def main() -> None:
         cfg['training']['resume']['checkpoint_path'] = f'../{resume_name}/checkpoints/model.ckpt'
 
     out_cfg = exp_dir / "config.yaml"
-    out_cfg.write_text(yaml.dump(cfg, sort_keys=False, allow_unicode=True), encoding="utf-8")
+    out_cfg.write_text(yaml.dump(cfg, sort_keys=False,
+                       allow_unicode=True), encoding="utf-8")
 
     print(f"[OK] Utworzono pretraining: {exp_dir}")
     print(f"     config: {out_cfg}")

@@ -1,0 +1,499 @@
+\documentclass{article}
+
+% Pakiet do obsługi języka polskiego
+\usepackage[polish]{babel}
+
+% Kodowanie znaków
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc} % dla pdflatex
+
+% Matematyka
+\usepackage{amsmath}
+
+% Grafika
+\usepackage{graphicx}
+\usepackage{svg}
+
+% Podpisy
+\usepackage{caption}
+
+% Położenie figur
+\usepackage{float}
+
+% Pakiety wymagane do obsługi tabel, grafik i pozycjonowania
+\usepackage{booktabs}    % Profesjonalne linie w tabelach (\toprule, \midrule)
+\usepackage{graphicx}    % Obsługa grafik
+\usepackage{float}       % Wymuszanie pozycji figur [H]
+\usepackage{caption}     % Podpisy pod wykresami
+\usepackage{subcaption}  % Podwykresy (side-by-side)
+\usepackage{amsmath}     % Symbole matematyczne
+\usepackage{multirow}    % Scalanie wierszy w tabelach
+% Geometria strony
+\usepackage{geometry}
+\geometry{a4paper, margin=2cm}
+
+\title{Implementacja transformera oraz eksperymenty z wariantami mechanizmu uwagi (Performer, Reformer) w zadaniach klasyfikacji tekstu \\[0.25em]
+\large Dokumentacja projektu: część IV}
+\author{Bartłomiej Borycki, Michał Iwaniuk}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+
+\section{Testy jednostkowe}
+
+Testy są uruchamiane przy użyciu \texttt{pytest}. Dla izolacji i kontroli zależności stosowany jest mechanizm \texttt{monkeypatch}.
+
+
+\begin{itemize}
+    \item \textbf{Mockowanie usług:} W testach loggera W\&B wykorzystywany jest obiekt zastępczy (\texttt{DummyRun}) oraz \texttt{monkeypatch} do podmiany \texttt{wandb.init}. Dzięki temu testy nie wykonują połączeń sieciowych.
+    \item \textbf{Izolacja I/O:} Zapisy checkpointów, CSV i sztucznych datasetów wykonywane są do katalogów tymczasowych (\texttt{tmp\_path}).
+\end{itemize}
+
+
+\subsection{Zakres testów}
+Testy weryfikują poprawność działania całego pakietu \texttt{src/textclf\_transformer}. Testy są zorganizowane w katalogu \texttt{tests/unit/} zgodnie z konwencją nazewnictwa \texttt{pytest} (\texttt{test\_*.py}). Raport pokrycia znajduje sie w tabeli \ref{tab:coverage}. Testy obejmują następujące obszary:
+
+
+\begin{itemize}
+    \item \textbf{Logger} (\texttt{tests/unit/logger}):
+    \begin{itemize}
+        \item Poprawność zapisu metryk do plików CSV (przy wyłączonym W\&B) oraz logowanie do serwisu W\&B.
+        \item Rejestrowanie metryk systemowych (np. zużycie pamięci GPU).
+    \end{itemize}
+
+    \item \textbf{Tokenizer} (\texttt{tests/unit/tokenizer}):
+    \begin{itemize}
+        \item Walidacja ładowania i treningu tokenizera z plików.
+        \item Poprawność kodowania tekstów (pojedynczych oraz z ramek Pandas) i obsługa etykiet.
+        \item Mechanizm maskowania wejścia dla modelu MLM (z pominięciem tokenów specjalnych).
+    \end{itemize}
+
+    \item \textbf{Training} (\texttt{tests/unit/training} oraz \texttt{training/utils}):
+    \begin{itemize}
+        \item \textbf{Pętla i skrypty:} Logika pętli treningowej dla klasyfikacji (zapis najlepszego modelu) i MLM, wznawianie treningu (\textit{resume}) oraz tryb finetuningu (ładowanie wag pre-trained).
+        \item \textbf{Narzędzia:} Rozwiązywanie ścieżek względem root repozytorium, obsługa konfiguracji YAML, zapis i odczyt checkpointów (pełnych stanów oraz samych wag).
+        \item \textbf{Metryki i dane:} Obliczanie metryk (perplexity dla MLM, metryki sklearn dla klasyfikacji), poprawne działanie \texttt{collate\_fn} (padding, przycinanie) oraz załadowanie \texttt{TensorDataset}.
+    \end{itemize}
+
+    \item \textbf{Modele - ogólne i bloki} (\texttt{tests/unit/models}, \texttt{blocks}):
+    \begin{itemize}
+        \item Propagacja maski paddingu w modelu Transformer i poprawność kształtów tensorów wyjściowych.
+        \item Struktura i inicjalizacja bloków MLP, Attention oraz EncoderBlock (mechanizmy rezydualne i normalizacja).
+        \item Współdzielenie wag (weight tying) w modelu MLM.
+    \end{itemize}
+
+    \item \textbf{Mechanizmy atencji} (\texttt{tests/unit/models/attention}):
+    \begin{itemize}
+        \item \textbf{MHA:} Zgodność numeryczna z implementacją PyTorch, obsługa \texttt{SDPA}, determinizm w trybie ewaluacji.
+        \item \textbf{FAVOR+:} Stabilność numeryczna wariantów funkcji $\phi$ (w tym \texttt{exp}), obsługa masek, poprawność gradientów i mechanizmów stabilizacji (global shift).
+        \item \textbf{LSH:} Respektowanie masek (padding i chunking), stabilność haszowania oraz weryfikacja analityczna na małych próbkach.
+    \end{itemize}
+
+    \item \textbf{Embeddingi} (\texttt{tests/unit/models/embeddings}):
+    \begin{itemize}
+        \item Poprawność wzorów kodowania pozycyjnego: sinusoidalne, uczone (1D) oraz RoPE (rotacja, cache, obsługa \texttt{position\_ids}).
+        \item Inicjalizacja embeddingów tekstowych, zerowanie wektora paddingu.
+    \end{itemize}
+
+    \item \textbf{Pooling i Heady} (\texttt{tests/unit/models/pooling}, \texttt{heads}):
+    \begin{itemize}
+        \item \textbf{Pooling:} Poprawność algorytmów CLS, Mean, Max, Min.
+        \item \textbf{Heady:} Architektury poolerów w głowicach klasyfikacyjnych (BERT/RoBERTa) oraz struktura głowicy MLM.
+    \end{itemize}
+\end{itemize}
+
+\begin{table}[H]
+\centering
+\caption{Raport pokrycia kodu testami}
+\label{tab:coverage}
+\begin{tabular}{lrrr}
+\toprule
+\textbf{Moduł} & \textbf{Stmts} & \textbf{Miss} & \textbf{Cover} \\
+\midrule
+\multicolumn{4}{l}{\textit{Core}} \\
+\quad \texttt{\_\_init\_\_} & 5 & 0 & 100\% \\
+\midrule
+\multicolumn{4}{l}{\textit{Logger}} \\
+\quad \texttt{\_\_init\_\_} & 1 & 0 & 100\% \\
+\quad \texttt{wandb\_logger} & 98 & 16 & 84\% \\
+\midrule
+\multicolumn{4}{l}{\textit{Tokenizer}} \\
+\quad \texttt{\_\_init\_\_} & 1 & 0 & 100\% \\
+\quad \texttt{wordpiece\_tokenizer\_wrapper} & 117 & 8 & 93\% \\
+\midrule
+\multicolumn{4}{l}{\textit{Training}} \\
+\quad \texttt{\_\_init\_\_} & 2 & 0 & 100\% \\
+\quad \texttt{train} & 52 & 9 &  83\% \\
+\quad \texttt{training\_loop} & 238 & 41 & 83\% \\
+\quad \texttt{utils/\_\_init\_\_} & 4 & 0 & 100\% \\
+\quad \texttt{utils/config} & 56 & 28 & 50\% \\
+\quad \texttt{utils/dataloader\_utils} & 42 & 1 & 98\% \\
+\quad \texttt{utils/metrics\_utils} & 42 & 0 & 100\% \\
+\quad \texttt{utils/train\_utils} & 59 & 1 & 98\% \\
+\midrule
+\multicolumn{4}{l}{\textit{Modele -- ogólne i bloki}} \\
+\quad \texttt{\_\_init\_\_} & 13 & 0 & 100\% \\
+\quad \texttt{consts} & 2 & 0 & 100\% \\
+\quad \texttt{transformer} & 40 & 10 & 75\% \\
+\quad \texttt{transformer\_classification} & 29 & 3 & 90\% \\
+\quad \texttt{transformer\_mlm} & 16 & 0 & 100\% \\
+\quad \texttt{blocks/attention\_block} & 24 & 0 & 100\% \\
+\quad \texttt{blocks/mlp\_block} & 10 & 0 & 100\% \\
+\quad \texttt{blocks/transformer\_encoder\_block} & 12 & 0 & 100\% \\
+\midrule
+\multicolumn{4}{l}{\textit{Mechanizmy atencji}} \\
+\quad \texttt{multihead\_sdp\_self\_attention} & 79 & 4 & 95\% \\
+\quad \texttt{multihead\_favor\_self\_attention} & 180 & 13 & 93\% \\
+\quad \texttt{multihead\_lsh\_self\_attention} & 145 & 3 & 98\% \\
+\midrule
+\multicolumn{4}{l}{\textit{Embeddingi}} \\
+\quad \texttt{positional\_encodings} & 24 & 0 & 100\% \\
+\quad \texttt{rotary} & 27 & 0 & 100\% \\
+\quad \texttt{text\_embeddings} & 57 & 1 & 98\% \\
+\midrule
+\multicolumn{4}{l}{\textit{Pooling i Heady}} \\
+\quad \texttt{pooling} & 37 & 1 & 97\% \\
+\quad \texttt{classifier\_head} & 26 & 0 & 100\% \\
+\quad \texttt{mlm\_head} & 22 & 1 & 95\% \\
+\midrule
+\textbf{TOTAL} & \textbf{1460} & \textbf{140} & \textbf{91\%} \\
+\bottomrule
+\end{tabular}
+
+\vspace{0.5em}
+\centering
+\small{Liczba testów: 115 \quad|\quad Błędy: 0 \quad|\quad Niepowodzenia: 0 \quad|\quad Pominięto: 0 \quad|\quad Czas: 2.341s}
+\end{table}
+
+
+
+\section{Plan eksperymentów}
+
+Głównym celem przeprowadzonej części badawczej jest ewaluacja różnych wariantów mechanizmu atencji w architekturach typu \textit{encoder-only} (BERT-like). Kluczowym aspektem analizy jest zbadanie zależności ("trade-off") pomiędzy jakością modelu w zadaniu klasyfikacji, kosztami treningu (zajętość pamięci VRAM i czas) oraz wydajnością inferencji. Dążymy do znalezienia optymalnej konfiguracji modelu pod kątem zastosowań praktycznych, szczególnie w kontekście przetwarzania długich sekwencji.
+
+\subsection{Zbiory danych}
+
+Eksperymenty przeprowadzono na zróżnicowanych zbiorach danych, dobranych tak, aby sprawdzić zachowanie mechanizmów atencji przy różnych długościach sekwencji wejściowych ($L$). Charakterystykę zbiorów przedstawiono poniżej:
+
+\begin{itemize}
+    \item \textbf{Wikipedia (Pretrening):} Korpus ogólny wykorzystywany do nauki reprezentacji języka. Aby zoptymalizować koszt obliczeniowy pretreningu, zastosowano strategię mieszaną: 75\% treningu odbywa się na sekwencjach o długości 128 tokenów, a pozostałe 25\% na sekwencjach o długości 512 tokenów.
+    \item \textbf{IMDB (Klasyfikacja):} Zbiór recenzji filmowych służący do analizy sentymentu. Reprezentuje zadania o standardowej długości kontekstu.
+    \\ \textit{Max seq len:} 512 tokenów.
+    \item \textbf{Hyperpartisan (Klasyfikacja):} Zbiór artykułów newsowych klasyfikujący stronniczość polityczną. Reprezentuje zadania o długim kontekście.
+    \\ \textit{Max seq len:} 4096 tokenów.
+    \item \textbf{ArXiv (Klasyfikacja):} Zbiór tekstów naukowych, wymagający analizy bardzo długich zależności w tekście.
+    \\ \textit{Max seq len:} 16\,384 tokenów.
+\end{itemize}
+
+
+\subsection{Architektura}
+
+\noindent\textbf{Oznaczenia}
+
+\begin{itemize}
+    \item \textbf{$l^t$} – liczba warstw enkodera (liczba bloków Transformer).
+    
+    \item \textbf{$d^{h}$} – rozmiar wektora ukrytego (\textit{hidden size})
+
+    \item \textbf{$d^f$} – rozmiar warstwy pośredniej w feed-forward network
+    (FFN). W klasycznym BERT
+    zwykle wynosi $4 \cdot d^{h}$.
+    
+    \item \textbf{$h$} – liczba głowic w mechanizmie wielogłowicowej uwagi.
+    
+    \item \textbf{$d^{q|k|v}$} – wymiar przestrzeni zapytań (\textit{query}),
+    kluczy (\textit{key}) oraz wartości (\textit{value}) w każdej głowicy
+    uwagi. (W klasycznym BERT przyjmuje się zazwyczaj $d^{q} = d^{k} = d^{v} =
+    \frac{d^{h}}{h}$)
+\end{itemize}
+
+
+\noindent \textbf{Architektura Bazowa}
+
+Jako standardową architekturę małego modelu BERT przyjmiemy $\text{BERT}_{\text{SMALL}}$
+wprowadzoną w artykule \textit{Well-Read Students Learn Better: On the Importance of Pre-training Compact Models}\\\\
+$\text{BERT}_{\text{SMALL}}$:
+\begin{table}[h]
+\centering
+\begin{tabular}{c c c c c}
+\hline
+$l^{t}$ & $d^{h}$ & $d^{f}$ & $h$ & $d^{q|k|v}$ \\
+\hline
+4 & 512 & 2048 & 8 & 512 \\
+\hline
+\end{tabular}
+\end{table}
+
+
+\subsection{Metodyka uczenia}
+
+Proces uczenia dla każdej konfiguracji modelu podzielono na trzy etapy:
+
+\begin{enumerate}
+    \item \textbf{Pretrening:} Nauka modelu od zera na zbiorze Wikipedia (cel: MLM - Masked Language Modeling).
+    \item \textbf{TAPT (Task-Adaptive Pretraining):} Dotrenowanie modelu na danych nieetykietowanych ze zbioru docelowego (kontynuacja MLM).
+    \item \textbf{Finetuning:} Ostateczne strojenie modelu pod zadanie klasyfikacji nadzorowanej.
+\end{enumerate}
+\noindent Hiperparametry użyte w poszczególnych etapach przedstawiono w Tabeli~\ref{tab:training-stages}.
+Pozostałe hiperparametry były wspolne miedzy wszystkimi etapami treningu i eksperymentami Tabela~\ref{tab:config}.
+
+
+
+\begin{table}[H]
+\centering
+\caption{Hiperparametry dla poszczególnych etapów uczenia.}
+\label{tab:training-stages}
+\small
+\begin{tabular}{@{}llccc@{}}
+\toprule
+\textbf{Etap} & \textbf{Zbiór danych} & \textbf{Epoki} & \textbf{Learning rate} & \textbf{Min lr ratio} \\
+\midrule
+Pretrening (MLM) 
+    & Wikipedia & 10 & $5 \times 10^{-4}$ & 0.5 \\
+\midrule
+\multirow{3}{*}{TAPT (MLM)} 
+    & IMDB          & 15 & \multirow{3}{*}{$2 \times 10^{-4}$} & \multirow{3}{*}{0.5} \\
+    & Arxiv         & 2 &  &  \\
+    & Hyperpartisan & 10 &  &  \\
+\midrule
+\multirow{3}{*}{Finetuning (klasyfikacja)} 
+    & IMDB          & 8 & $3 \times 10^{-5}$ & \multirow{3}{*}{0.2} \\
+    & Arxiv         & 2 & $2 \times 10^{-5}$ &  \\
+    & Hyperpartisan & 4 & $1 \times 10^{-5}$ &  \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+\begin{table}[H]
+\centering
+\caption{Wspólne hiperparametry dla wszystkich etapów trening.}
+\label{tab:config}
+\small
+\begin{tabular}{@{}llll@{}}
+\toprule
+\textbf{Kategoria} & \textbf{Parametr} & \textbf{Wartość} & \\
+\midrule
+\multirow{5}{*}{\textbf{Architektura}} 
+    & MLP dropout          & 0.1 & \\
+    & Embedding dropout    & 0.1 & \\
+    & Pozycje              & RoPE (base=10000, scale=1.0) & \\
+    & Attention dropout    & 0.0 & \\
+    & Attention out dropout & 0.1 & \\
+    & Projection bias      & true & \\
+\midrule
+\multirow{4}{*}{\textbf{MLM Head (Pretrening i TAPT)}} 
+    & tie\_mlm\_weights    & true & \\
+    & mask\_p              & 0.15 & \\
+    & mask\_token\_p       & 0.8 & \\
+    & random\_token\_p     & 0.1 & \\
+\midrule
+\textbf{Classification Head (Finetuning)} 
+    & pooler\_type         & bert & \\
+\midrule
+\multirow{5}{*}{\textbf{Trening}} 
+    & batch\_size          & $32768 / \text{max\_seq\_len}$ & \\
+    & warmup\_ratio        & 0.1 & \\
+    & weight\_decay        & 0.01 & \\
+    & max\_grad\_norm      & 1.0 & \\
+    & loss                 & cross\_entropy & \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+
+\subsection{Implementacja mechanizmu atencji i optymalizacja obliczeniowa}
+
+W ramach realizacji celów projektowych, biblioteka została wyposażona w autorską implementację mechanizmu \textit{Scaled Dot-Product Attention} (SDPA). Implementacja ta ma walor edukacyjny i demonstracyjny, pozwalając na pełną transparentność obliczeń. Posiada ona jednak charakter "naiwny" – wymaga obliczania pełnej macierzy atencji o wymiarach $N \times N$, co skutkuje kwadratową złożonością pamięciową $O(N^2)$ i brakiem niskopoziomowych optymalizacji dla jąder CUDA.
+
+W kontekście planowanych badań na zbiorach o długich sekwencjach (Hyperpartisan: 4096 tokenów, ArXiv: 16\,384 tokenów), wykorzystanie naiwnej implementacji okazało się niemożliwe ze względu na ograniczenia pamięciowe akceleratorów (błędy \textit{Out of Memory}) oraz nieakceptowalny czas treningu.
+
+Aby umożliwić przeprowadzenie eksperymentów w rozsądnym czasie i zapewnić rzetelny punkt odniesienia, doimplementowano obsługę natywnej funkcji biblioteki PyTorch (\texttt{F.scaled\_dot\_product\_attention}). Rozwiązanie to automatycznie wykorzystuje zoptymalizowane algorytmy, takie jak \textbf{Flash Attention}, które:
+\begin{itemize}
+    \item Redukują złożoność pamięciową do liniowej $O(N)$ względem długości sekwencji (brak konieczności zapisu pełnej macierzy atencji).
+    \item Wykorzystują kafelkowanie (ang. \textit{tiling}) do optymalizacji dostępu do pamięci podręcznej GPU.
+    \item Oferują wysoki stopień zrównoleglenia, znacznie przyspieszając obliczenia.
+\end{itemize}
+
+\textbf{Uwaga:} W związku z powyższym, we wszystkich opisanych w dalszej części pracy eksperymentach (zarówno w fazie E1, jak i E2), wariant oznaczony jako \textbf{MHA (Standard)} wykorzystuje tę zoptymalizowaną, natywną implementację (Flash Attention). Pozwala to na traktowanie wyników MHA jako silnego, przemysłowego punktu odniesienia dla badanych atencji przybliżonych (LSH i FAVOR).
+
+
+\section{Eksperymenty}
+
+
+\subsection{Eksperyment 1: Optymalizacja finetuningu (BERT Small)}
+
+Pierwsza faza eksperymentów koncentruje się na wyznaczeniu optymalnych hiperparametrów procesu finetuningu dla bazowej architektury \texttt{bert-small}, wykorzystującej standardową atencję MHA. Przetestowano wpływ trzech czynników: liczby zamrożonych warstw enkodera, wartości dropoutu w głowicy klasyfikacyjnej oraz metody agregacji wektorów (pooling). Szczegółową przestrzeń poszukiwań (Grid Search) przedstawiono w Tabeli \ref{tab:grid_e1}.
+
+Ze względu na odmienne właściwości poszczególnych zbiorów danych (m.in. drastyczne różnice w długości sekwencji oraz specyfikę domeny), optymalizacja ta przeprowadzana jest niezależnie (per dataset).
+
+\begin{table}[h]
+    \centering
+    \caption{Przestrzeń poszukiwań hiperparametrów w Eksperymencie E1}
+    \label{tab:grid_e1}
+    \begin{tabular}{ll}
+        \toprule
+        \textbf{Hiperparametr} & \textbf{Testowane wartości} \\
+        \midrule
+        Liczba zamrożonych warstw ($N_{freeze}$) & $\{0, 1, 2\}$ \\
+        Dropout klasyfikatora ($P_{drop}$) & $\{0.1, 0.2\}$ \\
+        Metoda poolingu & $\{\text{CLS token}, \text{Mean pooling}\}$ \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+
+
+
+\subsubsection{Wyniki: IMDB}
+
+
+\begin{figure}[H]
+    \centering
+    \begin{subfigure}[b]{0.32\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{e1_pre_tl.png}
+        \caption{Train Loss Finetuning (IMDB)}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.32\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{asd.png}
+        \caption{Eval Loss Finetuning (IMDB)}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.32\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{abc.png}
+        \caption{F1 Macro Finetuning (IMDB)}
+    \end{subfigure}
+
+    \caption{Wykresy w celach poglądowych, poźniej zostaną zmienione/poprawione}
+    \label{fig:e1_imdb}
+\end{figure}
+
+\begin{table}[H]
+\centering
+\caption{Wyniki F1-macro na zbiorze testowym (zbiór IMDB).}
+\label{tab:grid-expanded}
+\begin{tabular}{@{}ccccc@{}}
+\toprule
+\textbf{Pooling} & $\boldsymbol{N_{freeze}}$ & $\boldsymbol{P_{drop}}$ & \textbf{F1-macro} & \\
+\midrule
+\multirow{6}{*}{CLS} 
+    & 0 & 0.1 & 93.22 & \\
+    & 0 & 0.2 & 93.22 & \\
+    & 1 & 0.1 & 92.95 & \\
+    & 1 & 0.2 & 92.67 & \\
+    & 2 & 0.1 & 92.97 & \\
+    & 2 & 0.2 & 92.93 & \\
+\midrule
+\multirow{6}{*}{Mean} 
+    & 0 & 0.1 & 92.90 & \\
+    & 0 & 0.2 & 92.93 & \\
+    & 1 & 0.1 & 92.99 & \\
+    & 1 & 0.2 & 92.87 & \\
+    & 2 & 0.1 & 92.83 & \\
+    & 2 & 0.2 & 92.85 & \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsubsection{Wyniki: Hyperpartisian}
+Eksperymenty są w trakcie, wyniki zostaną przedstawione w milestone 5
+
+
+\subsubsection{Wyniki: ArXiv}
+Eksperymenty są w trakcie, wyniki zostaną przedstawione w milestone 5
+
+\subsubsection{Wyniki: Podsumowanie}
+
+Wyniki optmalizacji przedstawione w tabeli \ref{tab:e1-results}. Parametry te będą używane przy finetuningu modeli w Eksperymentach 2 (sekcja \ref{sec:E2}) i 3 (sekcja \ref{sec:E3})
+
+
+\begin{table}[H]
+\centering
+\caption{Optymalne hiperparametry warstwy wybrane w fazie E1. (Wyniki dla pozostałych zbiorów w umieścimy w dalszej części badań)}
+\label{tab:e1-results}
+\begin{tabular}{@{}lccc@{}}
+\toprule
+\textbf{Zbiór danych} & $\boldsymbol{N_{freeze}}$ & $\boldsymbol{P_{drop}}$ & \textbf{Pooling} \\
+\midrule
+IMDB          & 2   & 0.2 & Mean \\
+Hyperpartisan & --  & --  & --   \\
+ArXiv         & --  & --  & --   \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+
+\subsection{Eksperyment 2: Ewaluacja atencji przybliżonych (LSH i FAVOR)}
+\label{sec:E2}
+
+W drugiej fazie porównanujemy warianty atencji \textbf{LSH} (Locality Sensitive Hashing) oraz \textbf{FAVOR} (Fast Attention Via positive Orthogonal Random features) zgodnie z tabelą \ref{tab:attention-hyperparams}.
+
+\begin{table}[H]
+\centering
+\caption{Przeszukiwane hiperparametry dla poszczególnych mechanizmów atencji.}
+\label{tab:attention-hyperparams}
+\begin{tabular}{@{}llc@{}}
+\toprule
+\textbf{Atencja} & \textbf{Hiperparametr} & \textbf{Testowane wartości} \\
+\midrule
+\multirow{2}{*}{LSH} 
+    & Liczba haszy ($N_{hashes}$)  & $\{2, 4\}$ \\
+    & Wielkość bloku ($Chunk$)     & $\{64, 128\}$ \\
+\midrule
+FAVOR 
+    & Liczba losowych cech ($N_{features}$) & $\{0.125, 0.25, 0.5, 1.0\} \times d^{q|k|v}$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsubsection{Wyniki: IMDB}
+
+
+
+\begin{table}[H]
+\centering
+\caption{Wyniki F1-macro dla różnych konfiguracji mechanizmów atencji (zbiór IMDB).}
+\label{tab:attention-results}
+\begin{tabular}{@{}cccc@{}}
+\toprule
+\textbf{Atencja} & $\boldsymbol{N_{hashes}}$ & $\boldsymbol{Chunk}$ & \textbf{F1-macro} \\
+\midrule
+\multirow{4}{*}{LSH} 
+    & 2 & 64  &  - \\
+    & 2 & 128 &  - \\
+    & 4 & 64  &  - \\
+    & 4 & 128 &  - \\
+\midrule
+\midrule
+\textbf{Atencja} & \multicolumn{2}{c}{$\boldsymbol{N_{features}}$} & \textbf{F1-macro} \\
+\midrule
+\multirow{4}{*}{FAVOR} 
+    & \multicolumn{2}{c}{$0.125$} & 91.16 \\
+    & \multicolumn{2}{c}{$0.25$}  & 91.20 \\
+    & \multicolumn{2}{c}{$0.5$}   & 91.70 \\
+    & \multicolumn{2}{c}{$1.0$}   & 91.74 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Eksperyment 3: Architektura AutoTinyBERTS1 }
+\label{sec:E3}
+
+W trzeciej fazie przeprowadzimy eksperymenty na architekturze AutoTinyBERTS1 opisanej w artykule \textit{AutoTinyBERT: Automatic Hyper-parameter Optimization for Efficient Pre-trained Language Models}, aby sprawdzić, czy wnioski z tego artykułu przekładają się na inne mechanizmy atencji oraz na inne dane.
+
+
+
+
+
+
+
+\end{document}
