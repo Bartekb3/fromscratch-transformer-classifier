@@ -1,3 +1,4 @@
+from textclf_transformer.models.attention.multihead_lsh_self_attention import LSHAttention
 import sys
 from pathlib import Path
 
@@ -11,8 +12,6 @@ if str(ROOT) not in sys.path:
 SRC_DIR = ROOT / "src"
 if str(SRC_DIR) not in sys.path:
     sys.path.append(str(SRC_DIR))
-
-from textclf_transformer.models.attention.multihead_lsh_self_attention import LSHAttention
 
 
 def _make_identity_lsh_attention(
@@ -70,7 +69,7 @@ def test_lsh_attention_reference_output():
             ]
         ]
     )
-    padding_mask = torch.tensor([[False, False, False, True]])
+    key_padding_mask = torch.tensor([[False, False, False, True]])
     expected = torch.tensor(
         [
             [
@@ -92,7 +91,7 @@ def test_lsh_attention_reference_output():
     with torch.no_grad():
         out = attn(
             x=x,
-            padding_mask=padding_mask,
+            key_padding_mask=key_padding_mask,
         )
 
     assert_close(out, expected, rtol=1e-3, atol=1e-3)
@@ -119,7 +118,7 @@ def test_lsh_attention_masks_cross_bucket_attention():
             ]
         ]
     )
-    padding_mask = torch.zeros((1, 4), dtype=torch.bool)
+    key_padding_mask = torch.zeros((1, 4), dtype=torch.bool)
     fixed_hash = torch.tensor([[[[0, 0, 1, 1]]]])
 
     def fake_random_hash(tensor: torch.Tensor, n_buckets: int) -> torch.Tensor:
@@ -130,14 +129,14 @@ def test_lsh_attention_masks_cross_bucket_attention():
     with torch.no_grad():
         out_unmasked = attn(
             x=x,
-            padding_mask=padding_mask,
+            key_padding_mask=key_padding_mask,
         )
         attn.mask_within_chunks = True
         out_masked = attn(
             x=x,
-            padding_mask=padding_mask,
+            key_padding_mask=key_padding_mask,
         )
-    # token 0 calculates softmax over [-inf,0,5,0]/(dk**0.5) 
+    # token 0 calculates softmax over [-inf,0,5,0]/(dk**0.5)
     # and see mostly token 3 etc.
     expected_unmasked = torch.tensor(
         [
@@ -150,11 +149,11 @@ def test_lsh_attention_masks_cross_bucket_attention():
         ]
     )
     # expected masked
-    # token 0 see only token 1 rest are masked 
+    # token 0 see only token 1 rest are masked
     # (3,4 are from different junk, token 0 doesnt look at itself)
     # so token 0 gets the value of token 1 etc.
     #  so values are switched between tokens
-    expected_masked = torch.tensor( 
+    expected_masked = torch.tensor(
         [
             [
                 [0.0, 1.0],
@@ -171,7 +170,7 @@ def test_lsh_attention_masks_cross_bucket_attention():
 
 # Tests that padded tokens stay zero and final length matches the input.
 def test_lsh_attention_zeroes_padded_positions():
-    """Applies padding_mask and expects padded positions remain exact zeros while valid tokens change, ensuring padding does not contribute but length is preserved."""
+    """Applies key_padding_mask and expects padded positions remain exact zeros while valid tokens change, ensuring padding does not contribute but length is preserved."""
     attn = _make_identity_lsh_attention(
         embed_dim=2,
         num_heads=1,
@@ -191,7 +190,7 @@ def test_lsh_attention_zeroes_padded_positions():
             ]
         ]
     )
-    padding_mask = torch.tensor([[False, False, False, True, True]])
+    key_padding_mask = torch.tensor([[False, False, False, True, True]])
     expected = torch.tensor(
         [
             [
@@ -222,9 +221,9 @@ def test_lsh_attention_zeroes_padded_positions():
     with torch.no_grad():
         out = attn(
             x=x,
-            padding_mask=padding_mask,
+            key_padding_mask=key_padding_mask,
         )
 
     assert out.shape == x.shape
     assert_close(out, expected, rtol=1e-3, atol=1e-3)
-    assert torch.all(out[padding_mask] == 0.0)
+    assert torch.all(out[key_padding_mask] == 0.0)
