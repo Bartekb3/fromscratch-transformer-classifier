@@ -113,7 +113,7 @@ class Transformer(nn.Module):
             for _ in range(num_layers)
         ])
 
-    def _rope(self):
+    def _rope(self, x):
         if self.pos_encoding_params is None:
             self.pos_encoding_params = {}
         _, N, _ = x.shape
@@ -165,7 +165,7 @@ class Transformer(nn.Module):
         )
 
         if self.pos_encoding == "rope":
-            self._rope()
+            self._rope(x)
 
         for layer in self.layers:
             x = layer(
