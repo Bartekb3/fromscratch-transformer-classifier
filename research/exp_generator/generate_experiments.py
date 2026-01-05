@@ -58,27 +58,27 @@ elif exp == 'E3':
             "num_heads": 8,
             "attention_embedding_dim": 512,
         },
-        "autotinys2": {
-            "num_layers": 4,
-            "embedding_dim": 396,
-            "mlp_size": 624,
-            "num_heads": 6,
-            "attention_embedding_dim": 384,
-        },
-        "autotinys3": {
-            "num_layers": 4,
-            "embedding_dim": 432,
-            "mlp_size": 384,
-            "num_heads": 4,
-            "attention_embedding_dim": 256,
-        },
-        "autotinys4": {
-            "num_layers": 3,
-            "embedding_dim": 320,
-            "mlp_size": 608,
-            "num_heads": 4,
-            "attention_embedding_dim": 256,
-        },
+        # "autotinys2": {
+        #     "num_layers": 4,
+        #     "embedding_dim": 396,
+        #     "mlp_size": 624,
+        #     "num_heads": 6,
+        #     "attention_embedding_dim": 384,
+        # },
+        # "autotinys3": {
+        #     "num_layers": 4,
+        #     "embedding_dim": 432,
+        #     "mlp_size": 384,
+        #     "num_heads": 4,
+        #     "attention_embedding_dim": 256,
+        # },
+        # "autotinys4": {
+        #     "num_layers": 3,
+        #     "embedding_dim": 320,
+        #     "mlp_size": 608,
+        #     "num_heads": 4,
+        #     "attention_embedding_dim": 256,
+        # },
     }
 
     ATTENTIONS = ["mha", "lsh", "favor"]
@@ -105,8 +105,7 @@ NUM_LABELS = {
 }
 
 
-# TODO - exp1
-BEST_FT_PARAMS = {  
+BEST_FT_PARAMS = {
     "imdb": {
         "freeze_n_layers": 2,
         "clf_dropout": 0.2,
@@ -115,12 +114,12 @@ BEST_FT_PARAMS = {
     "hyperpartisan": {
         "freeze_n_layers": 1,
         "clf_dropout": 0.1,
-        "pooling": "cls"
+        "pooling": "mean"
     },
     "arxiv": {
         "freeze_n_layers": 1,
-        "clf_dropout": 0.1,
-        "pooling": "cls"
+        "clf_dropout": 0.2,
+        "pooling": "mean"
     },
 }
 
@@ -197,22 +196,24 @@ def generate_exp(mode,
 
         cfg["classification_head"]["num_labels"] = NUM_LABELS[dataset_name]
 
-
-
         if dataset_name == 'imdb':
             epochs = 8
             lr = 3e-5
+            grad_accum_steps = 1
         elif dataset_name == 'arxiv':
-            epochs = 2
-            lr = 1e-5
-        else: #hyperpartisan
             epochs = 4
+            lr = 3e-4
+            grad_accum_steps = 8
+        else:  # hyperpartisan
+            epochs = 7
             lr = 2e-5
+            grad_accum_steps = 8
 
         cfg['training']['learning_rate'] = lr
         cfg['training']['epochs'] = epochs
         cfg['training']['freeze_epochs'] = int(epochs/2)
-        
+        cfg['training']['grad_accum_steps'] = int(grad_accum_steps)
+
     else:
         cfg['training']['batch_size'] = int(32768/max_length)
 
@@ -220,15 +221,17 @@ def generate_exp(mode,
             epochs = 15
         elif dataset_name == 'arxiv':
             epochs = 2
-        else: #hyperpartisan | wikipedia
+        elif dataset_name == 'hyperpartisan':
+            epochs = 6
+        else:  # wikipedia
             epochs = 10
+
         cfg['training']['epochs'] = epochs
 
-        if dataset_name == 'wikipedia': 
+        if dataset_name == 'wikipedia':
             cfg['training']['learning_rate'] = 5e-4
         else:
             cfg['training']['learning_rate'] = 2e-4
-
 
     # DATA
     cfg["data"] = build_data(mode, dataset_name)
@@ -261,7 +264,8 @@ def generate_exp(mode,
     out_cfg = exp_dir / "config.yaml"
     out_cfg.write_text(yaml.dump(cfg, sort_keys=False,
                        allow_unicode=True), encoding="utf-8")
-    
+
+
 def main():
 
     p = product(MODES, ARCHITECTURES, ATTENTIONS, DATASETS)
@@ -272,10 +276,7 @@ def main():
             if mode == "finetuning":
                 if dataset_name == "wikipedia":
                     continue
-                if dataset_name == 'imdb':
-                    POOLING = ['cls', 'mean']
-                else: # arxiv | hyperpartisian
-                    POOLING = ['cls', 'sep_512']
+                POOLING = ['cls', 'mean']
                 GRID = list(product(FREEZE_N_LAYERS, CLF_DROPOUT, POOLING))
                 for grid in GRID:
                     freeze_n_layers, clf_dropout, pooling = grid
@@ -304,7 +305,8 @@ def main():
                 continue
 
             if mode == 'finetuning':
-                freeze_n_layers, clf_dropout, pooling = BEST_FT_PARAMS[dataset_name].values()
+                freeze_n_layers, clf_dropout, pooling = BEST_FT_PARAMS[dataset_name].values(
+                )
             else:
                 freeze_n_layers, clf_dropout, pooling = None, None, None
 
@@ -344,7 +346,8 @@ def main():
                 continue
 
             if mode == 'finetuning':
-                freeze_n_layers, clf_dropout, pooling = BEST_FT_PARAMS[dataset_name].values()
+                freeze_n_layers, clf_dropout, pooling = BEST_FT_PARAMS[dataset_name].values(
+                )
             else:
                 freeze_n_layers, clf_dropout, pooling = None, None, None
 

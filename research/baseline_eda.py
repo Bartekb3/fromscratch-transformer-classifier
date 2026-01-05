@@ -5,7 +5,7 @@ exploratory data analysis (EDA), and fits a simple TF-IDF + logistic regression
 baseline classifier for each dataset.
 
 Usage:
-    python dataset_analysis.py
+    python baseline_eda.py
 
 Optional arguments:
     --max-train-samples N  Limit the number of training samples per dataset.
@@ -81,7 +81,8 @@ def display_examples(texts: Sequence[str], max_examples: int = 2) -> str:
     sample = random.sample(texts, k=min(max_examples, len(texts)))
     wrapped = []
     for idx, example in enumerate(sample, start=1):
-        wrapped.append(f"  Example {idx}:\n{textwrap.indent(textwrap.fill(example, width=88), '    ')}")
+        wrapped.append(
+            f"  Example {idx}:\n{textwrap.indent(textwrap.fill(example, width=88), '    ')}")
     return "\n".join(wrapped)
 
 
@@ -103,13 +104,15 @@ def generate_eda_report(
         stats = compute_length_stats(texts)
 
         reporter.log(f"\nSplit: {split_name} — {num_samples} samples")
-        reporter.log("Label distribution:\n" + format_label_distribution(label_counts, num_samples, label_names))
+        reporter.log("Label distribution:\n" +
+                     format_label_distribution(label_counts, num_samples, label_names))
         reporter.log(
             "Token length stats "
             f"(avg={stats['avg_tokens']:.1f}, std={stats['std_tokens']:.1f}, "
             f"median={stats['median_tokens']:.1f}, min={stats['min_tokens']}, max={stats['max_tokens']})"
         )
-        reporter.log(f"Character length avg={stats['avg_chars']:.1f}, std={stats['std_chars']:.1f}")
+        reporter.log(
+            f"Character length avg={stats['avg_chars']:.1f}, std={stats['std_chars']:.1f}")
         reporter.log("Sample texts:\n" + display_examples(texts))
 
 
@@ -166,7 +169,8 @@ def train_baseline_classifier(
     predictions = pipeline.predict(eval_texts)
     accuracy = accuracy_score(eval_labels, predictions)
     report = classification_report(
-        eval_labels, predictions, target_names=[label_names[i] for i in sorted(label_names)]
+        eval_labels, predictions, target_names=[
+            label_names[i] for i in sorted(label_names)], digits=5
     )
 
     reporter.log(f"{dataset_name} accuracy: {accuracy:.4f}")
@@ -218,7 +222,8 @@ def run_pipeline(
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="EDA and text classification baselines.")
+    parser = argparse.ArgumentParser(
+        description="EDA and text classification baselines.")
     parser.add_argument(
         "--max-train-samples",
         type=int,
@@ -262,23 +267,16 @@ def main() -> None:
         )
 
         run_pipeline(
-            dataset_name="AG News",
-            dataset_id="ag_news",
-            label_names={0: "world", 1: "sports", 2: "business", 3: "sci/tech"},
-            max_train_samples=args.max_train_samples,
-            max_test_samples=args.max_test_samples,
-            reporter=reporter,
-        )
-
-        run_pipeline(
             dataset_name="ArXiv Classification",
             dataset_id="ccdv/arxiv-classification",
-            label_names={0: "math.AC", 1: "cs.CV", 2: "cs.AI", 3: "cs.SY", 4: "math.GR", 5: "cs.CE", 6: "cs.PL", 7: "cs.IT", 8: "cs.DS", 9: "cs.NE", 10: "math.ST"},
+            label_names={0: "math.AC", 1: "cs.CV", 2: "cs.AI", 3: "cs.SY", 4: "math.GR",
+                         5: "cs.CE", 6: "cs.PL", 7: "cs.IT", 8: "cs.DS", 9: "cs.NE", 10: "math.ST"},
             max_train_samples=args.max_train_samples,
             max_test_samples=args.max_test_samples,
             reporter=reporter,
         )
-        reporter.log(f"\nAnalysis complete. Report saved to {args.output_file.resolve()}")
+        reporter.log(
+            f"\nAnalysis complete. Report saved to {args.output_file.resolve()}")
     finally:
         reporter.close()
 

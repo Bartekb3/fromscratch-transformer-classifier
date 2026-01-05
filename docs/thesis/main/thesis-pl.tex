@@ -1,0 +1,3525 @@
+\documentclass[a4paper,11pt,twoside]{report}
+% KOMPILOWAĆ ZA POMOCĄ pdfLaTeXa, PRZEZ XeLaTeXa MOŻE NIE BYĆ POLSKICH ZNAKÓW
+
+% -------------- Kodowanie znaków, język polski -------------
+
+\usepackage[utf8]{inputenc}
+\usepackage[MeX]{polski}
+\usepackage[T1]{fontenc}
+\usepackage[english,polish]{babel}
+
+
+\usepackage{amsmath, amsfonts, amsthm, latexsym} % głównie symbole matematyczne, środowiska twierdzeń
+
+\usepackage[final]{pdfpages} % inputowanie pdfa
+
+% Bibliografia
+\usepackage[backend=biber,style=numeric,sorting=nyt]{biblatex}
+\addbibresource{references.bib}
+
+\usepackage{commath} % różne komendy ułatwiające pisanie wyrażeń matematycznych --- warto zapoznać się z dokumentacją: https://ctan.gust.org.pl/tex-archive/macros/latex/contrib/commath/commath.pdf
+
+\usepackage[hidelinks]{hyperref} % dla hiperlinków, m.in url , odnośników do równań, czy bibliografii --- opcja hideboxes usuwa prostokąty wokół kiperlinków
+
+% ---------------- inne pakiety ------------------
+\usepackage{xcolor}
+\usepackage{booktabs}    % Profesjonalne linie w tabelach (\toprule, \midrule)
+\usepackage{multirow}    % Scalanie wierszy w tabelach
+\usepackage{float}       % Wymuszanie pozycji figur [H]
+\usepackage{tabularx}
+\usepackage{hyperref}  % dla \url
+\usepackage{tikz}
+\usepackage{svg}
+\usetikzlibrary{shapes, positioning, arrows.meta, fit, backgrounds, calc, shadows, shapes.geometric, shadows.blur}
+\definecolor{compBlue}{RGB}{116, 166, 218}
+\definecolor{compBorder}{RGB}{80, 120, 180}
+\definecolor{embColor}{RGB}{209, 229, 240}
+\definecolor{encColor}{RGB}{253, 224, 221}
+\definecolor{headColor}{RGB}{230, 245, 201}
+\definecolor{clsColor}{RGB}{255, 242, 204}
+\definecolor{paramColor}{RGB}{100, 100, 100}
+\definecolor{resColor}{RGB}{0, 0, 139}
+
+\usepackage{listings}
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
+\definecolor{keywordblue}{rgb}{0.0, 0.3, 0.7}
+\definecolor{stringred}{rgb}{0.6, 0.1, 0.1}
+
+\lstdefinestyle{mystyle}{
+    commentstyle=\color{codegray}\itshape,
+    keywordstyle=\color{keywordblue}\bfseries,
+    numberstyle=\tiny\color{codegray},
+    stringstyle=\color{stringred},
+    basicstyle=\ttfamily\footnotesize,
+    breakatwhitespace=false,         
+    breaklines=true,                 
+    captionpos=b,                    
+    keepspaces=true,                 
+    numbers=left,                    
+    numbersep=5pt,                  
+    showspaces=false,                
+    showstringspaces=false,
+    showtabs=false,                  
+    tabsize=2,
+    frame=lines,
+    literate={ą}{{\k{a}}}1
+             {ć}{{\'c}}1
+             {ę}{{\k{e}}}1
+             {ł}{{\l{}}}1
+             {ń}{{\'n}}1
+             {ó}{{\'o}}1
+             {ś}{{\'s}}1
+             {ź}{{\'z}}1
+             {ż}{{\.z}}1
+             {Ą}{{\k{A}}}1
+             {Ć}{{\'C}}1
+             {Ę}{{\k{E}}}1
+             {Ł}{{\L{}}}1
+             {Ń}{{\'N}}1
+             {Ó}{{\'O}}1
+             {Ś}{{\'S}}1
+             {Ź}{{\'Z}}1
+             {Ż}{{\.Z}}1
+}
+\lstset{style=mystyle}
+
+
+
+% ---------------- Marginesy, akapity, interlinia ------------------
+
+\usepackage[inner=20mm, outer=20mm, bindingoffset=10mm, top=25mm, bottom=25mm]{geometry}
+
+
+\linespread{1.5}
+\allowdisplaybreaks
+
+\usepackage{indentfirst} % opcjonalnie; pierwszy akapit z wcięciem
+\setlength{\parindent}{5mm}
+
+
+%--------------------------- ŻYWA PAGINA ------------------------
+
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\fancyhf{}
+% numery stron: lewa do lewego, prawa do prawego 
+\fancyfoot[LE,RO]{\thepage} 
+% prawa pagina: zawartość \rightmark do lewego, wewnętrznego (marginesu) 
+\fancyhead[LO]{\sc \nouppercase{\rightmark}}
+% lewa pagina: zawartość \leftmark do prawego, wewnętrznego (marginesu) 
+\fancyhead[RE]{\sc \leftmark}
+
+\renewcommand{\chaptermark}[1]{
+\markboth{\thechapter.\ #1}{}}
+
+% kreski oddzielające paginy (górną i dolną):
+\renewcommand{\headrulewidth}{0 pt} % 0 - nie ma, 0.5 - jest linia
+
+
+\fancypagestyle{plain}{% to definiuje wygląd pierwszej strony nowego rozdziału - obecnie tylko numeracja
+  \fancyhf{}%
+  \fancyfoot[LE,RO]{\thepage}%
+  
+  \renewcommand{\headrulewidth}{0pt}% Line at the header invisible
+  \renewcommand{\footrulewidth}{0.0pt}
+}
+
+
+
+% ---------------- Nagłówki rozdziałów ---------------------
+
+\usepackage{titlesec}
+\titleformat{\chapter}%[display]
+  {\normalfont\Large \bfseries}
+  {\thechapter.}{1ex}{\Large}
+
+\titleformat{\section}
+  {\normalfont\large\bfseries}
+  {\thesection.}{1ex}{}
+\titlespacing{\section}{0pt}{30pt}{20pt} 
+%\titlespacing{\co}{akapit}{ile przed}{ile po} 
+    
+\titleformat{\subsection}
+  {\normalfont \bfseries}
+  {\thesubsection.}{1ex}{}
+
+
+% ----------------------- Spis treści ---------------------------
+\def\cleardoublepage{\clearpage\if@twoside
+\ifodd\c@page\else\hbox{}\thispagestyle{empty}\newpage
+\if@twocolumn\hbox{}\newpage\fi\fi\fi}
+
+
+% kropki dla chapterów
+\usepackage{etoolbox}
+\makeatletter
+\patchcmd{\l@chapter}
+  {\hfil}
+  {\leaders\hbox{\normalfont$\m@th\mkern \@dotsep mu\hbox{.}\mkern \@dotsep mu$}\hfill}
+  {}{}
+\makeatother
+
+\usepackage{titletoc}
+\makeatletter
+\titlecontents{chapter}% <section-type>
+  [0pt]% <left>
+  {}% <above-code>
+  {\bfseries \thecontentslabel.\quad}% <numbered-entry-format>
+  {\bfseries}% <numberless-entry-format>
+  {\bfseries\leaders\hbox{\normalfont$\m@th\mkern \@dotsep mu\hbox{.}\mkern \@dotsep mu$}\hfill\contentspage}% <filler-page-format>
+
+\titlecontents{section}
+  [1em]
+  {}
+  {\thecontentslabel.\quad}
+  {}
+  {\leaders\hbox{\normalfont$\m@th\mkern \@dotsep mu\hbox{.}\mkern \@dotsep mu$}\hfill\contentspage}
+
+\titlecontents{subsection}
+  [2em]
+  {}
+  {\thecontentslabel.\quad}
+  {}
+  {\leaders\hbox{\normalfont$\m@th\mkern \@dotsep mu\hbox{.}\mkern \@dotsep mu$}\hfill\contentspage}
+\makeatother
+
+
+
+% ---------------------- Spisy tabel i obrazków ----------------------
+
+\renewcommand*{\thetable}{\arabic{chapter}.\arabic{table}}
+\renewcommand*{\thefigure}{\arabic{chapter}.\arabic{figure}}
+%\let\c@table\c@figure % jeśli włączone, numeruje tabele i obrazki razem
+
+
+% --------------------- Definicje, twierdzenia etc. ---------------
+
+
+\makeatletter
+\newtheoremstyle{definition}%    % Name
+{3ex}%                          % Space above
+{3ex}%                          % Space below
+{\upshape}%                      % Body font
+{}%                              % Indent amount
+{\bfseries}%                     % Theorem head font
+{.}%                             % Punctuation after theorem head
+{.5em}%                            % Space after theorem head, ' ', or \newline
+{\thmname{#1}\thmnumber{ #2}\thmnote{ (#3)}}%  % Theorem head spec (can be left empty, meaning `normal')
+\makeatother
+
+% ----------------------------- POLSKI --------------------------------
+
+\theoremstyle{definition}
+\newtheorem{theorem}{Twierdzenie}[chapter]
+\newtheorem{lemma}[theorem]{Lemat}
+\newtheorem{example}[theorem]{Przykład}
+\newtheorem{proposition}[theorem]{Stwierdzenie}
+\newtheorem{corollary}[theorem]{Wniosek}
+\newtheorem{definition}[theorem]{Definicja}
+\newtheorem{remark}[theorem]{Uwaga}
+
+
+
+% ----------------------------- Dowód -----------------------------
+
+\makeatletter
+\renewenvironment{proof}[1][\proofname]
+{\par
+  \vspace{-12pt}% remove the space after the theorem
+  \pushQED{\qed}%
+  \normalfont
+  \topsep0pt \partopsep0pt % no space before
+  \trivlist
+  \item[\hskip\labelsep
+        \sc
+    #1\@addpunct{:}]\ignorespaces
+}
+{%
+  \popQED\endtrivlist\@endpefalse
+  \addvspace{20pt} % some space after
+}
+\renewcommand{\qedhere}{\hfill \qedsymbol}
+\makeatother
+
+
+
+
+
+% -------------------------- POCZĄTEK --------------------------
+
+
+% --------------------- Ustawienia użytkownika ------------------
+
+\newcommand{\tytul}{Implementacja transformera od podstaw oraz
+eksperymenty z wariantami mechanizmu uwagi
+(Performer, Reformer) w zadaniach klasyfikacji tekstu}
+\renewcommand{\title}{Transformer Implementation from Scratch and Experiments
+with Attention Variants (Performer, Reformer) for Text
+Classification Tasks}
+\newcommand{\type}{inżyniers} % magisters, licencjac
+\newcommand{\supervisor}{Dr Robert Małysz}
+
+\newcommand{\TODO}[1]{\textcolor{red}{\textbf{TODO:} #1}}
+
+
+
+% LTeX: language=pl-PL
+
+\begin{document}
+\sloppy
+\includepdf[pages=-]{titlepage-pl}
+
+\null\thispagestyle{empty}\newpage
+
+
+% ---------------------------- ABSTRAKTY -----------------------------
+% W PRACY PO POLSKU, NAPIERW STRESZCZENIE PL, POTEM ABSTRACT EN
+%
+%	Streszczenie powinno zajmować 1 stronę, (czcionką 12)
+%
+
+{\selectlanguage{polish} \fontsize{12}{14} \selectfont
+\begin{abstract}
+
+
+\begin{center}
+\tytul
+\end{center}
+
+Abstract
+
+\noindent \textbf{Słowa kluczowe:} słowo klucz 1, słowo klucz 2, ...
+\end{abstract}
+}
+
+\null\thispagestyle{empty}\newpage
+
+{\selectlanguage{english} \fontsize{12}{14} \selectfont
+\begin{abstract}
+
+\begin{center}
+\title
+\end{center}
+
+Abstract
+
+\noindent \textbf{Keywords:} keyword1, keyword2, ...
+\end{abstract}
+}
+
+\null\thispagestyle{empty}\newpage
+
+% --------------------- OŚWIADCZENIA -----------------------------------------
+% usunięta od 27.01.2022 (Zarządzenie REKTORA)
+%%
+%%%
+%%%	KONIECZNE JEST ZAŁĄCZENIE WYPEŁNIONEGO SKANU OŚWIADCZENIA O AUTORSTWIE PRACY. SKAN (W FORMACIE PDF) NALEŻY UMIEŚCIĆ W FOLDERZE scans I NAZWAĆ GO, NP.  oswiadczenie_o_autorstwie_pracy.pdf (W PRZYPADKU INNEJ NAZWY, LUB UMIESZCZENIA W INNYM FOLDERZE KONIECZNE JEST ADEKWATNE ZMODYFIKOWANIE ŚCIEŻKI W PONIŻSZEJ KOMENDZIE.
+%%%
+%%%	komenda załączająca oświadczenie o autorstwie pracy
+%%%
+%%\includepdf[pages=-]{scans/oswiadczenie-o-autorstwie-pracy}
+%%\null\thispagestyle{empty}\newpage
+%%
+%%% opcjonalne oświadczenie
+%%%
+%%%	komenda załączająca owiadczenie o udzieleniu licencji
+%%%
+%%\includepdf[pages=-]{scans/oswiadczenie-o-udzieleniu-licencji}
+%%%
+%%%	pliki .texowe odpowiadające powyższym plikom PDF znajdują się w folderze 3. declarations
+%%%
+%%\null\thispagestyle{empty}\newpage
+
+% ------------------- 4. Spis treści ---------------------
+\pagenumbering{gobble}
+\tableofcontents
+\thispagestyle{empty}
+
+\newpage % JEŻELI SPIS TREŚCI MA PARZYSTĄ LICZBĘ STRON, ZAKOMENTOWAĆ
+% ALBO JAK KTOŚ WOLI WTEDY DWIE STRONY ODSTĘPU, DODAĆ \null\newpage
+
+% -------------- 5. ZASADNICZA CZĘŚĆ PRACY --------------------
+\null\thispagestyle{empty}\newpage
+\pagestyle{fancy}
+\pagenumbering{arabic}
+\setcounter{page}{11} % JEŻELI Z POWODU DUŻEJ ILOŚCI STRON W SPISIE TREŚCI SIĘ NIE ZGADZA, TRZEBA ZMODYFIKOWAĆ RĘCZNIE
+
+\chapter{Wstęp}
+\markboth{}{Wstęp}
+
+
+\section{Opis problemu i motywacja}
+
+Transformery stały się dominującą architekturą w~przetwarzaniu języka naturalnego (ang. \emph{Natural Language Processing (NLP)}). Od czasu publikacji artykułu \textit{Attention is all you need} \cite{vaswani2017attention} w~2017 roku, modele oparte na~mechanizmie uwagi zastąpiły wcześniejsze podejścia rekurencyjne i~stanowią fundament współczesnych systemów przetwarzania języka naturalnego. Standardowy mechanizm liczenia uwagi (\emph{scaled dot-product attention}) ma złożoność obliczeniową i~pamięciową $O(N^2)$, gdzie N~to długość sekwencji wejściowej. W~praktyce oznacza to ograniczenie długości kontekstu -- oryginalny model BERT \cite{devlin2019bert} operuje na~sekwencjach do~512 tokenów -- oraz wysokie wymagania sprzętowe. Dla~wielu zastosowań (np. analiza dokumentów prawnych, artykułów naukowych, długich rozmów) limit 512 tokenów jest niewystarczający. Jednocześnie nie każda organizacja dysponuje zasobami obliczeniowymi pozwalającymi na~trening i~uruchamianie dużych modeli. Wraz z~rosnącą popularnością transformerów pojawiło się wiele propozycji modyfikacji oryginalnego mechanizmu uwagi. Wśród nich -- Performer \cite{choromanski2021rethinking}, Reformer \cite{Kitaev2020Reformer:}, na~których skupimy się w~naszej pracy -- próbują rozwiązać problem kwadratowej złożoności obliczeniowej standardowej uwagi. Każda z~metod wprowadza inne kompromisy między efektywnością obliczeniową a~jakością reprezentacji. Porównywanie tych mechanizmów w~praktyce jest trudne. Publikacje naukowe często używają różnych architektur bazowych, różnych zbiorów danych, różnych procedur treningowych. Utrudnia to obiektywną ocenę, nie wiadomo, czy różnice w~wynikach wynikają z~samego mechanizmu uwagi, czy z~innych czynników. Celem pracy jest opracowanie modelu typu \emph{encoder-only} transformer (podobnego do~BERT), który przy niezmiennej architekturze bazowej umożliwia wymianę modułu uwagi i~tym samym rzetelne porównanie różnych mechanizmów uwagi. 
+
+
+\section{Inne sposoby przetwarzania języka naturalnego}
+
+\subsubsection{Modele rekurencyjne}
+Przed transformerami w NLP dominowały architektury rekurencyjne:
+
+\textbf{RNN} --- przetwarzają sekwencję token po~tokenie, przekazując ukryty stan między krokami. Problemem są trudności z~uczeniem długoterminowych zależności (zanikający/eksplodujący gradient), brak możliwości równoległego przetwarzania.
+
+\textbf{LSTM i~GRU} --- rozszerzenia RNN z~mechanizmami, które łagodzą problem zanikającego gradientu. Pozwalają modelować dłuższe zależności, ale nadal przetwarzają sekwencję sekwencyjnie.
+
+\subsubsection{Modele oparte na transformerze}
+
+\textbf{Transformer} (2017) \cite{vaswani2017attention} --- całkowite odejście od~rekurencji. Mechanizm uwagi pozwala każdemu tokenowi patrzeć na~wszystkie inne tokeny jednocześnie. Umożliwiay  pełne zrównoleglenie obliczeń na~GPU.
+
+\textbf{BERT} (2019) \cite{devlin2019bert} czyli transformer tylko z~enkoderem (ang. \emph{Encoder-only transformer}) -- trenowany na~dwóch zadaniach: Modelowanie języka z~maskowaniem (ang. \emph{Masked Language Modeling (MLM)}) oraz predykcja następnego zdania (ang. \emph{Next Sentence Prediction (NSP)}) -- stał się standardem dla~zadań rozumienia języka.
+
+\textbf{RoBERTa} (2019) \cite{liu2019roberta} --- zoptymalizowana wersja BERT z~usuniętym zadaniem NSP, dłuższym treningiem i~większymi batchami. Pokazuje, że procedura treningowa ma duży wpływ na~jakość modelu.
+
+\subsubsection{Popularne modyfikacje mechanizmu uwagi i~architektury}
+
+\textbf{Sparse Transformer} (2019) \cite{child2019generating} -- wykorzystuje fakt, że macierz uwagi jest często rzadka. Zamiast obliczać pełną uwagę $O(N^2)$, stosuje wzorce lokalne (ang. \textit{sliding window}) i~uwagę kroczącą (ang. \textit{strided attention}), redukując złożoność do $O(N \sqrt{N})$.
+
+\textbf{BigBird} (2020) \cite{zaheer2020big} -- rozszerza rzadką uwagę o~tokeny globalne, które widzą całą sekwencję, oraz losowe połączenia między tokenami. Dzięki temu zachowuje właściwości uniwersalnego aproksymatora przy liniowej złożoności $O(N)$.
+
+\textbf{Reformer} (2020) \cite{Kitaev2020Reformer:} -- zastępuje uwagę \textit{dot-product} mechanizmem \textit{Locality-Sensitive Hashing} (LSH), grupując podobne wektory i~ograniczając obliczenia do $O(N \log N)$. Wprowadza również odwracalne warstwy resztowe, co drastycznie zmniejsza zużycie pamięci.
+
+\textbf{Longformer} (2020) \cite{beltagy2020longformer} -- łączy lokalną uwagę okienkową z~uwagą globalną dla~wybranych tokenów (np. \texttt{[CLS]}). Umożliwia to procesowanie bardzo długich dokumentów przy liniowej zależności kosztu od~długości sekwencji $O(N)$.
+
+\textbf{Linformer} (2020) \cite{wang2020linformer} -- opiera się na~obserwacji, że macierz uwagi jest niskorzędowa (\textit{low-rank}). Wykorzystuje projekcje liniowe do~zrzutowania wymiaru sekwencji na~mniejszy wymiar, aproksymując uwagę w~czasie $O(N)$.
+
+\textbf{Performer} (2021) \cite{choromanski2021rethinking} -- wykorzystuje estymatory jądrowe i~mechanizm FAVOR+ do aproksymacji mechanizmu uwagi Softmax. Pozwala to na obliczanie uwagi z~liniową złożonością czasową i~pamięciową $O(N)$.
+
+\textbf{cosFormer} (2022) \cite{qin2022cosformer} -- proponuje linearyzację uwagi poprzez zastąpienie funkcji Softmax funkcją bazującą na cosinusie i~ReLU. Umożliwia to obliczenia w~czasie liniowym $O(N)$ oraz wzmacnia lokalne korelacje.
+
+\textbf{FlashAttention} (2022) \cite{dao2022flashattention} -- algorytm optymalizujący wykorzystanie pamięci GPU (IO-aware) poprzez obliczanie uwagi blokami (\textit{tiling}) mieszczącymi się w~szybkiej pamięci SRAM oraz fuzję operacji. Metoda nie aproksymuje uwagi i~zachowuje dokładny wynik, zamiast tego redukuje zużycie pamięci pośredniej (unikając materializacji macierzy uwagi $N \times N$ w~HBM) oraz minimalizuje transfery HBM-SRAM, co przekłada się na~znaczne przyspieszenie i~umożliwia pracę z~dłuższymi sekwencjami w~praktyce.
+
+
+Wraz z~szybkim rozwojem modeli LLM opartych na~transformerze pojawiają się także nowsze warianty uwagi, np. \textbf{Multi-Head Latent Attention} (2024) \cite{liu2024deepseek}, w~której pamięć podręczna KV jest kompresowana do~współdzielonej reprezentacji latentnej (ang. \emph{low-rank KV compression}). Na~podobnych założeniach bazuje \textbf{DeepSeek Sparse Attention} (DSA) (2025) \cite{liu2025deepseek}, gdzie dzięki mechanizmowi indeksowania (ang. \emph{lightning indexer}) oraz selekcji \textit{Top-k} dla~każdego zapytania oblicza się tzw. \emph{core attention} jedynie dla~podzbioru najbardziej istotnych tokenów.
+
+
+
+
+
+
+\section{Wizja systemu}
+
+
+\subsection{Model}
+
+\begin{itemize}
+    \item \textbf{Mechanizmy liczenia uwagi}: System implementuje trzy warianty liczenia uwagi:
+    \begin{itemize}
+        \item Standardowy mechanizm uwagi -- SDPA  (\emph{Scaled Dot-Product Attention})
+        \item FAVOR+ (\emph{Fast Attention Via positive Orthogonal Random features}) z~architektury Performer,
+        \item LSH (\emph{Locality Sensitive Hashing}) z~architektury Reformer.
+    \end{itemize}
+
+    \item \textbf{Rdzeń modelu}: Enkoder typu Transformer, odpowiedzialny za~tworzenie reprezentacji wektorowych tekstu.
+    \item \textbf{Głowice zadaniowe}:
+    \begin{itemize}
+        \item \textbf{Głowica MLM}: Wykorzystywana podczas fazy pretreningu. Służy do~przewidywania zamaskowanych tokenów na~podstawie kontekstu.
+        \item \textbf{Głowica klasyfikacyjna}: Wykorzystywana podczas etapu dostrajania (ang. \emph{finetuning}). Służy do~przewidywania etykiety klasy dla~zadanego tekstu wejściowego.
+    \end{itemize}
+\end{itemize}
+
+\subsection{System treningowy}
+
+\begin{itemize}
+    \item \textbf{Tryby działania}:
+    \begin{enumerate}
+        \item \textbf{Pretrening (MLM)}: Model uczy się ogólnej reprezentacji języka na~dużym korpusie tekstowym w~sposób nienadzorowany.
+        \item \textbf{Dostrajanie (klasyfikacja)}: Dostrajanie wstępnie wytrenowanego modelu do~realizacji zadania klasyfikacji nadzorowanej.
+    \end{enumerate}
+    
+    \item \textbf{Zarządzanie konfiguracją}: Wszystkie hiperparametry modelu oraz ustawienia treningu definiowane są w~plikach formatu \texttt{.yaml}.
+    
+    \item \textbf{Logowanie i śledzenie eksperymentów}:
+    \begin{itemize}
+        \item Integracja z~platformą \textit{Weights \& Biases} do~wizualizacji i~monitorowania metryk.
+        \item Lokalne logowanie metryk do~plików formatu CSV.
+    \end{itemize}
+    
+    \item \textbf{Organizacja eksperymentów}: Każdy eksperyment posiada dedykowany katalog wyjściowy, zawierający:
+    \begin{itemize}
+        \item plik konfiguracyjny,
+        \item zapisane stany modelu (ang. \emph{checkpoints}),
+        \item metryki w~formacie CSV,
+        \item metadane z~artefaktów W\&B.
+    \end{itemize}
+\end{itemize}
+
+\subsection{Dane i tokenizacja}
+\begin{itemize}
+    \item \textbf{Przechowywanie danych}: Dane zapisywane są jako gotowe tensory PyTorch (pliki \texttt{.pt}), zawierające:
+    \begin{itemize}
+        \item stokenizowany tekst (ID tokenów),
+        \item maski uwagi,
+        \item etykiety (dla zadań klasyfikacji).
+    \end{itemize}
+    \item \textbf{Tokenizacja}: Wykorzystanie algorytmu \textit{WordPiece} (używany oryginalnie w~BERT) oraz możliwość:
+    \begin{itemize}
+        \item wykorzystania gotowego słownika z~oryginalnego modelu BERT,
+        \item wytrenowania własnego słownika na~własnym korpusie tekstowym.
+    \end{itemize}
+\end{itemize}
+
+
+
+
+\section{Cel biznesowy}
+
+Celem biznesowym projektu jest opracowanie efektywnego kosztowo rozwiązania do~klasyfikacji tekstu, które umożliwi wykorzystanie nowoczesnych metod przetwarzania języka naturalnego również przy ograniczonych zasobach obliczeniowych. 
+
+Rozwiązanie miałoby zastosowanie w~zadaniach takich jak moderacja treści, analiza opinii klientów, automatyczna kategoryzacja dokumentów oraz innych zadaniach opartych na~klasyfikacji tekstu.
+
+Podstawową hipotezą biznesową projektu jest założenie, że poprzez przemyślany dobór alternatywnych mechanizmów uwagi oraz właściwą konfigurację architektury i~parametrów treningowych można osiągnąć istotną redukcję kosztu rozwiązania przy jednoczesnym zachowaniu jakości predykcji wymaganej w~zastosowaniach produkcyjnych. Całkowity koszt obejmuje zarówno bezpośrednie nakłady finansowe na~infrastrukturę i~energię elektryczną, jak również czas potrzebny na~trening i~inferencję.
+
+
+
+\section{Wymagania funkcjonalne}\label{sec:functional-requirements}
+
+\subsection{WF-1 — Pretrening i dostrajanie}
+\paragraph{Opis} System umożliwia pełny cykl uczenia: pretrening z~maskowanym modelowaniem języka (MLM), a~następnie dostrajanie do~klasyfikacji na~danych docelowych z~wykorzystaniem zapisanego stanu z~pretreningu.
+
+\paragraph{Wejście/Wyjście}
+\begin{itemize}
+  \item \textbf{Wejście:} ztokenizowane korpusy tekstowe, plik YAML z~konfiguracją, tryb \texttt{pretrain} lub \texttt{finetune}.
+  \item \textbf{Wyjście:} kompletne zapisane stany modelu w~formacie \texttt{.pt} obejmujące stan modelu, optymalizatora (ang. \emph{optimizer}), schedulera współczynnika uczenia (ang. \emph{learning rate scheduler}) i~skalera gradientu (ang. \emph{gradient scaler}); metryki (CSV); artefakty i~metadane z~platformy W\&B.
+\end{itemize}
+
+\paragraph{Kryteria akceptacji}
+\begin{enumerate}
+  \item Uruchomienie treningu w~trybie \texttt{pretrain} z~poprawną konfiguracją generuje zapisany stan modelu na~koniec treningu oraz po~każdej epoce zapisuje najlepszy dotąd model (na~podstawie danych walidacyjnych), a~także zapisuje metryki do~CSV i~W\&B.
+  \item Możliwość wznowienia treningu w~trybie \texttt{pretrain} i~\texttt{finetune} z~ostatniego zapisanego stanu bez utraty postępu.
+  \item Uruchomienie treningu w~trybie \texttt{finetune} inicjalizuje głowicę klasyfikacyjną zgodnie (zastępując głowicę klasyfikacyjną).
+
+\end{enumerate}
+
+% =========================================
+\subsection{WF-2 — Wymienne mechanizmy uwagi}
+\paragraph{Opis} Każdy blok enkodera może używać jednego z~mechanizmów: \texttt{scaled\_dot\_product}, \texttt{reformer\_lsh}, \texttt{performer\_favor}. Wybór odbywa się deklaratywnie w~konfiguracji YAML dla~całego modelu.
+
+\paragraph{Wejście/Wyjście}
+\begin{itemize}
+  \item \textbf{Wejście:} rodzaj mechanizmu uwagi; parametry specyficzne (patrz tab.~\ref{tab:params_attention}).
+  \item \textbf{Wyjście:} logi czasu na~krok i~zużycia pamięci dla~wybranego wariantu.
+\end{itemize}
+
+\paragraph{Kryteria akceptacji}
+\begin{enumerate}
+  \item Zmiana mechanizmu uwagi umożliwia trening i inferencję bez modyfikacji kodu bloku enkodera.
+  \item Maska uwagi jest respektowane przez wszystkie trzy warianty uwagi.
+  \item Dla~wejściowego tensora o~wymiarze $[B, N, D]$ każdy wariant zwraca tensor o~wymiarze $[B, N, D]$.
+\end{enumerate}
+
+% =========================================
+\subsection*{WF-3 — Obsługa długich sekwencji}
+\paragraph{Opis} Model przyjmuje wejścia o~dowolnej długości i~wspiera schematy kodowania pozycyjnego (ang. \emph{position encoding}): sinusoidalne, uczone (ang. \emph{learned}) oraz RoPE \cite{SU2024127063}.
+
+\paragraph{Wejście/Wyjście}
+\begin{itemize}
+  \item \textbf{Wejście:} sekwencja tokenów; schemat kodowania pozycyjnego (sinusoidalne, uczone, RoPE).
+  \item \textbf{Wyjście:} zastosowane kodowanie pozycyjne na~wektorach osadzeń (ang. \emph{embedding vector}).
+\end{itemize}
+
+\paragraph{Kryteria akceptacji}
+\begin{enumerate}
+  \item Poprawne działanie kodowania pozycyjnego zweryfikowane testami jednostkowymi.
+  \item Wszystkie rodzaje kodowania pozycyjnego działają ze~wszystkimi mechanizmami uwagi.
+\end{enumerate}
+
+\subsection{WF-4 — Pipeline danych}
+\paragraph{Opis} Dane są przetwarzane przez~tokenizację \textit{WordPiece} ze~wsparciem tokenów specjalnych i~dynamicznego przygotowania partii (przycinanie w~\texttt{DataLoader}); implementacja MLM stosuje reguły BERT.
+
+\paragraph{Wejście/Wyjście}
+\begin{itemize}
+  \item \textbf{Wejście:} surowe rekordy tekstowe, słownik \textit{WordPiece}.
+  \item \textbf{Wyjście:} tensory: identyfikatory tokenów, maska uwagi, etykiety (\texttt{input\_ids}, \texttt{attention\_mask}, \texttt{labels}).
+\end{itemize}
+
+\paragraph{Kryteria akceptacji}
+\begin{enumerate}
+  \item Przycinanie paddingu do~najdłuższej sekwencji w~partii redukuje średnie zużycie pamięci względem statycznego paddingu.
+  \item Maskowanie w~zadaniu MLM jest zgodne z~zasadą stosowaną w~BERT: 15\% tokenów jest wybieranych do~zamaskowania, z~czego 80\% zastępuje się tokenem \texttt{[MASK]}, 10\% losowym tokenem, a~10\% pozostawia bez zmian.
+\end{enumerate}
+
+\subsection{WF-5 — Konfiguracja}
+
+\paragraph{Opis}
+System wykorzystuje generator konfiguracji treningu, który z~szablonu pliku konfiguracyjnego tworzy katalog \texttt{pretrain/<nazwa\_eksperymentu>/} lub \texttt{finetune/<nazwa\_eksperymentu>/} -- w~zależności od~trybu treningu -- z~plikiem \texttt{config.yaml} gotowym do~ewentualnych modyfikacji.
+
+\paragraph{Wejście/Wyjście}
+\begin{itemize}
+  \item \textbf{Wejście (tryb \texttt{pretrain}):} nazwa eksperymentu \texttt{pretrain} (\texttt{<PRE\_EXP>}).
+  \item \textbf{Wejście (tryb \texttt{finetune}):} nazwa eksperymentu \texttt{finetune} (\texttt{<FT\_EXP>}) oraz nazwa eksperymentu \texttt{pretrain} (\texttt{<PRE\_EXP>}).
+  \item \textbf{Wyjście (tryb \texttt{pretrain}):} katalog \texttt{pretrain/<PRE\_EXP>/\{config.yaml, checkpoints/, metrics/, wandb/ \}}.
+  \item \textbf{Wyjście (tryb \texttt{finetune}):} katalog \texttt{finetune/<FT\_EXP>/\{config.yaml, checkpoints/, metrics/, wandb/\}}.
+\end{itemize}
+
+\paragraph{Kryteria akceptacji}
+\begin{enumerate}
+  \item Uruchomienie generatora dla~trybu \texttt{pretrain} z~nazwą eksperymentu \texttt{<PRE\_EXP>}, tworzy odpowiedni katalog oraz plik konfiguracyjny na~podstawie szablonu.
+  \item Uruchomienie generatora dla~trybu \texttt{finetune} z~nazwą eksperymentu \texttt{<FT\_EXP>} oraz z~nazwą eksperymentu \texttt{<PRE\_EXP>} tworzy odpowiedni katalog, plik konfiguracyjny na~podstawie szablonu oraz dziedziczy architekturę z~\texttt{pretrain/<PRE\_EXP>/config.yaml}.
+\end{enumerate}
+
+
+
+
+\section{Wymagania niefunkcjonalne}\label{sec:non-functional-requirements}
+
+
+\subsection{WNF-1 — Wydajność i efektywność zasobowa}
+System powinien umożliwiać uruchomienie i~trenowanie modeli w~środowisku \textit{Google Colab} przy zachowaniu niższych czasów treningu i~zużycia pamięci dla alternatywnych wariantów uwagi względem klasycznego SDPA.  
+\begin{itemize}
+  \item \textbf{Środowisko GPU (Colab):} docelowo \emph{A100 40\,GB} lub \emph{T4 16\,GB}. 
+  \item \textbf{Wymóg kosztowy (Performer):} \(time/epoch \leq \) (SDPA $-20\%$) lub \(\max VRAM \leq \) (SDPA $-30\%$) przy spadku jakości $\leq 1$ pp macro-F1.
+  \item \textbf{Wymóg kosztowy (Reformer):} \(time/epoch \leq \) (SDPA $-15\%$) lub \(\max VRAM \leq \) (SDPA $-25\%$) przy spadku jakości $\leq 1$ pp macro-F1.
+  \item \textbf{Techniki optymalizacji:} Wykorzystywana jest mieszana precyzja pozwalająca wykonywać obliczenia w~precyzji $FP16/BF16$ oraz techniki optymalizacji pamięci, takie jak akumulacja gradientów.
+\end{itemize}
+
+\subsection{WNF-2 — Jakość, niezawodność i testowalność}
+System powinien zapewniać stabilność i~jakość procesu uczenia. Szczegóły dotyczące danych treningowych oraz wykonywanych eksperymentów znajdują się w~sek.~\ref{sec:experiments}.
+\begin{itemize}
+  \item \textbf{Jakość (SDPA):} macro-F1 \(\geq\) (TF-IDF+LogReg $+5$ pp), mierzone na~wszystkich docelowych zbiorach danych, parametry jak w~konfiguracji.
+  \item \textbf{Jakość (Performer):} macro-F1 \(\geq\) (TF-IDF+LogReg $+3$ pp) oraz w~odległości \(\leq 1\) pp od~SDPA przy~tej samej konfiguracji -- na~wszystkich docelowych zbiorach danych.
+  \item \textbf{Jakość (Reformer):} macro-F1 \(\geq\) (TF-IDF+LogReg $+3$ pp) oraz w~odległości \(\leq 1\) pp od~SDPA przy~tej samej konfiguracji -- na~wszystkich docelowych zbiorach danych.
+  \item \textbf{Stabilność:} brak NaN/OOM; 3 różne seedy; rozrzut macro-F1 (max-min) \(\leq 1\) pp. Testowane dla \texttt{seq\_len=512}.
+  \item \textbf{Testy komponentów:} Kluczowe komponenty (uwaga, maski, pozycjonowanie, tokenizacja) są objęte testami.
+\end{itemize}
+
+\subsection{WNF-3 — Użyteczność i utrzymanie}
+System powinien być łatwy w~konfiguracji, rozbudowie i~ponownym uruchomieniu eksperymentów.  
+\begin{itemize}
+  \item \textbf{Dokumentacja:} Dokumentacja opisuje sposób przygotowania danych, pretreningu i~dostrajania modelu krok po~kroku.
+  \item \textbf{Struktura katalogów:} Struktura katalogów i~plików jest spójna i~hierarchiczna.
+  \item \textbf{Zgodność z~PEP-8:} Kod jest zgodny ze~standardem PEP~8, a~kluczowe moduły są opatrzone docstringami.
+  \item \textbf{Wersjonowanie:} Kod źródłowy jest wersjonowany w~systemie kontroli wersji (Git).
+  \item \textbf{Rozszerzalność mechanizmów uwagi:} Architektura systemu umożliwia dodawanie nowych wariantów mechanizmów uwagi bez ingerencji w~istniejące komponenty.
+  \item \textbf{Konfiguracja YAML:} Wszystkie parametry konfiguracyjne są definiowane w~pliku YAML.
+\end{itemize}
+
+
+\subsection{WNF-4 — Przenośność i kompatybilność}
+System powinien być zaprojektowany z~myślą o~łatwym przenoszeniu między różnymi środowiskami obliczeniowymi oraz zapewnieniu kompatybilności z~nowoczesnymi wersjami bibliotek.
+\begin{itemize}
+  \item \textbf{Kompatybilność Python:} Kod działa w~środowiskach Python~$\geq$~3.12 oraz z~frameworkiem PyTorch~$\geq$~2.2 (CUDA 11.8/12.x).
+  \item \textbf{Biblioteki:} Wykorzystywane są standardowe biblioteki do~uczenia maszynowego.
+\end{itemize}
+
+\subsection{WNF-5 — Monitorowanie i obserwowalność}
+System powinien oferować rozbudowane mechanizmy monitorowania metryk oraz wersjonowania stanów modelu.
+\begin{itemize}
+  \item \textbf{Monitorowanie W\&B:} Wszystkie metryki (loss, accuracy, F1, zużycie pamięci GPU, czas/epoka) są logowane do~\textit{Weights \& Biases}.
+  \item \textbf{Monitorowanie CSV:} Możliwość zapisu wszystkich metryk do~pliku CSV.
+  \item \textbf{Wznowienia treningu:} System udostępnia możliwość wznowienia treningu z~dowolnego zapisanego stanu.
+\end{itemize}
+
+
+
+
+\section{Analiza ryzyka}
+
+Celem analizy jest szybkie wykrywanie i~ograniczanie ryzyk poprzez jasne wskaźniki (triggery) oraz gotowe działania (mitigacje).
+Poniżej przedstawiamy listę kluczowych ryzyk, ich triggery, proponowane mitigacje oraz plany awaryjne. W~tab.~\ref{tab:risk-analysis} przedstawiamy prawdopodobieństwo, wpływ oraz właścicieli poszczególnych ryzyk.
+
+\begin{enumerate}
+  \item \textbf{Ograniczenia zasobów (VRAM).}
+  \emph{Trigger:} OOM przy~$N\!\geq\!16k$. 
+  \emph{Mitigacje:} FP16/BF16, akumulacja gradientów, dynamiczny padding. 
+  \emph{Plan awaryjny:} skrócenie $N$, redukcja warstw/głów.
+
+  \item \textbf{Niestabilność treningu (NaN, eksplodujące gradienty).}
+  \emph{Trigger:} NaN/Inf w~stracie lub gradientach.  
+  \emph{Mitigacje:} przycinanie gradientów, dłuższy warmup, inny współczynnik uczenia, skalowanie straty. 
+  \emph{Plan awaryjny:} zmiana optymalizatora, hiperparametrów treningu.
+
+  \item \textbf{Błędy implementacyjne (Reformer/Performer).}
+  \emph{Trigger:} niezgodność kształtów/masek, rozjazd wyników na danych syntetycznych. 
+  \emph{Mitigacje:} testy jednostkowe i funkcjonalne, asercje. 
+  \emph{Plan awaryjny:} Ponowna implementacja/naprawa wadliwego komponentu, po czym re-walidacja testami.
+
+\item \textbf{Niedopasowanie tokenizera do~domeny.}
+  \emph{Trigger:} wysoki udział tokenów \texttt{[UNK]}. 
+  \emph{Mitigacje:} dostrojenie słownika (dołączenie domenowych subwordów). 
+  \emph{Plan awaryjny:} pełny trening tokenizera z~uwzględnieniem danych domenowych.
+
+\item \textbf{Zależności zewnętrzne (Colab, W\&B) i~awarie sesji.}
+  \emph{Trigger:} przerwane sesje, brak artefaktów/logów. 
+  \emph{Mitigacje:} zapisy lokalne, zapis stanu modelu co epokę. 
+  \emph{Plan awaryjny:} uruchomienia lokalne i~późniejsza synchronizacja z~W\&B.
+
+\end{enumerate}
+
+
+\begin{table}[t!]
+\centering
+\caption{Analiza ryzyk projektu z przypisanymi właścicielami i oceną prawdopodobieństwa oraz wpływu}
+\label{tab:risk-analysis}
+\smallskip
+\small
+\begin{tabular}{@{}llll@{}}
+\toprule
+\textbf{Ryzyko} & \textbf{Prawd.} & \textbf{Wpływ} & \textbf{Właściciel} \\
+\midrule
+OOM przy długich sekwencjach 
+    & Średnie & Wysoki 
+    & Bartłomiej Borycki \\
+\midrule
+Niestabilność treningu 
+    & Średnie & Wysoki 
+    & Bartłomiej Borycki \\
+\midrule
+Błędy w~Reformer/Performer 
+    & Średnie & Średni 
+    & Michał Iwaniuk \\
+\midrule
+Niedopasowanie tokenizera 
+    & Niskie & Średni 
+    & Michał Iwaniuk \\
+\midrule
+Awaria sesji Colab / W\&B 
+    & Niskie & Średni 
+    & Michał Iwaniuk \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+
+\section{Podział pracy}
+Podział prac jest przedstawiony w tab.~\ref{tab:podzial-prac}.
+
+
+\begin{table}[t!]
+\centering
+\caption{Podział prac i odpowiedzialności w projekcie.}
+\label{tab:podzial-prac}
+\small
+\smallskip
+\begin{tabular}{@{}lp{11cm}@{}}
+\toprule
+\textbf{Osoba odpowiedzialna} & \textbf{Zakres prac} \\
+\midrule
+Bartłomiej Borycki 
+    & Implementacja mechanizmu uwagi Performer FAVOR+, implementacja klasy transformera (z~gotowego enkodera), implementacja skryptów treningowych i~skryptów do~generowania katalogów z~eksperymentami. \\
+\midrule
+Michał Iwaniuk 
+    & Implementacja mechanizmów uwagi SDPA i~Reformer LSH, implementacja enkodera, testy jednostkowe. \\
+\midrule
+Wspólne 
+    & Wybór zbiorów danych, preprocessing danych, trenowanie modeli, analiza i~wizualizacja wyników, przygotowanie dokumentacji. \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+\chapter{Architektura systemu}\label{sec:system-arch}
+
+System został zaprojektowany w~sposób modułowy. Kod źródłowy projektu podzielony jest na logiczne komponenty odpowiadające poszczególnym funkcjonalnościom. W~katalogu \texttt{src} znajdują się kluczowe moduły: \texttt{models} zawierający implementację architektury transformera (szczegóły w~sek.~\ref{sec:transformer-arch}), \texttt{tokenizer} odpowiedzialny za tokenizację tekstu (sek.~\ref{sec:tokenizer}), \texttt{training} zawierający logikę pętli treningowej (sek.~\ref{sec:training-loop}) oraz \texttt{logger} służący do monitorowania przebiegu eksperymentów (sek.~\ref{sec:logger}). Konfiguracje poszczególnych uruchomień oraz skrypty generujące znajdują się w~katalogu \texttt{experiments} (sek.~\ref{sec:experiments_config}). Aplikacja jest uruchamiana poprzez skrypt \texttt{train.py} (szczegóły w~sek.~\ref{sec:training-script}).
+
+Diagram komponentów systemu i~relacje między modułami przedstawiono na rys.~\ref{fig:system-components}.
+
+\begin{figure}[t!]
+    \centering
+    \resizebox{!}{0.7\textwidth}{
+    \begin{tikzpicture}[
+        node distance=1.5cm and 2cm,
+        font=\sffamily\footnotesize,
+        % Styl dla niebieskich pudełek (komponentów)
+        component/.style={
+            rectangle,
+            draw=compBorder,
+            fill=compBlue,
+            text=white,
+            align=center,
+            rounded corners=2pt,
+            minimum width=3.5cm,
+            minimum height=1.5cm,
+            inner sep=6pt,
+            drop shadow
+        },
+        % Styl dla etykiet na strzałkach
+        arrowlabel/.style={
+            fill=white,
+            text=black,
+            font=\tiny,
+            inner sep=2pt,
+            align=center
+        },
+        % Styl strzałek
+        line/.style={
+            draw=black!70,
+            -Latex,
+            thick
+        }
+    ]
+
+        % ---------------- WĘZŁY (NODES) ----------------
+
+        % 1. Główny komponent w środku (Trainer)
+        \node[component] at (-3.5,0) (trainer) {
+            \textbf{\guillemotleft component\guillemotright}\\
+            \textbf{\large Trainer}\\
+            \textit{[Modul]}\\
+            \scriptsize Zarządza procesem trenowania\\ \scriptsize oraz zapisywaniem stanów modelu.
+        };
+
+        % 2. Tokenizer (na prawo)
+        \node[component, right=3.5cm of trainer] (tokenizer) {
+            \textbf{\guillemotleft component\guillemotright}\\
+            \textbf{\large Tokenizer}\\
+            \textit{[Modul]}\\
+            \scriptsize Odpowiada za tokenizację tekstu \\ oraz maskowanie MLM.
+        };
+
+        % 3. Model Transformer (na dole po lewej)
+        \node[component, below=2cm of trainer] (model) {
+            \textbf{\guillemotleft component\guillemotright}\\
+            \textbf{\large Model Transformer}\\
+            \textit{[Modul]}\\
+            \scriptsize Główny model typu BERT.
+        };
+
+        % 4. Logger (na dole po prawej)
+        \node[component, below right=2cm and 2cm of trainer] (logger) {
+            \textbf{\guillemotleft component\guillemotright}\\
+            \textbf{\large Logger}\\
+            \textit{[Modul]}\\
+            \scriptsize Śledzenie eksperymentów\\
+            \scriptsize (metryki csv, logi wandb).
+        };
+
+        % ---------------- KONTENER (RAMKA) ----------------
+        
+        % Rysujemy przerywaną ramkę dookoła komponentów biblioteki
+        \begin{scope}[on background layer]
+            \node[
+                draw=black!60,
+                dashed,
+                inner sep=20pt,
+                fit=(trainer) (tokenizer) (model) (logger),
+                rounded corners,
+                label={[anchor=south, align=center]north:{\textbf{Biblioteka podstawowa} \\ \scriptsize [CONTAINER]}}
+            ] (container) {};
+        \end{scope}
+
+        % 5. Aplikacja CLI (na zewnątrz, góra-lewo)
+        % Pozycjonujemy względem kontenera
+        \node[component, above=1cm of container.north west, anchor=south west, fill=compBlue!90!black] (cli) {
+            \textbf{\guillemotleft container\guillemotright}\\
+            \textbf{\large Aplikacja CLI}\\
+            \textit{[Python, train.py]}\\
+            \scriptsize Punkt wejścia procesu trenowania.
+        };
+
+        % ---------------- POŁĄCZENIA (EDGES) ----------------
+
+        % CLI -> Trainer
+        \draw[line] (cli.south) -- (trainer.north) 
+            node[midway, arrowlabel] {Inicjuje trenowanie};
+
+        % Trainer -> Tokenizer
+        \draw[line] (trainer.east) -- (tokenizer.west) 
+            node[midway, arrowlabel, yshift=0.2cm] {Używa do~maskowania MLM};
+
+        % Trainer -> Model Transformer
+        \draw[line] (trainer.south) -- (model.north) 
+            node[midway, arrowlabel] {Trenuje};
+
+        % Trainer -> Logger
+        \draw[line] (trainer.south east) -- (logger.north west) 
+            node[midway, arrowlabel, yshift=0.2cm, xshift=0.5cm] {Wywołuje logowanie metryk};
+
+    \end{tikzpicture}
+    }
+    \caption{Diagram komponentów systemu.}
+    \label{fig:system-components}
+\end{figure}
+
+
+
+\section{Architektura transformera}\label{sec:transformer-arch}
+
+Niniejszy rozdział opisuje szczegóły implementacyjne architektury transformera. Architektura wspiera zarówno zadania klasyfikacji tekstu, jak i~modelowania języka (MLM). Fundamentem systemu jest klasa bazowa \texttt{Transformer}. Klasy \texttt{TransformerForSequenceClassification} oraz \texttt{TransformerForMaskedLM} -- dostosowują model do konkretnych zadań uczenia. Struktura klas oraz ich zależności zostały przedstawione na diagramie klas (rys.~\ref{fig:class-diagram}). Szczegóły architektury wykorzystanej w~dalszej części pracy w~eksperymentach znajdują się w~sek.~\ref{sec:experiments-arch}.
+
+\begin{figure}[t!]
+    \centering
+    \includegraphics[width=0.8\textwidth]{static/class-diagram-arch.pdf}
+    \caption{Diagram klas implementacji transformera. Przedstawiono wyłącznie pola będące modułami PyTorch (dziedziczące po \texttt{nn.Module}). Wszystkie argumenty funkcji bez jawnie określonego typu są typu \texttt{torch.Tensor}, a wszystkie funkcje zwracają obiekt typu \texttt{torch.Tensor}.}
+    \label{fig:class-diagram}
+\end{figure}
+
+
+
+\subsection{Klasa transformera}
+
+\subsubsection{Model bazowy}
+
+Kluczowe parametry konfiguracyjne klasy \texttt{Transformer}, definiujące jej strukturę i zachowanie, obejmują:
+\begin{itemize}
+    \item \texttt{vocab\_size}: Określa rozmiar słownika tokenów.
+    \item \texttt{max\_sequence\_length}: Określa maksymalną długość sekwencji wejściowej.
+    \item \texttt{embedding\_dim} ($D$): Główny wymiar ukryty modelu (rozmiar wektorów osadzeń).
+    \item \texttt{attention\_embedding\_dim}: Opcjonalny wymiar projekcji wewnątrz mechanizmu uwagi. Pozwala na sterowanie rozmiarem reprezentacji $Q/K/V$ niezależnie od głównego wymiaru $D$ (nie jest to standard w~BERT).
+    \item \texttt{num\_layers}: Liczba warstw enkodera.
+    \item \texttt{num\_heads}: Liczba równoległych głów uwagi w każdym bloku.
+    \item \texttt{mlp\_size}: Rozmiar warstwy ukrytej w sieciach Feed-Forward wewnątrz bloków enkodera.
+    \item \texttt{attention\_kind}: Wybór konkretnej implementacji mechanizmu uwagi (np. \texttt{"mha"}, \texttt{"lsh"}, \texttt{"favor"}).
+    \item \texttt{pos\_encoding}: Wybór strategii kodowania pozycji (\texttt{"learned"}, \texttt{"sinusoidal"} lub \texttt{"rope"}).
+\end{itemize}
+
+Metoda \texttt{forward\_base} realizuje przetworzenie indeksów tokenów na reprezentacje wektorowe za pomocą modułu \texttt{TransformerTextEmbeddings}, a~następnie iteracyjne przekształcanie ich przez listę modułów \texttt{TransformerEncoderBlock}. Z~metody forward\_base zwracana jest sekwencja stanów ukrytych o~wymiarach $(B, N, D)$, gdzie $B$ to rozmiar wsadu (ang. \emph{batch size}), a~N~to długość sekwencji. Klasa Transformer zarządza również dynamicznym obliczaniem i~buforowaniem wartości trygonometrycznych dla kodowania pozycyjnego RoPE, jeśli zostało ono wybrane w~konfiguracji (funkcja \texttt{build\_rope\_cache}).
+
+\subsubsection{Model do klasyfikacji sekwencji}
+Klasa \texttt{TransformerForSequenceClassification} rozszerza model bazowy o funkcjonalność niezbędną do klasyfikacji całych tekstów. W konstruktorze inicjalizowany jest dodatkowy moduł -- \texttt{pooler} -- (zależny od parametru \texttt{pooling}, np. \texttt{"cls"}, \texttt{"mean"}) oraz głowica klasyfikująca \texttt{SequenceClassificationHead}.
+
+Przepływ danych w metodzie \texttt{forward} obejmuje:
+\begin{enumerate}
+    \item Wywołanie metody \texttt{forward\_base} z~klasy nadrzędnej w~celu uzyskania kontekstowych reprezentacji tokenów.
+    \item Redukcję sekwencji do pojedynczego wektora $(B, D)$ za pomocą wybranego mechanizmu agregacji (ang. \emph{pooling}).
+    \item Przeprowadzenie transformacji wektora poprzez głowicę klasyfikacyjną, składającą się opcjonalnie z~warstwy gęstej (z~funkcją aktywacji Tanh) oraz warstwy \texttt{Dropout} aplikowanej przed finalną warstwą liniową.
+\end{enumerate}
+Model zwraca słownik zawierający zarówno pełną sekwencję wyjściową, wektor po agregacji i~logity klasyfikacji $(B, \texttt{num\_labels})$.
+
+\subsubsection{Model do modelowania języka z maskowaniem (MLM)}
+Klasa \texttt{TransformerForMaskedLM} jest dedykowana do uczenia nienadzorowanego. Rozszerza klasę \texttt{Transformer} o~głowicę \texttt{MaskedLanguageModelingHead}, która przekształca wyjścia z~enkodera z~powrotem na przestrzeń słownika $(B, N, V)$.
+
+Implementacja obsługuje parametr \texttt{tie\_mlm\_weights}. Gdy jest on ustawiony na \texttt{True}, wagi warstwy wyjściowej (dekodującej) są współdzielone z~wagami macierzy osadzeń wejściowych, co jest standardową praktyką w~modelach typu BERT.
+
+
+
+
+
+
+
+\subsection{Mechanizmy uwagi}\label{sec:arch-attention}
+
+Moduł uwagi został zaprojektowany w sposób umożliwiający wymianę mechanizmu uwagi bez ingerencji w pozostałą część architektury. Wybór konkretnej implementacji następuje na podstawie parametru konfiguracyjnego \texttt{attention\_kind}.
+
+\subsubsection{Abstrakcja bloku uwagi}
+Klasa \texttt{AttentionBlock} stanowi standardową implementację dla mechanizmu uwagi. Odpowiada ona za:
+\begin{itemize}
+    \item Inicjalizację konkretnej klasy obliczeniowej (\texttt{MultiheadSelfAttention}, \texttt{FavorAttention}, \texttt{LSHAttention}) na podstawie konfiguracji.
+    \item Zastosowanie połączenia rezydualnego (ang. \emph{residual connection}).
+    \item Normalizację wyjścia za pomocą warstwy \texttt{LayerNorm}.
+\end{itemize}
+Blok ten jest następnie wykorzystywany wewnątrz klasy \texttt{TransformerEncoderBlock}, gdzie występuje przed siecią Feed-Forward (MLP).
+
+\subsubsection{Standardowa uwaga wielogłowicowa (ang. \emph{Multihead Self Attention (MHA)})}
+Implementacja \texttt{MultiheadSelfAttention} realizuje klasyczny wzór liczenia uwagi (Scaled Dot-Product Attention (SDPA)) o~złożoności obliczeniowej $O(N^2)$.
+Proces przetwarzania dla sekwencji wejściowej $X \in \mathbb{R}^{B \times N \times D}$ przebiega następująco:
+\begin{enumerate}
+    \item Projekcja wejścia na macierze zapytań ($Q$), kluczy ($K$) i wartości ($V$).
+    \item Podział na $H$ głowic o wymiarze $d_k = D/H$.
+    \item Opcjonalne zaaplikowanie rotacyjnego kodowania pozycyjnego (RoPE) na tensory $Q$ i $K$.
+    \item Obliczenie macierzy uwagi oraz zastosowanie (opcjonalnie) warstwy \texttt{Dropout} na macierz prawdopodobieństw:
+    \begin{equation}
+        \text{Attention}(Q, K, V) = \text{Dropout}\left(\text{Softmax}\left(\frac{QK^T}{\sqrt{d_k}}\right)\right)V.
+    \end{equation}
+    \item Scalenie wyników ze wszystkich głowic, projekcja liniowa wyjścia oraz zastosowanie warstwy \texttt{Dropout} na wyniku projekcji.
+\end{enumerate}
+
+\subsubsection{Uwaga FAVOR+ (Performer)}
+Klasa \texttt{FAVORAttention} implementuje mechanizm uwagi o~złożoności czasowej oraz pamięciowej $O(N)$. Zamiast obliczać pełną macierz uwagi $N \times N$, model aproksymuje funkcję Softmax wykorzystując mapowania cech $\phi(\cdot)$ (szczegóły w~sek.~\ref{sec:favor}).
+
+Kluczowe elementy implementacji:
+\begin{itemize}
+    \item \textbf{Ortogonalne cechy losowe (ang. \emph{Gaussian Orthogonal Random Features (GORF)}):} Metoda \texttt{\_gaussian\_orthogonal\_random\_matrix} generuje macierz ortogonalnych wektorów losowych.
+    
+    \item \textbf{Mapowanie cech ($\phi$):} Metoda \texttt{\_phi} dysponuje wariantem transformacji 
+    \texttt{phi\_kind}:
+    \begin{itemize}
+        \item \texttt{"exp"} (metoda \texttt{\_phi\_exp}): Realizuje cechy losowe aproksymujące jądro $\exp(x^\top y)$. Wykorzystuje bufor \texttt{\_omega} przechowujący macierz projekcji losowych 
+    \end{itemize}
+
+    \item \textbf{Liczenie uwagi:} Obliczane w metodzie \texttt{forward}:
+    \begin{equation}
+        \hat{V} = D^{-1} (Q' (K'^T V)),
+    \end{equation}
+    gdzie $Q' = \phi(Q)$, $K' = \phi(K)$, a~D~to czynnik normalizacyjny obliczany jako $D = Q' (K'^T \mathbf{1}_N)$.
+    
+    \item \textbf{Zarządzanie cechami losowymi:} Implementacja umożliwia przelosowywanie cech w trakcie treningu (parametr \texttt{redraw\_interval}), co realizuje metoda \texttt{\_maybe\_redraw\_features}. Pozwala to na uniknięcie przeuczenia się modelu do konkretnego zestawu projekcji losowych.
+\end{itemize}
+
+\subsubsection{Uwaga LSH (Reformer)}
+Klasa \texttt{LSHAttention} implementuje uwagę o~złożoności czasowej $O(N \log N)$ oraz pamięciowej $O(N)$. Mechanizm ten zakłada, że tokeny powinny zwracać uwagę głównie na tokeny do nich podobne (znajdujące się w~tym samym tzw. kubełku haszującym).
+
+Kluczowe elementy implementacji (szczegóły w sek.~\ref{sec:lsh}):
+\begin{itemize}
+    \item \textbf{Współdzielone Q i K:} Zgodnie z architekturą Reformera, projekcje zapytań i kluczy są tożsame ($Q=K$), co jest wymagane do poprawnego działania LSH.
+    \item \textbf{Haszowanie i sortowanie:} Wykorzystanie losowych projekcji w celu przypisania tokenów do kubełków. Następnie sekwencja jest sortowana według numeru kubełka z zachowaniem kolejności tokenów wewnątrz kubełka.
+    \item \textbf{Przetwarzanie w~blokach (Chunking):} Posortowana sekwencja jest dzielona na bloki o~stałej długości (\texttt{chunk\_size}). Uwaga jest obliczana wewnątrz każdego bloku, przy czym każdy blok ma dostęp do kontekstu bloku poprzedniego i~następnego (co pozwala uwzględnić elementy tego samego kubełka, które w~wyniku podziału trafiły do sąsiednich bloków).
+    \item \textbf{Maskowanie:} Zaimplementowano możliwość wyboru czy tokeny mają zwracać uwagę na tokeny z~tego samego bloku ale innego kubełka (\texttt{mask\_within\_chunks}).
+\end{itemize}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+\subsection{Blok Enkodera i MLP}
+
+
+\subsubsection{Sieć Feed-Forward (MLPBlock)}
+Klasa \texttt{MLPBlock} implementuje sieć neuronową typu Feed-Forward -- warstwa ta składa się z sekwencji:
+\begin{enumerate}
+    \item Projekcja liniowa z wymiaru modelu $D$ na wymiar pośredni \texttt{mlp\_size}.
+    \item Funkcja aktywacji GELU.
+    \item Projekcja liniowa powrotna na wymiar $D$.
+    \item Warstwa \texttt{Dropout}.
+\end{enumerate}
+
+
+\subsubsection{Pełny blok enkodera (TransformerEncoderBlock)}
+Klasa \texttt{TransformerEncoderBlock} agreguje pojedynczą warstwę modelu. W jej skład wchodzą sekwencyjnie: blok uwagi (\texttt{AttentionBlock}) oraz blok MLP (\texttt{MLPBlock}).
+W metodzie \texttt{forward}:
+\begin{enumerate}
+    \item Dane wejściowe trafiają najpierw do bloku uwagi (z uwzględnieniem maskowania i ewentualnego kodowania RoPE).
+    \item Wyjście bloku uwagi jest przekazywane do bloku MLP.
+\end{enumerate}
+
+\subsection{Kodowanie pozycyjne} \label{sec:pos-encoding}
+
+Implementacja w klasie \texttt{TransformerTextEmbeddings} wspiera trzy podejścia do kodowania pozycyjnego, sterowane parametrem konfiguracyjnym \texttt{pos\_encoding}.
+
+\subsubsection{TransformerTextEmbeddings}
+Klasa ta łączy:
+\begin{itemize}
+    \item \textbf{Osadzenia słów (Word Embeddings):} Standardowa warstwa \texttt{nn.Embedding} mapująca identyfikatory tokenów na wektory o wymiarze $D$.
+    \item \textbf{Osadzenia typów (Token Type Embeddings):} Opcjonalne osadzenia segmentów (np. dla par zdań).
+    \item \textbf{Informację pozycyjną:} W przypadku kodowania absolutnego (sinusoidalne lub wyuczone), wektory pozycji są dodawane bezpośrednio do sumy osadzeń słów i typów.
+\end{itemize}
+Finalna reprezentacja jest normalizowana (\texttt{LayerNorm}) oraz poddawana regularyzacji (\texttt{Dropout}).
+
+\subsubsection{Kodowanie sinusoidalne (Sinusoidal)}
+Klasa \texttt{SinusoidalPositionalEncoding} implementuje deterministyczny schemat kodowania absolutnego, zgodny z pierwotną architekturą Transformera \cite{vaswani2017attention}. Wektory pozycyjne nie są parametrami uczonymi, lecz są wyliczane na podstawie funkcji trygonometrycznych o geometrycznie wzrastających długościach fal.
+
+Dla pozycji $p$ i wymiaru $i$, wartość kodowania wynosi:
+\begin{equation}
+PE_{(p, 2i)} = \sin\left(\frac{p}{10000^{2i/D}}\right) 
+\end{equation}
+\begin{equation}
+PE_{(p, 2i+1)} = \cos\left(\frac{p}{10000^{2i/D}}\right)
+\end{equation}
+Implementacja wykorzystuje bufor \texttt{register\_buffer}, co pozwala na wyliczenie macierzy raz przy inicjalizacji modelu i dynamiczne jej krojenie (ang. \emph{slicing}) w zależności od długości aktualnej sekwencji.
+
+
+
+\subsubsection{Wyuczone kodowanie absolutne}
+Klasa \texttt{LearnedPositionalEmbedding} realizuje podejście, w którym pozycje są modelowane jako wyuczalne wektory wagi macierzy o wymiarach $(N_{max}, D)$. Każdemu indeksowi pozycji przyporządkowany jest unikalny wektor, który jest optymalizowany w procesie uczenia.
+
+\subsubsection{Rotacyjne kodowanie pozycyjne -- (ang. \emph{Rotary Positional Embeddings (RoPE)} \cite{SU2024127063})}\label{sec:rope}
+
+W przypadku wyboru kodowania \texttt{rope} klasa \texttt{TransformerTextEmbeddings} nie dodaje addytywnych wektorów pozycyjnych do wejścia.
+Zamiast tego informacja pozycyjna jest aplikowana bezpośrednio na tensory zapytań \(Q\) i kluczy \(K\) wewnątrz mechanizmu uwagi.
+
+Implementacja w module \texttt{rotary.py} składa się z dwóch etapów:
+\begin{enumerate}
+    \item \textbf{Prekomputacja (\texttt{build\_rope\_cache}):}
+    dla wymiaru głowy \(D\) (parzystego) definiuje się częstotliwości
+    \begin{equation}
+        \theta_i = 10000^{-\,\frac{2i}{D}},
+        \qquad i=0,1,\dots,\frac{D}{2}-1.
+    \end{equation}
+    Następnie dla każdej pozycji \(m\) (oraz każdego \(i\)) wylicza się tablice:
+    \begin{equation}
+        \cos(m\theta_i), \qquad \sin(m\theta_i).
+    \end{equation}
+
+    \item \textbf{Aplikacja (\texttt{apply\_rope}):}
+    dla każdej pary kolejnych składowych \((x_{m,2i}, x_{m,2i+1})\) na pozycji \(m\)
+    wykonuje się rotację o kąt \(m\theta_i\):
+    \begin{equation}
+    \begin{pmatrix}
+        x'_{m,2i} \\[2pt]
+        x'_{m,2i+1}
+    \end{pmatrix}
+    =
+    \begin{pmatrix}
+        \cos(m\theta_i) & -\sin(m\theta_i) \\
+        \sin(m\theta_i) & \cos(m\theta_i)
+    \end{pmatrix}
+    \begin{pmatrix}
+        x_{m,2i} \\[2pt]
+        x_{m,2i+1}
+    \end{pmatrix}.
+    \end{equation}
+\end{enumerate}
+
+
+Implementacja funkcji \texttt{\_rotate\_half} realizuje operację
+\(\mathrm{rotate\_half}([x_{2i},x_{2i+1}]) = [-x_{2i+1}, x_{2i}]\) w sposób zwektoryzowany,
+co umożliwia obliczenie rotacji bez jawnego tworzenia macierzy rotacji dla każdego tokenu:
+\begin{equation}
+\mathbf{x}' = \mathbf{x}\odot \cos(m\boldsymbol{\theta}) \;+\; \mathrm{rotate\_half}(\mathbf{x})\odot \sin(m\boldsymbol{\theta}),
+\end{equation}
+gdzie \(\odot\) oznacza mnożenie element po elemencie, a \(\boldsymbol{\theta}=(\theta_0,\dots,\theta_{\frac{D}{2}-1})\).
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+\subsection{Warstwa agregacji (ang. \emph{Pooling})}
+
+Celem warstwy agregacji jest redukcja wymiarowości sekwencji stanów ukrytych $H \in \mathbb{R}^{B \times N \times D}$ (zwracanej przez enkoder) do pojedynczego wektora reprezentacji całego tekstu $h_{pooled} \in \mathbb{R}^{B \times D}$. Zaimplementowano pięć strategii agregacji:
+
+
+
+\subsubsection{Agregacja tokenu CLS (ClsTokenPooling)}
+Standardowa strategia dla modeli typu BERT. Jako reprezentację całej sekwencji przyjmuje się stan ukryty pierwszego tokenu specjalnego (zwyczajowo \texttt{[CLS]}).
+\begin{equation}
+(h_{\text{pooled}})_{b,d} = H_{b,1,d}.
+\end{equation}
+\subsubsection{Agregacja uśredniająca (MeanPooling)}
+Strategia polegająca na obliczeniu średniej arytmetycznej z wektorów wszystkich tokenów w sekwencji:
+
+\begin{equation}
+(h_{\text{pooled}})_{b,d}
+=
+\frac{1}{N}
+\sum_{i=1}^{N} H_{b,i,d}.
+\end{equation}
+
+\subsubsection{Pooling maksymalny i minimalny (MaxPooling, MinPooling)}
+Strategie wybierające odpowiednio największą lub najmniejszą wartość cechy wzdłuż wymiaru sekwencji.
+
+\begin{equation}
+(h_{\max})_{b,d} = \max_{1\le i\le N} H_{b,i,d},
+\qquad
+(h_{\min})_{b,d} = \min_{1\le i\le N} H_{b,i,d}.
+\end{equation}
+
+\subsubsection{Agregacja uśredniająca z krokiem (MeanStepPooling)}
+Niestandardowa strategia agregacji, polega na obliczaniu średniej arytmetycznej z podzbioru wektorów sekwencji wybieranych w stałych odstępach (parametr \texttt{step} ($s$)). 
+
+
+\begin{equation}
+(h_{\text{pooled}})_{b,d}
+=
+\frac{1}{K}
+\sum_{k=0}^{K-1} H_{b,\,1+ks,\,d},
+\qquad
+K = \max\{K' \in \mathbb{N} : 1+(K'-1)s \le N\}.
+\end{equation}
+
+
+
+
+
+
+
+
+
+\subsection{Głowice zadaniowe}
+
+Głowice zadaniowe to końcowe moduły sieci, które transformują reprezentację wektorową (sekwencyjną lub zagregowaną) na przestrzeń wyjściową specyficzną dla danego zadania.
+
+
+
+\subsubsection{Głowica do klasyfikacji sekwencji (SequenceClassificationHead)}
+Moduł ten przyjmuje na wejściu wektor po agregacji $(B, D)$ i rzutuje go na przestrzeń etykiet $(B, \text{num\_labels})$. Implementacja wspiera różne architektury warstwy pośredniej (ang. \emph{pooler}), sterowane parametrem \texttt{pooler\_type}:
+
+\begin{itemize}
+    \item \textbf{Styl BERT:} Składa się z warstwy gęstej zachowującej wymiarowość, funkcji aktywacji Tanh, a następnie warstwy wyjściowej:
+    \begin{equation}
+    y = \text{Linear}(\text{Dropout}(\text{Tanh}(\text{Linear}(x)))).
+    \end{equation}
+    \item \textbf{Styl RoBERTa:} Charakteryzuje się dodatkowym Dropoutem na wejściu:
+    \begin{equation}
+    y = \text{Linear}(\text{Dropout}(\text{Tanh}(\text{Linear}(\text{Dropout}(x))))).
+    \end{equation}
+    \item \textbf{Brak (None):} Bezpośrednie rzutowanie wejścia na wyjście (z uwzględnieniem Dropoutu).
+\end{itemize}
+
+\subsubsection{Głowica modelowania języka (MaskedLanguageModelingHead)}
+Głowica służąca do pretreningu w zadaniu MLM. Przyjmuje ona sekwencję stanów ukrytych $(B, N, D)$ i zwraca predykcje dla każdego tokenu w słowniku $(B, N, V)$. Struktura głowicy jest zgodna ze standardem BERT i obejmuje:
+\begin{enumerate}
+    \item Transformację nieliniową: Warstwa liniowa $\to$ funkcja aktywacji GELU $\to$ normalizacja LayerNorm.
+    \item Warstwę dekodującą -- projekcja na rozmiar słownika.
+\end{enumerate}
+
+
+
+\section{Tokenizer}\label{sec:tokenizer}
+
+W~projekcie wykorzystano algorytm tokenizacji WordPiece (używany w~oryginalnym modelu BERT \cite{devlin2019bert}). Aby uprościć procesy trenowania i~przetwarzania danych, zaimplementowano klasę pomocniczą \texttt{WordPieceTokenizerWrapper} -- stanowi ona nakładkę na bibliotekę \texttt{tokenizers} oraz \texttt{transformers} Hugging Face. Jej głównym celem jest abstrakcja operacji niskopoziomowych i~dostarczenie API do przygotowywania danych dla modelu.
+
+\subsection{Trening i inicjalizacja}
+Wrapper umożliwia wytrenowanie nowego tokenizera na korpusie tekstowym użytkownika za pomocą metody \texttt{train}. Wykorzystuje ona implementację \texttt{BertWordPieceTokenizer}, która buduje słownik podjednostek (subwords) o zadanej wielkości (domyślnie $30 000$ tokenów).
+Kluczowe etapy procesu to:
+\begin{itemize}
+    \item Normalizacja tekstu (zamiana na małe litery, usuwanie akcentów).
+    \item Trening algorytmu WordPiece na wskazanych plikach tekstowych.
+    \item Konfiguracja post-processora, który automatycznie dodaje specjalne \texttt{[CLS]} na początku i~\texttt{[SEP]} na końcu sekwencji (w~zależności od konfiguracji).
+    \item Zapisanie wytrenowanego modelu (plik \texttt{vocab.txt} oraz \texttt{tokenizer.json}) we wskazanym katalogu.
+\end{itemize}
+
+
+Metoda \texttt{load} inicjalizuje szybki tokenizer \texttt{BertTokenizerFast}, wykorzystując plik \texttt{vocab.txt} (oraz ewentualnie \texttt{tokenizer.json}).  Na potrzeby eksperymentów będziemy korzystać z gotowego \texttt{vocab.txt} używanego w~oryginalnym BERT.
+
+\subsection{Przetwarzanie danych (Encoding)}
+Klasa oferuje metody \texttt{encode} oraz \texttt{encode\_pandas} służące do konwersji surowego tekstu na tensory wejściowe modelu (z wykorzystaniem \texttt{BertTokenizerFast}). Proces ten obejmuje:
+\begin{enumerate}
+    \item Normalizację tekstu.
+    \item Tokenizację tekstu.
+    \item Obcięcie sekwencji do maksymalnej długości (\texttt{max\_length}) lub dopełnienie (padding) tokenem \texttt{[PAD]} do tej długości.
+    \item Generowanie maski uwagi (\texttt{attention\_mask}) na podstawie tokenów paddingu (\texttt{[PAD]}), gdzie wartość \texttt{True} oznacza tokeny paddingu, które powinny być ignorowane przez mechanizm uwagi.
+    \item Opcjonalne dołączenie etykiet.
+\end{enumerate}
+Wynikiem jest obiekt \texttt{TensorDataset} gotowy do użycia z \texttt{DataLoader} w~PyTorch, zawierający tensory \texttt{input\_ids}, \texttt{attention\_mask} oraz opcjonalnie \texttt{labels}.
+
+\subsection{Maskowanie dla MLM}
+Dla potrzeb uczenia nienadzorowanego (Masked Language Modeling), zaimplementowaliśmy metodę \texttt{mask\_input\_for\_mlm}. Realizuje ona maskowanie tokenów zgodnie z~następującym schematem:
+\begin{itemize}
+    \item Wybór tokenów do predykcji (domyślnie $15\%$).
+    \item Zastąpienie $80\%$ wybranych tokenów tokenem specjalnym \texttt{[MASK]} (domyślnie $80\%$).
+    \item Zastąpienie wybranych tokenów losowym słowem ze słownika (domyślnie $10\%$).
+    \item Pozostawienie tokenów bez zmian (domyślnie $10\%$).
+\end{itemize}
+Metoda zwraca zarówno zamaskowane wejścia, jak i~etykiety, gdzie tokeny niepodlegające predykcji oznaczone są wartością -100, co jest domyślną wartością dla funkcji kosztu \texttt{CrossEntropyLoss} w PyTorch.
+
+
+\subsection{Dostępne metody i ich argumenty}
+
+\paragraph{Metoda \texttt{train}}
+Służy do utworzenia nowego słownika.
+\begin{itemize}
+    \item \texttt{tokenizer\_dir: \texttt{str}}: Katalog wyjściowy dla plików tokenizera.
+    \item \texttt{input: \texttt{str | list[str]}}: Ścieżka do pliku tekstowego lub lista ścieżek do plików treningowych.
+    \item \texttt{vocab\_size: \texttt{int}}: Rozmiar słownika.
+    \item \texttt{min\_frequency: \texttt{int}}: Minimalna częstość występowania tokenu.
+\end{itemize}
+
+\paragraph{Metoda \texttt{encode}}
+Konwertuje dane tekstowe na \texttt{TensorDataset} (lub słownik). Wymaga uprzedniego załadowania tokenizera metodą \texttt{load()}.
+\begin{itemize}
+    \item \texttt{input: \texttt{str | list[str]}}: Może przyjmować:
+    \begin{itemize}
+        \item Ścieżkę do pliku tekstowego (lub listę ścieżek) --- każda linia traktowana jest jako osobny przykład.
+        \item Listę surowych tekstów (stringów).
+    \end{itemize}
+    \item \texttt{max\_length: \texttt{int}}: Maksymalna długość sekwencji (dopełnianie/przycinanie).
+    \item \texttt{labels: \texttt{list[int]}} (opcjonalnie): Lista etykiet dla przykładów.
+\end{itemize}
+
+\paragraph{Metoda \texttt{encode\_pandas}}
+Alternatywa dla \texttt{encode}, pozwalająca na bezpośrednie użycie ramki danych \texttt{pandas}.
+\begin{itemize}
+    \item \texttt{df: \texttt{pandas.DataFrame}}: Ramka danych.
+    \item \texttt{text\_col: \texttt{str}}: Nazwa kolumny z tekstem.
+    \item \texttt{max\_length: \texttt{int}}: Maksymalna długość sekwencji.
+    \item \texttt{label\_col: \texttt{str}} (opcjonalnie): Nazwa kolumny z etykietami.
+\end{itemize}
+
+\paragraph{Metoda \texttt{mask\_input\_for\_mlm}}
+Pomocnicza funkcja do generowania masek dla zadania MLM. Przyjmuje \texttt{input\_ids} i~zwraca parę \texttt{(input\_ids\_masked, labels)}.
+
+
+
+\section{Trening}\label{sec:system-training}
+
+System treningowy został zaprojektowany w architekturze składającej się ze skryptu treningowego (punkt wejścia (ang. \emph{entry point})) oraz klasy \texttt{TrainingLoop}, która zawiera właściwą logikę optymalizacji modelu.
+
+\subsection{Punkt wejścia i inicjalizacja środowiska}\label{sec:training-script}
+Główny skrypt uruchomieniowy odpowiada za zestawienie eksperymentu na podstawie argumentów CLI (nazwa eksperymentu, tryb pracy) oraz pliku konfiguracyjnego (zdefiniowanego wewnątrz katalogu eksperymentu). Proces ten przebiega wieloetapowo:
+
+\begin{enumerate}
+    \item \textbf{Determinizm:} Na początku ustawiane są ziarna generatorów liczb losowych (Python, NumPy, PyTorch) za pomocą funkcji \texttt{set\_global\_seed}.
+    \item \textbf{Fabryka modelu:} W zależności od trybu pracy (\texttt{mode}), skrypt instancjonuje odpowiednią klasę modelu:
+    \begin{itemize}
+    \item \textbf{Pretrening (MLM):} Inicjalizowany jest \texttt{TransformerForMaskedLM}.
+        \item \textbf{Finetuning:} Inicjalizowany jest \texttt{TransformerForSequenceClassification}. W~tym przypadku następuje etap transferu wiedzy -- wagi są ładowane z~zapisanego stanu pretreningowego z~flagą \texttt{strict=False}. Pozwala to na załadowanie parametrów enkodera przy jednoczesnym zignorowaniu braku dopasowania w~warstwach wyjściowych (zastąpienie głowicy MLM nową głowicą klasyfikacyjną).
+    \end{itemize}
+    \item \textbf{Przygotowanie danych:} Tworzone są instancje \texttt{DataLoader} dla zbiorów treningowych, walidacyjnych i~testowych (jeśli zbiory walidacyjne i~testowe są zdefiniowane w~konfiguracji).
+\end{enumerate}
+
+
+\subsection{Logika pętli treningowej (TrainingLoop)}\label{sec:training-loop}
+Zainicjowany model przekazywany jest do obiektu \texttt{TrainingLoop}, który zarządza pełnym procesem uczenia. Przepływ danych w pojedynczym kroku treningowym (\texttt{\_train\_step}) obejmuje: przygotowanie wsadu (ang. \emph{batch}), przejście w przód (ang. \emph{forward pass}) w kontekście \texttt{torch.amp.autocast}, obliczenie funkcji straty, propagację wsteczną, a następnie -- warunkowo -- aktualizację wag (w zależności od kroku akumulacji gradientów). Implementacja integruje zestaw współcześnie stosowanych technik optymalizacyjnych:
+
+\begin{itemize}
+    \item \textbf{Automatyczna mieszana precyzja (AMP):} Zastosowanie \texttt{torch.amp.autocast} umożliwia wykonywanie wybranych operacji w~obniżonej precyzji (FP16 lub BF16), co zwykle przyspiesza trening oraz redukuje zużycie pamięci GPU, przy zachowaniu jakości uczenia.
+    \item \textbf{Skalowanie gradientów (Gradient scaling):} Wykorzystywany jest \texttt{torch.amp.GradScaler}, który dynamicznie skaluje wartości funkcji straty (a~tym samym gradienty) w~celu poprawy stabilności numerycznej. Przed wykonaniem operacji takich jak przycinanie normy gradientów, gradienty są odskalowywane (tj. po \texttt{scaler.unscale\_}).
+    \item \textbf{Akumulacja gradientów:} Parametr \texttt{grad\_accum\_steps} pozwala uniezależnić rozmiar wsadu od ograniczeń pamięci GPU poprzez akumulowanie gradientów z~wielu mikro-kroków przed wykonaniem kroku optymalizatora. W~praktyce odpowiada to trenowaniu z~większym wsadem przy rzadszej aktualizacji wag.
+    \item \textbf{Stabilizacja (clipping):} Przycinanie normy gradientów (\texttt{clip\_grad\_norm\_}).
+    \item \textbf{Harmonogram uczenia (scheduler):} Zastosowano harmonogram współczynnika uczenia typu \emph{cosine decay} z~liniową fazą rozgrzewki (ang. \emph{warmup}). Krok harmonogramu wykonywany jest spójnie z~krokami optymalizatora, tj. w~momentach faktycznej aktualizacji wag.
+\end{itemize}
+
+
+
+\subsection{Dynamiczna optymalizacja wsadów} \label{sec:dynamic-batch-size}
+W celu zwiększenia wydajności przetwarzania sekwencji o zróżnicowanej długości, zaimplementowano funkcję kolacjonującą (ang. \emph{collate function}) \texttt{make\_collate\_trim\_to\_longest}.
+Funkcja ta analizuje każdy wsad i~przycina tensory wejściowe do długości najdłuższego rzeczywistego przykładu w danym wsadzie. Pozwala to na ograniczenie zbędnych obliczeń na tokenach \texttt{[PAD]}.
+
+\subsection{Zarządzanie stanem (ang. \emph{Checkpointing})} \label{sec:checkpointing1}
+Skrypt obsługuje zarządzanie stanem treningu:
+\begin{itemize}
+    \item \textbf{Zapis najlepszego modelu:} Po każdej epoce następuje walidacja. Jeśli strata walidacyjna jest najniższa w~historii, zapisywany jest pełny stan eksperymentu (model, optymalizator, harmonogram uczenia, skaler) do pliku \texttt{best-model.ckpt}.
+    \item \textbf{Zapis modelu końcowego:} Po zakończeniu procesu uczenia zapisywane są finalne wagi modelu.
+    \item \textbf{Wznawianie (Resume):} W~trybie pretreningu możliwa jest kontynuacja przerwanego procesu uczenia. Funkcja \texttt{load\_resume} odtwarza stan wszystkich komponentów, pozwalając na płynne wznowienie obliczeń od ostatniego zapisanego kroku.
+    \item \textbf{Transfer wiedzy:} System umożliwia inicjalizację treningu (np. na nowym zbiorze danych) z~wykorzystaniem jedynie wag modelu z~wybranego zapisanego stanu -- wczytywane są jedynie parametry modelu, a~pozostałe obiekty pomocnicze są inicjalizowane od nowa.
+\end{itemize}
+
+
+
+\section{Logowanie przebiegu treningu}\label{sec:logger}
+
+Monitorowanie postępów eksperymentów realizowane jest przez hybrydowy system logowania zaimplementowany w~klasie \texttt{WandbRun}. Rozwiązanie to integruje chmurową platformę analityczną \textit{Weights \& Biases} (W\&B) z~lokalnym archiwizowaniem danych w~formacie CSV, zapewniając redundancję i~łatwy dostęp do wyników.
+
+
+
+\subsection{Integracja z \textit{Weights \& Biases}}
+Głównym kanałem zbierania metryk jest serwis W\&B, w~którym agregowane są wyniki wszystkich eksperymentów.
+Klasa \texttt{WandbRun} odpowiada za:
+\begin{itemize}
+    \item \textbf{Inicjalizację sesji:} Metoda \texttt{\_\_init\_\_} nawiązuje połączenie z~projektem określonym w~konfiguracji, przesyłając jednocześnie pełny słownik parametrów (\texttt{config}).
+    \item \textbf{Organizacja metryk:} Metody \texttt{log\_train} oraz \texttt{log\_eval} automatycznie dodają odpowiednie prefiksy (\texttt{train/}, \texttt{eval/}, \texttt{test/}) do nazw zmiennych w~celu grupowania wykresów.
+\end{itemize}
+
+
+\subsection{Lokalny zapis danych (CSV)}
+W przypadku ustawienia w~konfiguracji \texttt{log\_metrics\_csv = True} logger utrzymuje lokalną kopię wszystkich metryk. Dane są zapisywane w plikach:
+\begin{itemize}
+    \item \texttt{metrics/train/metrics.csv} dla danych treningowych.
+    \item \texttt{metrics/eval/metrics.csv} dla danych walidacyjnych i~testowych.
+\end{itemize}
+
+\subsection{Ewaluacja i metryki}
+\begin{itemize}
+    \item \textbf{Dla MLM:} Podstawową metryką jest perpleksja (ang. \emph{perplexity}), wyliczana jako $e^{\text{loss}}$, gdzie $\text{loss}$ to średnia strata entropii krzyżowej na token.
+    \item \textbf{Dla klasyfikacji:} Wykorzystano bibliotekę \texttt{scikit-learn} do obliczania szerokiego spektrum metryk:
+    \begin{itemize}
+        \item \textbf{Metryki ogólne:} \textit{Accuracy}, \textit{Balanced Accuracy}.
+        \item \textbf{Metryki uśrednione:} \textit{Precision}, \textit{Recall} oraz \textit{F1 Score} w~wariantach \textit{macro} i~\textit{micro}.
+        \item \textbf{Pewność modelu:} Średnia pewność predykcji (ang. \emph{confidence}) oraz entropia rozkładu prawdopodobieństwa.
+        \item \textbf{Top-K:} Dokładność dla $k \in \{3, 5\}$ (ang. \emph{Top-k Accuracy}).
+        \item \textbf{Metryki per klasa:} Dla zadań z~niewielką liczbą etykiet (domyślnie $\le 10$) raportowane są precyzja, czułość i~F1 dla każdej klasy osobno.
+    \end{itemize}
+    \item \textbf{Metryki systemowe:} Platforma Weights \& Biases automatycznie gromadzi dane o utylizacji zasobów sprzętowych (GPU, CPU, pamięć), czasie trwania operacji oraz liczbie wykonanych kroków i epok.
+\end{itemize}
+
+
+
+
+
+\section{Konfiguracja eksperymentów}\label{sec:experiments_config}
+
+Zarządzanie eksperymentami odbywa się poprzez dedykowane skrypty pomocnicze, które automatyzują tworzenie struktury plików konfiguracyjnych wewnątrz katalogów eksperymentów (\texttt{experiments/pretraining} oraz \texttt{experiments/finetuning}). Każde uruchomienie jest w pełni determinowane przez plik \texttt{config.yaml} znajdujący się w katalogu danego eksperymentu. Tabele~\ref{tab:params_general}, \ref{tab:params_architecture}, \ref{tab:params_attention}, \ref{tab:params_training}, \ref{tab:params_heads}, \ref{tab:params_data} prezentują szczegółowy opis wszystkich dostępnych parametrów konfiguracyjnych wraz z przykładowymi wartościami domyślnymi.
+
+\subsection{Inicjalizacja pretreningu}
+Tworzenie nowego eksperymentu pretreningowego obsługiwane jest przez skrypt \texttt{generate\_pretraining\_experiment.py}. Proces ten przebiega według następującego schematu:
+\begin{enumerate}
+    \item \textbf{Walidacja i struktura:} Skrypt weryfikuje unikalność nazwy eksperymentu w katalogu \texttt{experiments/pretraining}, a następnie tworzy dedykowany katalog wraz z plikiem \texttt{config.yaml}.
+    \item \textbf{Szablony i wznawianie:}
+    \begin{itemize}
+        \item W trybie standardowym: wczytywany jest szablon bazowy z \texttt{config\_templates/pretraining.yaml} i zapisywany do pliku \texttt{config.yaml}.
+        \item W trybie wznawiania (flaga \texttt{-rp}): konfiguracja jest kopiowana z istniejącego eksperymentu, a sekcja \texttt{training.resume} jest automatycznie uzupełniana o ścieżkę do ostatniego zapisanego stanu (\texttt{model.ckpt}).
+    \end{itemize}
+\end{enumerate}
+
+\subsection{Inicjalizacja dostrajania}
+Skrypt \texttt{generate\_finetuning\_experiment.py} realizuje logikę niezbędną do przeprowadzenia douczania modelu na zadaniu docelowym. 
+
+Aby zapewnić kompatybilność, skrypt wymaga podania nazwy istniejącego eksperymentu pretreningowego (flaga \texttt{-p}) oraz nazwy nowego eksperymentu dostrajania (flaga \texttt{-f}). Procedura generowania konfiguracji obejmuje:
+\begin{enumerate}
+    \item \textbf{Weryfikację źródła:} Sprawdzenie istnienia katalogu i pliku konfiguracyjnego eksperymentu bazowego.
+    \item \textbf{Kopiowanie architektury:} Sekcje \texttt{architecture} oraz \texttt{tokenizer} są kopiowane bezpośrednio z konfiguracji pretreningu do konfiguracji dostrajania (\emph{finetuningu}). Gwarantuje to, że model docelowy będzie miał identyczne wymiary jak model bazowy, co jest warunkiem koniecznym poprawnego załadowania wag. Reszta parametrów jest kopiowana z szablonu \texttt{config\_templates/finetuning.yaml}.
+    \item \textbf{Relatywizację ścieżek:} Ścieżka do eksperymentu bazowego jest zapisywana w sekcji \texttt{pretrained\_experiment.path} jako ścieżka względna względem korzenia projektu. Umożliwia to skryptowi treningowemu zlokalizowanie zapisanego stanu pretreningowego modelu bazowego.
+\end{enumerate}
+
+
+
+
+
+
+\begin{table}[t!]
+\centering
+\caption{Parametry eksperymentu, logowania i tokenizacji}
+\label{tab:params_general}
+\small
+\smallskip
+\begin{tabularx}{\textwidth}{@{}lllX@{}}
+\toprule
+\textbf{Sekcja} & \textbf{Parametr} & \textbf{Przykład} & \textbf{Opis} \\
+\midrule
+\texttt{experiment} 
+    & \texttt{name} & \textit{run\_v1} & Unikalna nazwa eksperymentu. \\
+    & \texttt{kind} & \texttt{finetuning} & Typ: \texttt{pretraining} lub \texttt{finetuning}. \\
+    & \texttt{output\_dir} & \texttt{experiments/...} & Katalog wyjściowy eksperymentu. \\
+    & \texttt{seed} & \texttt{420} & Ziarno losowości. \\
+\midrule
+\texttt{logging} 
+    & \texttt{use\_wandb} & \texttt{true} & Czy używać Weights \& Biases. \\
+    & \texttt{wandb.entity} & \texttt{wandb-team} & Nazwa zespołu W\&B. \\
+    & \texttt{wandb.project} & \texttt{project-name} & Nazwa projektu W\&B. \\
+    & \texttt{wandb.run\_name} & \textit{run\_v1} & Nazwa sesji W\&B. \\
+    & \texttt{log\_eval\_metrics} & \texttt{true} & Czy logować metryki walidacyjne. \\
+    & \texttt{log\_metrics\_csv} & \texttt{false} & Czy zapisywać metryki do plików CSV. \\
+    & \texttt{log\_gpu\_memory} & \texttt{true} & Czy logować zużycie pamięci GPU. \\
+    & \texttt{csv\_train\_metrics\_path} & \texttt{metrics/...} & Ścieżka do CSV z metrykami treningowymi. \\
+    & \texttt{csv\_eval\_metrics\_path} & \texttt{metrics/...} & Ścieżka do CSV z metrykami walidacyjnymi. \\
+\midrule
+\texttt{tokenizer} 
+    & \texttt{wrapper\_path} & \texttt{src/...} & Ścieżka do klasy wrappera tokenizera. \\
+    & \texttt{vocab\_dir} & \texttt{.../BERT\_orig} & Katalog ze słownikiem tokenizera. \\
+    & \texttt{max\_length} & \texttt{512} & Maksymalna długość sekwencji tokenizacji. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{table}[t!]
+\centering
+\caption{Hiperparametry architektury Transformera}
+\label{tab:params_architecture}
+\small
+\smallskip
+\begin{tabularx}{\textwidth}{@{}lllX@{}}
+\toprule
+\textbf{Sekcja} & \textbf{Parametr} & \textbf{Przykład} & \textbf{Opis} \\
+\midrule
+\texttt{architecture} 
+    & \texttt{embedding\_dim} & \texttt{512} & Wymiar osadzeń i stanów ukrytych ($D$). \\
+    & \texttt{num\_layers} & \texttt{4} & Liczba bloków enkodera. \\
+    & \texttt{mlp\_size} & \texttt{2048} & Rozmiar warstwy ukrytej w MLP. \\
+    & \texttt{mlp\_dropout} & \texttt{0.1} & Dropout w bloku MLP. \\
+    & \texttt{embedding\_dropout} & \texttt{0.1} & Dropout na osadzeniach wejściowych. \\
+    & \texttt{pos\_encoding} & \texttt{rope} & Typ: \texttt{learned}, \texttt{sinusoidal}, \texttt{rope}. \\
+    & \texttt{rope.rope\_base} & \texttt{10000.0} & Podstawa częstotliwości $\theta$ dla RoPE. \\
+    & \texttt{rope.rope\_scale} & \texttt{1.0} & Skalowanie częstotliwości RoPE. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{table}[t!]
+\centering
+\caption{Parametry mechanizmu uwagi}
+\label{tab:params_attention}
+\small
+\smallskip
+\begin{tabularx}{\textwidth}{@{}lllX@{}}
+\toprule
+\textbf{Sekcja} & \textbf{Parametr} & \textbf{Przykład} & \textbf{Opis} \\
+\midrule
+\texttt{attention} 
+    & \texttt{kind} & \texttt{lsh} & Typ: \texttt{mha}, \texttt{lsh}, \texttt{favor}. \\
+    & \texttt{attention\_embedding\_dim} & \texttt{512} & Opcjonalny wymiar projekcji uwagi. \\
+    & \texttt{num\_heads} & \texttt{8} & Liczba głowic uwagi ($H$). \\
+    & \texttt{projection\_bias} & \texttt{true} & Czy dodać bias w projekcjach Q/K/V/Out. \\
+    & \texttt{attn\_out\_drop} & \texttt{0.1} & Dropout na wyjściu bloku uwagi. \\
+    & \texttt{attn\_dropout} & \texttt{0.0} & Dropout na macierzy uwagi (po Softmax). \\
+\midrule
+\texttt{attention.mha} 
+    & \texttt{use\_native\_sdpa} & \texttt{true} & Czy użyć natywnej implementacji Flash Attention. \\
+\midrule
+\texttt{attention.lsh} 
+    & \texttt{num\_hashes} & \texttt{4} & Liczba rund haszowania. \\
+    & \texttt{chunk\_size} & \texttt{64} & Rozmiar bloku lokalnej uwagi. \\
+    & \texttt{mask\_within\_chunks} & \texttt{true} & Czy maskować uwagę wewnątrz bloku. \\
+\midrule
+\texttt{attention.favor} 
+    & \texttt{nb\_features} & \texttt{256} & Liczba cech losowych ($m$). \\
+    & \texttt{ortho\_features} & \texttt{true} & Czy użyć ortogonalnych cech (GORF). \\
+    & \texttt{redraw\_interval} & \texttt{0} & Interwał przelosowania cech (0 = brak). \\
+    & \texttt{phi} & \texttt{exp} & Funkcja phi: \texttt{exp}, \texttt{relu}, \texttt{elu}. \\
+    & \texttt{stabilize} & \texttt{true} & Czy stabilizować numerycznie. \\
+    & \texttt{eps} & \texttt{1e-6} & Dodawany do denominatora. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{table}[t!]
+\centering
+\caption{Hiperparametry procesu treningowego}
+\label{tab:params_training}
+\small
+\smallskip
+\begin{tabularx}{\textwidth}{@{}lllX@{}}
+\toprule
+\textbf{Sekcja} & \textbf{Parametr} & \textbf{Przykład} & \textbf{Opis} \\
+\midrule
+\texttt{training} 
+    & \texttt{batch\_size} & \texttt{64} & Rozmiar wsadu. \\
+    & \texttt{epochs} & \texttt{10} & Liczba epok treningowych. \\
+    & \texttt{learning\_rate} & \texttt{2e-4} & Maksymalny współczynnik uczenia. \\
+    & \texttt{warmup\_ratio} & \texttt{0.1} & Udział kroków rozgrzewki. \\
+    & \texttt{min\_lr\_ratio} & \texttt{0.2} & Minimalny współczynnik uczenia jako ułamek maksymalnego. \\
+    & \texttt{weight\_decay} & \texttt{0.01} & Współczynnik regularizacji wag (L2). \\
+    & \texttt{max\_grad\_norm} & \texttt{1.0} & Maksymalna norma gradientów. \\
+    & \texttt{grad\_accum\_steps} & \texttt{1} & Liczba kroków akumulacji gradientu. \\
+    & \texttt{use\_amp} & \texttt{true} & Czy użyć precyzji mieszanej (AMP). \\
+    & \texttt{loss} & \texttt{cross\_entropy} & Funkcja straty. \\
+    & \texttt{device} & \texttt{auto} & Urządzenie: \texttt{auto}, \texttt{cuda}, \texttt{cpu}. \\
+\midrule
+\texttt{training}
+    & \texttt{head\_lr\_mult} & \texttt{1.0} & Mnożnik współczynnika uczenia dla głowicy klasyfikacyjnej. \\
+(Dostrajanie)
+    & \texttt{backbone\_lr\_mult} & \texttt{0.5} & Mnożnik współczynnika uczenia dla enkodera. \\
+    & \texttt{freeze} & \texttt{true} & Czy włączyć zamrożanie. \\
+    & \texttt{freeze\_n\_layers} & \texttt{3} & Liczba zamrożonych warstw enkodera. \\
+    & \texttt{freeze\_epochs} & \texttt{1} & Liczba epok z zamrożonymi warstwami. \\
+    & \texttt{freeze\_embeddings} & \texttt{true} & Czy zamrozić warstwę osadzeń. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{table}[t!]
+\centering
+\caption{Parametry kontynuacji treningu}
+\label{tab:params_continuation}
+\small
+\smallskip
+\begin{tabularx}{\textwidth}{@{}lllX@{}}
+\toprule
+\textbf{Sekcja} & \textbf{Parametr} & \textbf{Przykład} & \textbf{Opis} \\
+\midrule
+\texttt{pretrained\_exp} 
+    & \texttt{name} & \textit{pre\_v1} & Nazwa eksperymentu pretreningu. \\
+(Dostrajanie)    & \texttt{path} & \texttt{experiments/...} & Ścieżka do katalogu pretreningu. \\
+    & \texttt{checkpoint} & \texttt{checkpoints/...} & Ścieżka do zapisanego stanu pretreningu. \\
+\midrule
+\texttt{training.resume} 
+    & \texttt{is\_resume} & \texttt{false} & Czy wznawiać pretrening. \\
+(Pretrening)    & \texttt{resume\_pretraining\_name} & \textit{pre\_v1} & Nazwa wznawianego eksperymentu. \\
+    & \texttt{checkpoint\_path} & \texttt{checkpoints/...} & Ścieżka do zapisanego stanu pretreningu. \\
+    & \texttt{strict} & \texttt{true} & Czy wymagać pełnej zgodności wag. \\
+    & \texttt{load\_only\_model\_state} & \texttt{true} & Czy ładować tylko wagi modelu. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{table}[t!]
+\centering
+\caption{Parametry głowic zadaniowych}
+\label{tab:params_heads}
+\small
+\smallskip
+\begin{tabularx}{\textwidth}{@{}lllX@{}}
+\toprule
+\textbf{Typ głowicy} & \textbf{Parametr} & \textbf{Przykład} & \textbf{Opis} \\
+\midrule
+\texttt{mlm\_head} 
+    & \texttt{tie\_mlm\_weights} & \texttt{true} & Czy współdzielić wagi dekodera i~osadzeń. \\
+(Pretrening)    & \texttt{mask\_p} & \texttt{0.15} & Prawdopodobieństwo zamaskowania tokenu. \\
+    & \texttt{mask\_token\_p} & \texttt{0.8} & Szansa na zastąpienie przez \texttt{[MASK]}. \\
+    & \texttt{random\_token\_p} & \texttt{0.1} & Szansa na zastąpienie losowym słowem. \\
+\midrule
+\texttt{class\_head} 
+    & \texttt{num\_labels} & \texttt{2} & Liczba klas wyjściowych. \\
+(Dostrajanie)    & \texttt{pooling} & \texttt{cls} & Agregacja: \texttt{cls}, \texttt{mean}, \texttt{max}, \texttt{min}. \\
+    & \texttt{pooler\_type} & \texttt{bert} & Warstwa pośrednia: \texttt{bert}, \texttt{roberta}, \texttt{null}. \\
+    & \texttt{classifier\_dropout} & \texttt{0.1} & Dropout przed klasyfikatorem. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{table}[t!]
+\centering
+\caption{Parametry konfiguracji danych}
+\label{tab:params_data}
+\small
+\smallskip
+\begin{tabularx}{\textwidth}{@{}lllX@{}}
+\toprule
+\textbf{Sekcja} & \textbf{Parametr} & \textbf{Przykład} & \textbf{Opis} \\
+\midrule
+\texttt{data.train} 
+    & \texttt{shuffle} & \texttt{true} & Czy mieszać dane treningowe. \\
+    & \texttt{dataset\_path} & \texttt{data/train/...} & Ścieżka do zbioru treningowego. \\
+\midrule
+\texttt{data.val} 
+    & \texttt{shuffle} & \texttt{false} & Czy mieszać dane walidacyjne. \\
+    & \texttt{dataset\_path} & \texttt{data/val/...} & Ścieżka do zbioru walidacyjnego. \\
+\midrule
+\texttt{data.test} 
+    & \texttt{shuffle} & \texttt{false} & Czy mieszać dane testowe. \\
+    & \texttt{dataset\_path} & \texttt{data/test/...} & Ścieżka do zbioru testowego. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\clearpage
+
+
+\section{Instrukcja instalacji i ocena narzędzi}\label{sec:how-to-install}
+
+
+Poniżej przedstawiono kroki niezbędne do uruchomienia systemu.
+
+\subsection{Wymagania systemowe}
+
+\begin{itemize}
+    \item Python 3.12 lub nowszy
+    \item CUDA (opcjonalnie, do treningu na GPU). Aby wykorzystać akcelerację GPU, upewnij się, że masz zainstalowane odpowiednie sterowniki CUDA.
+\end{itemize}
+
+\subsection{Instalacja środowiska}
+
+\begin{enumerate}    
+    \item \textbf{Utworzenie wirtualnego środowiska Python:}
+\begin{lstlisting}[language=bash, caption={Tworzenie środowiska wirtualnego}]
+python -m venv .venv
+source .venv/bin/activate   # Linux/macOS
+# lub na Windows:
+# .\.venv\Scripts\Activate.ps1
+\end{lstlisting}
+    
+    \item \textbf{Aktualizacja pip i instalacja zależności:}
+\begin{lstlisting}[language=bash, caption={Instalacja zależności}]
+pip install --upgrade pip
+pip install -r requirements.txt
+\end{lstlisting}
+    Wszystkie pakiety oraz ich wersje (znajdujące się w~pliku \texttt{requirements.txt}) są przedstawione w~tabeli \ref{tab:requirements}.
+\end{enumerate}
+
+
+
+\begin{table}[t!]
+\centering
+\caption{Wykorzystywane biblioteki Python}
+\label{tab:requirements}
+\smallskip
+\small
+\begin{tabular}{ll}
+\toprule
+\textbf{Biblioteka} & \textbf{Wersja} \\
+\midrule
+\texttt{torch} & 2.8.0 \\
+\texttt{transformers} & 4.56.2 \\
+\texttt{tokenizers} & 0.22.1 \\
+\texttt{pandas} & 2.2.3 \\
+\texttt{numpy} & 1.26.4 \\
+\texttt{scikit-learn} & 1.6.1 \\
+\texttt{wandb} & 0.22.1 \\
+\texttt{PyYAML} & 6.0.2 \\
+\texttt{pytest} & 8.3.4 \\
+\texttt{datasets} & 4.3.0 \\
+\texttt{pydantic} & $\ge$2.12.0 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Ocena narzędzi}
+
+\paragraph{PyTorch}  
+Projekt zakłada pełną implementację modelu w~środowisku PyTorch, z~wykorzystaniem jedynie wybranych elementów ekosystemu HuggingFace do~obsługi tokenizacji i~zarządzania zbiorami danych.
+
+\paragraph{HuggingFace}  
+Z HuggingFace wykorzystano wyłącznie moduły wspierające przygotowanie danych:
+\begin{itemize}
+  \item \textbf{\texttt{datasets}} -- do~pobierania zbiorów danych.
+  \item \textbf{\texttt{tokenizers}} -- do treningu tokenizatora (stworzenia słownika) z wykorzystaniem klasy \texttt{BertWordPieceTokenizer}.
+  \item \textbf{\texttt{transformers}} -- do tokenizacji danych wejściowych z wykorzystaniem klasy \texttt{BertTokenizerFast} (na podstawie gotowego słownika).
+\end{itemize}
+
+\paragraph{Pozostałe biblioteki.}  
+W~projekcie wykorzystano również szereg innych narzędzi:
+\begin{itemize}
+  \item \textbf{\texttt{numpy}} i~\textbf{\texttt{scikit-learn}} -- biblioteki wykorzystane do obliczania metryk ewaluacyjnych modelu.
+  \item \textbf{\texttt{pandas}} -- narzędzie użyte do wstępnego przetwarzania i analizy danych.
+  \item \textbf{\texttt{wandb}} -- platforma \textit{Weights \& Biases} służąca do śledzenia eksperymentów i logowania metryk.
+  \item \textbf{\texttt{PyYAML}} -- biblioteka do obsługi plików konfiguracyjnych YAML.
+  \item \textbf{\texttt{pytest}} -- framework do testów jednostkowych.
+  \item \textbf{\texttt{pydantic}} -- wykorzystany do ukrycia nieszkodliwych ostrzeżeń \texttt{wandb}.
+\end{itemize}
+
+
+\section{Podręcznik użytkownika}\label{sec:how-to-use}
+
+Niniejszy podręcznik opisuje, jak korzystać z~systemu. Uproszczony schemat użytkowania systemu przedstawiony jest na rys.~\ref{fig:usage-scheme}.
+
+\begin{figure}[t!]
+    \centering
+    \linespread{1.0}\selectfont
+    \resizebox{\textwidth}{!}{
+    \begin{tikzpicture}
+    % --- Definicje kolorów i stylów (PZ-5) ---
+    \definecolor{phase1bg}{HTML}{E3F2FD}
+    \definecolor{phase1border}{HTML}{1976D2}
+    \definecolor{phase2bg}{HTML}{FFF3E0}
+    \definecolor{phase2border}{HTML}{F57C00}
+    \definecolor{phase3bg}{HTML}{F1F8E9}
+    \definecolor{phase3border}{HTML}{558B2F}
+    \definecolor{startcolor}{HTML}{FCE4EC}
+    \definecolor{startborder}{HTML}{C2185B}
+    \definecolor{endcolor}{HTML}{C8E6C9}
+    \definecolor{endborder}{HTML}{388E3C}
+    \definecolor{nodebg}{HTML}{FFFFFF}
+    \definecolor{arrowcolor}{HTML}{546E7A}
+
+    \tikzset{
+        startstop/.style={
+            rectangle,
+            rounded corners=12pt,
+            minimum width=3.5cm,
+            minimum height=0.9cm,
+            text centered,
+            font=\small\bfseries,
+            draw=#1,
+            line width=1.5pt,
+            fill=#1!20,
+            blur shadow={shadow blur steps=5, shadow xshift=0.5mm, shadow yshift=-0.5mm}
+        },
+        process/.style={
+            rectangle,
+            rounded corners=6pt,
+            minimum width=5.5cm,
+            minimum height=1cm,
+            text centered,
+            text width=5cm,
+            font=\footnotesize,
+            draw=gray!60,
+            line width=0.8pt,
+            fill=nodebg,
+            blur shadow={shadow blur steps=5, shadow xshift=0.3mm, shadow yshift=-0.3mm}
+        },
+        phaselabel/.style={
+            font=\small\bfseries\sffamily,
+            text=#1,
+        },
+        arrow/.style={
+            -Stealth,
+            line width=1.2pt,
+            color=arrowcolor,
+            shorten >=2pt,
+            shorten <=2pt
+        },
+        bigarrow/.style={
+            -Stealth,
+            line width=2pt,
+            color=arrowcolor!80,
+            shorten >=4pt,
+            shorten <=4pt
+        }
+    }
+
+    % ===== FAZA 1: PRZETWARZANIE DANYCH =====
+    \node[phaselabel=phase1border] (L1) at (0, 9.3) {PRZETWARZANIE DANYCH};
+
+    \node[process] (A1) at (0, 7.0) {
+        Przetwarzanie danych\\
+        (tokenizacja)
+    };
+
+    \node[process] (A2) at (0, 4.5) {
+        Zapisanie plików\\
+        \texttt{Dataset .pt} w~katalogu \texttt{data/tokenized/}
+    };
+
+    \node[
+        draw=phase1border!80, dashed, line width=1pt, rounded corners=5pt,
+        fit=(A1),
+        inner sep=8pt,
+        label={[font=\footnotesize\bfseries\ttfamily, text=phase1border]north:WordPieceTokenizerWrapper}
+    ] (A_SCRIPT) {};
+
+    % ===== FAZA 2: KONFIGURACJA =====
+    \node[phaselabel=phase2border] (L2) at (9, 9.3) {KONFIGURACJA};
+
+    % Kontener skryptu generującego
+    \node[process, fill=white] (B_GEN) at (9, 7.0) {
+        Generowanie katalogu eksperymentu \\
+        i~pliku konfiguracyjnego \texttt{config.yaml}
+    };
+
+    \node[
+        draw=phase2border!80, dashed, line width=1pt, rounded corners=5pt,
+        fit=(B_GEN),
+        inner sep=8pt,
+        label={[align=center, font=\footnotesize\bfseries\ttfamily, text=phase2border]north:generate\_*\_experiment.py\\{\scriptsize\normalfont\color{gray!90}* $\in$ \{\texttt{pretraining}, \texttt{finetuning}\}}}
+    ] (B_SCRIPT) {};
+
+    \node[process] (B_EDIT) at (9, 4.5) {
+        Edycja pliku \texttt{config.yaml}\\
+        (ustawienie parametrów i ścieżek do plików \texttt{.pt})
+    };
+
+    % ===== FAZA 3: TRENING =====
+    \node[phaselabel=phase3border] (L3) at (18, 9.3) {TRENING};
+
+    % Kontener skryptu train.py
+    \node[process, fill=white] (C_LOAD) at (18, 6.8) {
+        Wczytanie konfiguracji, inicjalizacja modelu\\
+        i załadowanie danych.
+    };
+
+    \node[process, fill=white] (C_LOOP) at (18, 5.2) {
+        Pętla treningowa\\
+        (\texttt{TrainingLoop})
+    };
+
+    \node[
+        draw=phase3border!80, dashed, line width=1pt, rounded corners=5pt,
+        fit=(C_LOAD) (C_LOOP),
+        inner sep=8pt,
+        label={[font=\footnotesize\bfseries\ttfamily, text=phase3border]north:train.py}
+    ] (C_SCRIPT) {};
+
+    \node[startstop=endborder] (C_END) at (18, 2.8) {Zapisany model i metryki};
+
+    % ===== STRZAŁKI WEWNĘTRZNE =====
+
+    \draw[arrow] (A_SCRIPT.south) -- (A2.north);
+
+    % Strzałka od notatki do edycji (wizualnie od skryptu)
+    \draw[arrow] (B_SCRIPT.south) -- (B_EDIT.north);
+
+    \draw[arrow] (C_LOAD) -- (C_LOOP);
+    \draw[arrow] (C_SCRIPT.south) -- (C_END.north);
+
+    % ===== STRZAŁKI MIĘDZY FAZAMI =====
+    \draw[bigarrow, rounded corners=8pt] 
+        (A2.east) -- ++(1.2,0) |- (B_SCRIPT.west);
+
+    \draw[bigarrow, rounded corners=8pt] 
+        (B_EDIT.east) -- ++(1.2,0) |- (C_SCRIPT.west);
+
+    % ===== IKONY/NUMERACJA FAZ =====
+    \node[
+        circle,
+        fill=phase1border,
+        text=white,
+        font=\bfseries,
+        minimum size=0.7cm
+    ] (N1) at (-3, 9.3) {1};
+
+    \node[
+        circle,
+        fill=phase2border,
+        text=white,
+        font=\bfseries,
+        minimum size=0.7cm
+    ] (N2) at (6, 9.3) {2};
+
+    \node[
+        circle,
+        fill=phase3border,
+        text=white,
+        font=\bfseries,
+        minimum size=0.7cm
+    ] (N3) at (15, 9.3) {3};
+
+    % ===== TŁA (BACKGROUNDS) =====
+    % Rysujemy tła na końcu, używając warstwy tła i dopasowania do węzłów
+    \begin{scope}[on background layer]
+        % Faza 1
+        \node[
+            draw=phase1border,
+            line width=2pt,
+            rounded corners=10pt,
+            fill=phase1bg,
+            fit=(L1) (A_SCRIPT) (A2) (N1),
+            inner sep=10pt
+        ] (phase1box) {};
+
+        % Faza 2
+        \node[
+            draw=phase2border,
+            line width=2pt,
+            rounded corners=10pt,
+            fill=phase2bg,
+            fit=(L2) (B_SCRIPT) (B_EDIT) (N2),
+            inner sep=10pt
+        ] (phase2box) {};
+
+        % Faza 3
+        \node[
+            draw=phase3border,
+            line width=2pt,
+            rounded corners=10pt,
+            fill=phase3bg,
+            fit=(L3) (C_SCRIPT) (C_END) (N3),
+            inner sep=10pt
+        ] (phase3box) {};
+    \end{scope}
+
+    \end{tikzpicture}
+    }
+    \caption{Schemat użytkowania systemu}
+    \label{fig:usage-scheme}
+\end{figure}
+
+\subsection{Przechowywanie danych}
+
+Katalog \texttt{data/} służy do przechowywania surowych oraz stokenizowanych danych z~następującą strukturą:
+\begin{itemize}
+    \item \texttt{data/raw/} --- surowe pliki (np. CSV, TXT, Parquet).
+    \item \texttt{data/tokenized/} --- gotowe do użycia zestawy danych w~formacie \texttt{.pt} (zserializowane przez \texttt{torch.save}), kompatybilne z~oczekiwanym formatem \texttt{DataLoader}.
+\end{itemize}
+Oczekiwany format zestawu danych (\texttt{.pt}):\begin{itemize}
+    \item \textbf{Pretrening (MLM):} \texttt{TensorDataset} zawierający tensory: \texttt{input\_ids, attention\_mask}
+    \item \textbf{Dostrajanie (CLS):} \texttt{TensorDataset} zawierający tensory: \texttt{input\_ids, attention\_mask, labels}
+\end{itemize}
+
+
+\subsection{Tokenizacja danych}
+\label{sec:tokenizer-guide}
+
+Do tokenizacji wykorzystywany jest wrapper \texttt{WordPieceTokenizerWrapper} (szczegóły w~sek.~\ref{sec:tokenizer}).
+
+Jeśli nie dysponujesz gotowym tokenizerem (plik \texttt{vocab.txt}), możesz go wytrenować na własnym korpusie tekstowym:
+\begin{lstlisting}[language=python, caption={Trening tokenizera}]
+from textclf_transformer.tokenizer.wordpiece_tokenizer_wrapper \
+    import WordPieceTokenizerWrapper
+
+tokenizer = WordPieceTokenizerWrapper()
+tokenizer.train(tokenizer_dir="my_tokenizer_dir", input="data/raw/input.txt")
+\end{lstlisting}
+
+\begin{lstlisting}[language=python, caption={Tokenizacja z pliku}]
+from textclf_transformer.tokenizer.wordpiece_tokenizer_wrapper \
+    import WordPieceTokenizerWrapper
+import torch
+import pathlib
+
+tokenizer = WordPieceTokenizerWrapper()
+tokenizer.load("src/textclf_transformer/tokenizer/my_tokenizer_dir")
+
+# Użycie encode z~plikiem tekstowym
+ds = tokenizer.encode(
+    input="data/raw/text_input.txt",
+    # labels=labels_tensor, # opcjonalne
+    max_length=512,
+)
+
+out = pathlib.Path("data/tokenized/train_dataset.pt")
+out.parent.mkdir(parents=True, exist_ok=True)
+torch.save(ds, out)
+\end{lstlisting}
+
+\begin{lstlisting}[language=python, caption={Tokenizacja z ramki danych Pandas}]
+import pandas as pd
+
+df = pd.read_csv("data/raw/data.csv")
+ds = tokenizer.encode_pandas(
+    df=df,
+    text_col="text",
+    label_col="label", # opcjonalne
+    max_length=512
+)
+\end{lstlisting}
+
+\subsection{Konfiguracja eksperymentów}
+\label{sec:experiments_config_guide}
+
+Katalog \texttt{experiments/} służy do definiowania eksperymentów i~ich konfiguracji. Każdy podkatalog w~\texttt{pretraining/} lub \texttt{finetuning/} reprezentuje pojedynczy, powtarzalny przebieg eksperymentu. Szablony plików konfiguracyjnych \texttt{pretraining.yaml} i~\texttt{finetuning.yaml} przechowywane są w~\texttt{experiments/config\_templates/}, na ich podstawie generowane są pliki \texttt{config.yaml} w~odpowiednich katalogach eksperymentów. Szczegóły dotyczące konfiguracji eksperymentów są opisane w~sek.~\ref{sec:experiments_config}.
+
+\subsubsection{Generowanie eksperymentów pretreningu i~dostrajania}
+
+\begin{lstlisting}[language=bash, caption={Generowanie eksperymentu pretreningu}]
+python experiments/generate_pretraining_experiment.py -p <pre_name>
+\end{lstlisting}
+
+\begin{lstlisting}[language=bash, caption={Generowanie eksperymentu dostrajania}]
+python experiments/generate_finetuning_experiment.py \
+    -f <fin_name> -p <pre_name>
+\end{lstlisting}
+Wynikami są pliki konfiguracyjne \texttt{config.yaml} w odpowiednich katalogach eksperymentów -- odpowiednio:
+\texttt{experiments/pretraining/<pre\_name>/config.yaml}, \texttt{experiments/finetuning/<fin\_name>/config.yaml}.
+
+
+\subsubsection{Wznawianie pretreningu}\label{sec:checkpointing2}
+
+\begin{lstlisting}[language=bash, caption={Generowanie eksperymentu pretreningu (wznawianego z wcześniejszego eksperymentu).}]
+python experiments/generate_pretraining_experiment.py \
+    -p <pre_name> -rp <resume_pretraining_name>
+\end{lstlisting}
+Skrypt automatycznie kopiuje plik konfiguracyjny \texttt{config.yaml} i~aktualizuje sekcję \texttt{training.resume}:
+\begin{itemize}
+    \item Ustawia flagę \texttt{is\_resume} na \texttt{true}.
+    \item Przypisuje nazwę wznawianego eksperymentu do \texttt{resume\_pretraining\_name}.
+    \item Ustawia ścieżkę \texttt{checkpoint\_path} na ostatni zapisany model (\texttt{model.ckpt}).
+\end{itemize}
+W~zależności od celu wznawiania, należy zweryfikować i~ewentualnie dostosować parametr \texttt{load\_only\_model\_state}:
+\begin{itemize}
+    \item \textbf{Kontynuacja przerwanego treningu:} Ustaw \texttt{false}, aby wczytać pełny stan (model, optymalizator, scheduler, skaler).
+    \item \textbf{Transfer learning / TAPT:} Ustaw \texttt{true}, aby wczytać wyłącznie wagi modelu.
+\end{itemize}
+Dodatkowo, w razie potrzeby można ręcznie zmienić ścieżkę do punktu kontrolnego, np. na \texttt{best-model.ckpt}.
+
+\subsection{Trening}
+Głównym interfejsem do uruchamiania treningu jest skrypt \texttt{train.py}.
+
+\begin{lstlisting}[language=bash, caption={Uruchomienie pretreningu}]
+python train.py -n <pre_name> -m pretraining
+\end{lstlisting}
+
+\begin{lstlisting}[language=bash, caption={Uruchomienie dostrajania}]
+python train.py -n <fin_name> -m finetuning
+\end{lstlisting}
+
+\subsubsection{Pliki generowane w folderze eksperymentu}
+Po skończeniu treningu w~folderze eksperymentu znajdują się następujące pliki:
+\begin{itemize}
+    \item \textbf{Zapisane stany:} \texttt{checkpoints/}
+    \begin{itemize}
+        \item \texttt{best-model.ckpt} -- najlepszy model (pełny stan z~optymalizatorem/schedulerem/skalerem)
+        \item \texttt{model.ckpt} -- model końcowy (tylko wagi)
+    \end{itemize}
+    \item \textbf{Metryki CSV:} \texttt{metrics/train/metrics.csv}, \texttt{metrics/eval/metrics.csv} (gdy \texttt{logging.log\_metrics\_csv=True})
+    \item \textbf{Logowanie W\&B:} metadane i~artefakty przechowywane w~katalogu \texttt{wandb/} (gdy \texttt{logging.use\_wandb=True})
+\end{itemize}
+
+
+
+
+
+\chapter{Opis i implementacja mechanizmów uwagi}
+
+
+\section{SDPA}
+
+W~Transformerze podstawową operacją jest wielogłowowa samouwaga (\emph{Multi-Head Self Attention}) realizowana przez SDPA (\emph{Scaled Dot-Product Attention}). Dzięki temu mechanizmowi każda pozycja sekwencji buduje kontekstową reprezentację, która następnie jest wykorzystywana w~kolejnych warstwach modelu. 
+
+
+\subsection{Samouwaga (ang. \emph{Self Attention})}
+
+Niech $z = (z^1,\dots,z^N)$ oznacza sekwencję $N$ elementów (tokenów), gdzie $z^i \in \mathbb{R}^{D}$ jest wektorem reprezentacji $i$-tego elementu.
+Wagi uwagi $A_{ij}$ są wyznaczane na podstawie parowej miary podobieństwa pomiędzy dwiema pozycjami sekwencji, tj.\ pomiędzy reprezentacją zapytania (query) $q^i$ dla elementu $i$ oraz reprezentacją klucza (key) $k^j$ dla elementu $j$.
+
+\begin{itemize}
+  \item $N \in \mathbb{N}$ -- długość sekwencji.
+  \item $D \in \mathbb{N}$ -- wymiar wejściowej reprezentacji (embeddingu).
+  \item $d_k \in \mathbb{N}$ -- wymiar przestrzeni zapytań/kluczy oraz wartości.
+  \item $z \in \mathbb{R}^{N \times D}$ -- macierz, w~której $i$-ty wiersz odpowiada $z^i$.
+\end{itemize}
+
+Niech $U_{qkv} \in \mathbb{R}^{D \times 3d_k}$ będzie macierzą parametrów (uczoną), która realizuje jednoczesną projekcję wejścia do przestrzeni zapytań, kluczy i wartości. Definiujemy:
+\begin{equation}
+[Q, K, V] = z\, U_{qkv},
+\end{equation}
+gdzie $Q,K,V \in \mathbb{R}^{N \times d_k}$, a zapis $[Q,K,V]$ oznacza konkatenację bloków macierzy wzdłuż wymiaru kolumn.
+
+Macierz wag uwagi $A \in \mathbb{R}^{N \times N}$ wyznaczamy jako:
+\begin{equation}
+A = \mathrm{Softmax}\!\left(\frac{QK^\top}{\sqrt{d_k}}\right),
+\quad A \in \mathbb{R}^{N \times N}.
+\end{equation}
+
+Operator uwagi dla wejścia $z$ definiujemy jako ważoną kombinację wartości:
+\begin{equation}
+SA(z) = AV \in \mathbb{R}^{N \times d_k}.
+\end{equation}
+
+Powyższe dwa kroki można zapisać jedną definicją -- \emph{Scaled Dot-Product Attention}, SDPA:
+\begin{equation}
+\mathrm{SDPA}(Q,K,V)
+\;=\;
+\mathrm{Softmax}\!\left(\frac{QK^\top}{\sqrt{d_k}}\right)\,V.
+\end{equation}
+
+\subsection{Wielogłowowa samouwaga (ang. \emph{Multihead Self Attention})}
+
+
+Wielogłowowa samouwaga (\emph{Multihead Self-Attention}, MSA) stanowi uogólnienie operatora samouwagi $SA$ polegające na równoległym uruchomieniu $h$ niezależnych mechanizmów samouwagi, zwanych głowami (ang. \emph{heads}), a~następnie na złączeniu (konkatenacji) ich wyników i~przekształceniu liniowym do wymiaru modelu.
+
+
+\begin{itemize}
+  \item $h \in \mathbb{N}$ -- liczba głów uwagi.
+  \item Przyjmujemy, że $h \mid D$ oraz definiujemy wymiar pojedynczej głowy jako
+  \begin{equation}
+  d_k = \frac{D}{h}.
+  \end{equation}
+  \item Dla każdej głowy $\ell \in \{1,\dots,h\}$ operator $SA_\ell(z)\in\mathbb{R}^{N\times d_k}$ oznacza samouwagę obliczaną analogicznie jak w~przypadku pojedynczej głowy.
+\end{itemize}
+
+
+Wynik wielogłowowej samouwagi definiujemy jako:
+\begin{equation}
+\mathrm{MSA}(z) = [SA_1(z);\ SA_2(z);\ \dots;\ SA_h(z)]\, U_{\mathrm{out}},
+\end{equation}
+gdzie $[\,\cdot\,;\,\cdot\,]$ oznacza konkatenację wzdłuż wymiaru cech (kolumn), zatem
+\begin{equation}
+[SA_1(z);\dots;SA_h(z)] \in \mathbb{R}^{N \times (h d_k)} = \mathbb{R}^{N \times D},
+\end{equation}
+natomiast macierz wyjściowej projekcji spełnia:
+\begin{equation}
+U_{\mathrm{out}} \in \mathbb{R}^{D \times D}.
+\end{equation}
+
+
+
+\subsection{Flash Attention}\label{sec:flash-attention}
+
+W~ramach realizacji celów projektowych, biblioteka została wyposażona w~autorską implementację mechanizmu \textit{Scaled Dot-Product Attention} (SDPA) -- opisanego powyżej -- zgodną z~oryginalnym transformerem z~2017 roku \cite{vaswani2017attention}. Implementacja ta ma walor edukacyjny i~demonstracyjny, pozwalając na pełną transparentność obliczeń. Posiada ona jednak charakter naiwny -- wymaga obliczania pełnej macierzy uwagi o~wymiarach $N \times N$, co skutkuje kwadratową złożonością pamięciową $O(N^2)$ i~brakiem niskopoziomowych optymalizacji dla jąder CUDA.
+ 
+W~kontekście planowanych badań (szczegóły w~sek.~\ref{sec:experiments}), na zbiorach o~długich sekwencjach (Hyperpartisan: $4096$ tokenów, ArXiv: $16384$ tokenów), wykorzystanie naiwnej implementacji okazuje się niemożliwe ze względu na ograniczenia pamięciowe akceleratorów oraz nieakceptowalny czas treningu.
+
+
+Aby umożliwić przeprowadzenie eksperymentów w~rozsądnym czasie oraz zapewnić rzetelny punkt odniesienia,
+doimplementowano obsługę natywnej funkcji biblioteki PyTorch
+(\texttt{torch.nn.functional.scaled\_dot\_product\_attention}).
+Implementacja ta automatycznie dobiera backend obliczeń w~zależności od dostępnego sprzętu oraz własności danych i~-- gdy spełnione są wymagane warunki --
+może wykorzystywać zoptymalizowane algorytmy, takie jak FlashAttention \cite{dao2022flashattention}.
+W praktyce przekłada się to na następujące korzyści:
+
+\begin{itemize}
+    \item \textbf{Niższe zużycie pamięci pośredniej:}
+    FlashAttention nie materializuje jawnie pełnej macierzy uwagi o~rozmiarze $N\times N$,
+    dzięki czemu złożoność pamięciowa (dla pośrednich wyników) może spaść z~$O(N^2)$ do~$O(N)$
+    względem długości sekwencji $N$. Złożoność obliczeniowa pozostaje $O(N^2)$, ponieważ liczba operacji
+    wynikająca z iloczynów skalarnych między elementami sekwencji nie ulega zmianie.
+
+    \item \textbf{Lepsza lokalność pamięci:}
+    algorytm wykorzystuje kafelkowanie (ang. \textit{tiling}) oraz obliczenia blokowe,
+    co ogranicza koszt transferów do pamięci globalnej GPU i poprawia wykorzystanie pamięci podręcznej.
+
+    \item \textbf{Wysoka wydajność na GPU:}
+    dzięki redukcji ruchu pamięci oraz fuzji operacji w wyspecjalizowanych kernelach,
+    metoda osiąga wysoki stopień wykorzystania zasobów GPU, co zazwyczaj skutkuje znacznym przyspieszeniem obliczeń.
+\end{itemize}
+
+W~związku z~powyższym, w~opisanych w~dalszej części pracy eksperymentach (sek.~\ref{sec:experiments}), wykorzystujemy tę zoptymalizowaną, natywną implementację (Flash Attention). Pozwala to na traktowanie wyników SDPA jako silnego, przemysłowego punktu odniesienia dla badanych uwagi przybliżonych (LSH i~FAVOR+).
+
+
+
+
+\section{LSH}\label{sec:lsh}
+
+\emph{Locality-Sensitive Hashing attention} jest przybliżeniem pełnej uwagi, które redukuje liczbę porównań przez ograniczenie uwagi do elementów podobnych --- identyfikowanych za pomocą haszowania.
+
+Zamiast liczyć podobieństwo $q_i \cdot k_j$ dla wszystkich $j$, najpierw haszujemy wektory (zapytania i klucze) tak, by wektory podobne (bliskie kątowo) trafiały do tego samego koszyka -- realizujemy to przez losowe projekcje. W~efekcie każdy token otrzymuje numer koszyka, a~uwagę liczymy tylko w~obrębie swojego koszyka. Dzięki temu złożoność obliczeń obniża się z~$O(N^2)$ do~$O(N \log N)$, 
+a~złożoność pamięciowa z~$O(N^2)$ do~$O(N)$.
+
+
+
+\subsection{Konstrukcja LSH}
+Wprowadźmy oznaczenie $\mathcal{P}_i$ jako zbioru elementów, do których zapytanie w~pozycji $i$ kieruje uwagę. 
+
+Definiujemy maskę jako: 
+\begin{equation}
+\quad
+m(j, \mathcal{P}_i) =
+\begin{cases}
+\infty & \text{jeśli } j \notin \mathcal{P}_i, \\
+0 & \text{w~przeciwnym razie.}
+\end{cases}
+.
+\end{equation}
+
+Niech $z$ oznacza wyraz normalizujący w softmaksie, to znaczy:
+\begin{equation}
+z(i, \mathcal{P}_i) = \log \sum_{j \in \mathcal{P}_i} \exp\Big(q_i \cdot k_j\Big)
+.
+\end{equation}
+
+Wtedy dla elementu $i$, $Attention(i)$ można zapisać jako:
+\begin{equation}
+o_i = \sum_{j=0}^{N-1} \exp\Big(q_i \cdot k_j - m(j, \mathcal{P}_i) - z(i, \mathcal{P}_i)\Big) v_j
+.
+\end{equation}
+Dla przejrzystości pomijamy skalowanie przez $\sqrt{d_k}$.
+
+Teraz przechodzimy do uwagi LSH. Aby uzyskać $b$ koszyków, najpierw ustalamy losową macierz $R$ o rozmiarze $[d_k, b/2]$, to znaczy 
+$Q, K, V$ (wiersze to tokeny, kolumny to cechy)
+$
+R \in \mathbb{R}^{d_k \times (b/2)}, \
+R_{ij} \sim \mathcal{N}\!\left(0, \frac{1}{d_k}\right),
+\text{ niezależnie dla wszystkich } i,j.$ Następnie definiujemy funkcję haszującą (której wartość oznacza numer koszyka) jako: $h(x) = \arg\max([xR; -xR])$, gdzie $[u; v]$ oznacza konkatenację dwóch wektorów. Wtedy zbiór $\mathcal{P}_i$ przyjmuje postać:
+\begin{equation}
+\mathcal{P}_i = \Big\{ j : h(q_i) = h(k_j) \Big\}
+,
+\end{equation}
+co oznacza że element $i$ zwraca uwagę tylko na elementy z~tego samego koszyka.
+
+Liczba zapytań i~kluczy w~danym koszyku może się różnić --- czasem koszyk może zawierać wiele zapytań, ale brak kluczy. Aby rozwiązać ten problem, zapewniamy, że $h(k_j) = h(q_j)$ poprzez ustawienie $K = Q$, czyli wykorzystujemy tę samą macierz zarówno dla zapytań ($Q$), jak i~kluczy ($K$). Typowe implementacje Transformera pozwalają pozycji zwracać uwagę na samą siebie. Takie zachowanie jest niepożądane w~przypadku wspólnej reprezentacji Q i~K, ponieważ iloczyn skalarny wektora zapytania z~samym sobą prawie zawsze będzie większy niż iloczyn skalarny tego wektora z~wektorem z~innej pozycji. Dlatego modyfikujemy maskowanie w~taki sposób, aby zabronić tokenowi zwracania uwagi na samego siebie, to znaczy
+$ m(j, \mathcal{P}_i) = \infty \quad \text{jeśli } j \notin \mathcal{P}_i \text{ albo }i=j$.
+Po zastosowaniu funkcji haszującej, sortujemy zapytania według numeru koszyka oraz pozycji w~sekwencji; to definiuje permutację $i \mapsto s_i$ po sortowaniu. \\
+Aby zmniejszyć liczbę obliczeń, uwagę obliczamy blokowo — to znaczy $C$ kolejnych zapytań (po sortowaniu) liczy uwagę względem swojego oraz sąsiednich bloków, gdzie $C$ to rozmiar bloku.
+
+Dla elementu $i$, zbiór elementów do~których będzie on miał fizyczny dostęp w~trakcie liczenia uwagi możemy zapisać jako:
+\begin{equation}
+\tilde{\mathcal{P}}_i = \Big\{ j :
+\left\lfloor \frac{s_i}{C} \right\rfloor - 1
+\le
+\left\lfloor \frac{s_j}{C} \right\rfloor 
+\le
+\left\lfloor \frac{s_i}{C} \right\rfloor +1
+\Big\}
+,
+\end{equation}
+gdzie $\left\lfloor \frac{s_j}{C} \right\rfloor$ to numer bloku w~którym znajduje się element $j$.
+
+Wtedy zbiór $\mathcal{P}_i$ możemy zapisać jako
+\begin{equation}
+\mathcal{P}_i = \tilde{\mathcal{P}_i} \cap \Big\{ j : h(q_i) = h(q_j) \Big\}
+.
+\end{equation}
+
+Dzięki temu możemy zapisać:
+\begin{equation}
+o_i = \sum_{j \in \tilde{\mathcal{P}}_i}\exp\Big(q_i \cdot k_j - m(j, \mathcal{P}_i) - z(i, \mathcal{P}_i)\Big) v_j
+.
+\end{equation}
+W praktyce ustawiamy $n_\text{buckets} = \frac{N}{C}$, co oznacza że liczba koszyków jest równa liczbie bloków.
+
+
+
+\subsection{Wielorundowa uwaga LSH (ang. \emph{Multi-round LSH Attention})}
+Aby zmniejszyć szansę, że podobne elementy trafią do różnych koszyków, wykonujemy kilka rund haszowania z~różnymi funkcjami skrótu $h^{(1)}, h^{(2)}, \ldots, h^{(n_\text{rounds})}$.  
+
+Definiujemy:
+\begin{equation}
+\tilde{\mathcal{P}}_i^{(r)} =
+\Big\{
+j :
+\left\lfloor \frac{s_i^{(r)}}{C} \right\rfloor - 1
+\le
+\left\lfloor \frac{s_j^{(r)}}{C} \right\rfloor
+\le
+\left\lfloor \frac{s_i^{(r)}}{C} \right\rfloor + 1
+\Big\}
+,
+\end{equation}
+\begin{equation}
+\mathcal{P}_i^{(r)} = \tilde{\mathcal{P}}_i^{(r)} \cap \Big\{ j : h^{(r)}(q_i) = h^{(r)}(q_j) \Big\}
+.
+\end{equation}
+
+W oryginalnej pracy zastosowano:
+\begin{equation}
+U_i = \bigcup_{r=1}^{n_\text{rounds}} \mathcal{P}_i^{(r)}
+\quad\text{,}\quad
+\tilde{U}_i = \bigcup_{r=1}^{n_\text{rounds}} \tilde{\mathcal{P}}_i^{(r)}
+,
+\end{equation}
+oraz obliczono $o_i$ jako:
+\begin{equation}
+o_i = \sum_{j \in \tilde{U}_i}
+\exp\Big(q_i \cdot k_j - m(j, U_i) - z(i, U_i)\Big) v_j ,
+\end{equation}
+czyli element $i$ zwraca uwagę tylko na te elementy które trafiły do tego samego koszyka w~którejkolwiek z~rund haszowania.
+
+W~naszej pracy zmodyfikowaliśmy to w~następujący sposób:
+\begin{equation}
+o_i = 
+\frac{1}{n_\text{rounds}}
+\sum_{r=1}^{n_\text{rounds}}
+\sum_{j \in \tilde{\mathcal{P}}_i^{(r)}} 
+\exp\Big(q_i \cdot k_j - m(j, \mathcal{P}_i^{(r)}) - z(i, \mathcal{P}_i^{(r)})\Big) v_j
+.
+\end{equation}
+Czyli dla każdej rundy haszowania obliczamy uwagę w~standardowy sposób, a~następnie uśredniamy.
+
+Zdefiniujmy:
+\begin{equation}
+w_{i,j} = \frac{1}{n_\text{rounds}} \sum_{r=1}^{n_\text{rounds}}
+\exp\Big(q_i \cdot k_j - m(j, \mathcal{P}_i^{(r)}) - z(i, \mathcal{P}_i^{(r)})\Big)
+.
+\end{equation}
+Wtedy $o_i$ możemy zapisać jako:
+\begin{equation}
+\begin{aligned}
+o_i &= 
+\sum_{j \in U_i}
+\frac{1}{n_\text{rounds}}
+\sum_{r=1}^{n_\text{rounds}}
+\exp\Big(q_i \cdot k_j - m(j, \mathcal{P}_i^{(r)}) - z(i, \mathcal{P}_i^{(r)})\Big) v_j 
+\\
+&= \sum_{j \in U_i} w_{i,j} v_j
+.
+\end{aligned}
+\end{equation}
+W~praktyce odpowiada to średniej ważonej, w~której wagi $w_{i,j}$ są miarą podobieństwa pomiędzy elementami $i$ oraz $j$, to znaczy, im w~większej liczbie rund $j$ znajdzie się w~tym samym koszyku co $i$ (czyli im bardziej $j$ jest podobny do $i$), tym większy jest $w_{i,j}$, a~co za tym idzie --- większy wkład wektorów $v_j$ w~końcowy wektor uwagi $o_i$.
+
+
+\subsection{Maska uwagi w~bloku}
+
+Dla elementu $i$, zamiast ograniczać liczenie uwagi $o_i$ jedynie do elementów należących do tego samego koszyka, w~bloku, do~którego należy $i$, oraz sąsiednich bloków, można rozszerzyć uwagę na wszystkie elementy znajdujące się w~tych blokach — niezależnie od przynależności do koszyka.  
+W~praktyce sprowadza się to do usunięcia maski pomiędzy elementami z~różnych koszyków w~obrębie tego samego lub sąsiednich bloków.  
+Odpowiada to modyfikacji wzoru na uwagę do postaci:
+\begin{equation}
+o_i = 
+\frac{1}{n_\text{rounds}}
+\sum_{r=1}^{n_\text{rounds}}
+\sum_{j \in \tilde{\mathcal{P}}_i^{(r)}} 
+\exp\Big(q_i \cdot k_j - z(i, \tilde{\mathcal{P}}_i^{(r)})\Big) \, v_j
+.
+\end{equation}
+
+
+Niech macierz $A_S$ oznacza macierz $A$ ograniczoną do wierszy o~indeksach należących do~zbioru $S$.  
+Zdefiniujmy również zbiór elementów należących do~tego samego bloku co $i$:
+\begin{equation}
+\hat{\mathcal{P}}_i^{(r)} =
+\Big\{
+j :
+\left\lfloor \frac{s_i^{(r)}}{m} \right\rfloor =
+\left\lfloor \frac{s_j^{(r)}}{m} \right\rfloor
+\Big\}
+.
+\end{equation}
+
+Wtedy nasza modyfikacja odpowiada obliczeniu standardowej uwagi (dla elementów z~bloku $\hat{\mathcal{P}}_i^{(r)}$) w~ograniczonym zakresie:
+\begin{equation}
+\text{Attention}(Q', K', V') =
+\text{Softmax}\!\Big( \frac{Q' {K'}^{\!T}}{\sqrt{d_k}} \Big) V'
+,
+\end{equation}
+gdzie
+\begin{equation}
+Q' = Q_{\hat{\mathcal{P}}_i^{(r)}} \in \mathbb{R}^{|\hat{\mathcal{P}}_i^{(r)}| \times d_k},
+\qquad
+K' = K_{\tilde{\mathcal{P}}_i^{(r)}} \in \mathbb{R}^{|\tilde{\mathcal{P}}_i^{(r)}| \times d_k},
+\qquad
+V' = V_{\tilde{\mathcal{P}}_i^{(r)}} \in \mathbb{R}^{|\tilde{\mathcal{P}}_i^{(r)}| \times d_v}
+.
+\end{equation}
+
+\TODO{Wpływ tej modyfikacji na uczenie -- wykres jest na prezentacji seminarium -- dać to gdzieś do eksperymentów i~w~tym miejscu się do tego odwołać}
+
+
+
+
+\section{FAVOR+ Attention}
+\label{sec:favor}
+
+\subsection{Wstęp i motywacja}
+
+Klasyczny mechanizm \emph{scaled dot-product attention} dla sekwencji długości $N$ operuje na macierzach
+$Q,K,V \in \mathbb{R}^{N\times d}$ i~wykorzystuje macierz wag uwagi
+\begin{equation}
+A \in \mathbb{R}^{N\times N}, \qquad A_{ij} = \exp(q_i^\top k_j).
+\end{equation}
+Wyjście attention można zapisać jako
+\begin{equation}
+\mathrm{Att}(Q,K,V) = D^{-1}\Big(A V\Big), 
+\qquad D = \mathrm{diag}\Big(A \mathbf{1}_N\Big).
+\end{equation}
+
+Główną wadą tej postaci jest konieczność jawnego zbudowania macierzy $A$ rozmiaru $N\times N$,
+co prowadzi do złożoności czasowej rzędu $O(N^2 d)$ (mnożenie $A V$) oraz pamięciowej $O(N^2)$
+na~same wagi uwagi. Metoda FAVOR+ (\emph{Fast Attention Via positive Orthogonal Random features})
+reinterpretuje uwagę jako problem aproksymacji funkcji jądra i~eliminuje potrzebę konstruowania $A$.
+
+\subsection{Uwaga jako kernel i mapowanie cech losowych}
+
+Zauważmy, że elementy $A_{ij}$ są wartościami dodatniego jądra
+\begin{equation}
+K(x,y) = \exp(x^\top y), \qquad x,y\in\mathbb{R}^d.
+\end{equation}
+FAVOR+ zakłada istnienie losowego odwzorowania cech
+$\phi_\omega:\mathbb{R}^d \to \mathbb{R}^m$
+takiego, że jądro można zapisać jako wartość oczekiwaną iloczynu skalarnego cech:
+\begin{equation}
+K(x,y) = \mathbb{E}_{\omega}\!\left[\phi_\omega(x) \phi_\omega(y)\right].
+\label{eq:kernel_features}
+\end{equation}
+
+W praktyce zastępujemy wartość oczekiwaną średnią. Dla niezależnych próbek $\omega_1,\dots,\omega_m \overset{i.i.d.}{\sim} p(\omega)$ definiujemy
+\begin{equation}
+\widehat{K}_m(x,y)
+\;:=\;
+\frac{1}{m}\sum_{i=1}^m \phi_{\omega_i}(x) \phi_{\omega_i}(y),
+\qquad \text{wtedy}\qquad
+K(x,y) \approx \widehat{K}_m(x,y).
+\end{equation}
+
+
+Definiujemy macierze cech dla całej sekwencji:
+\begin{equation}\label{eq:QKprime}
+Q' \in \mathbb{R}^{N\times m}, \quad K' \in \mathbb{R}^{N\times m},
+\qquad
+\text{gdzie wiersze to } (Q')_{i\cdot}=\phi(q_i)^\top,\; (K')_{j\cdot}=\phi(k_j)^\top.
+\end{equation}
+Wówczas macierz wag uwagi można przybliżyć przez
+\begin{equation}
+A_{ij} = K(q_i,k_j) \approx \phi(q_i)^\top\phi(k_j),
+\qquad\Rightarrow\qquad
+A \approx Q'(K')^\top.
+\end{equation}
+Po podstawieniu do wzoru na attention otrzymujemy efektywną postać obliczeń
+z~zachowaniem kolejności mnożeń:
+\begin{equation}
+\widehat{\mathrm{Att}}(Q,K,V)=\widehat{D}^{-1}\Big( Q'\big((K')^\top V\big)\Big),
+\qquad
+\widehat{D}=\mathrm{diag}\Big(Q'\big((K')^\top \mathbf{1}_N\big)\Big).
+\label{eq:favor_attention}
+\end{equation}
+Kluczowe jest to, że nie tworzymy jawnie macierzy $N\times N$.
+Zamiast tego wykonujemy dwa mnożenia macierzy o~rozmiarach $m\times N$ i~$N\times m$,
+co daje złożoność czasową $O(N m d)$ oraz pamięciową $O(Nm + Nd + md)$,
+zamiast odpowiednio $O(N^2 d)$ i~$O(N^2 + Nd)$ w~standardowym attention.
+
+
+\begin{lemma}
+Jeśli $\omega \sim \mathcal N(0, I_d)$ oraz $ 
+\phi_\omega(x) = \exp\!\left(\omega^\top x - \tfrac12 \|x\|^2\right)$,
+to
+\begin{equation}
+\exp(x^\top y)
+= \mathbb{E}_{\omega}\!\left[\phi_\omega(x)\,\phi_\omega(y)\right].
+\end{equation}
+\end{lemma}
+
+
+\begin{proof}
+Korzystamy z faktu, że to zmienna $\omega^\top z$ ma rozkład:
+\begin{equation}
+\omega^\top z \sim \mathcal N(0, \|z\|^2).
+\end{equation}
+Dla zmiennej normalnej $g \sim \mathcal N(0, \sigma^2)$ funkcja generująca momenty (MGF) ma postać:
+\begin{equation}
+M_g(t)=\mathbb{E}[\exp(tg)] = \exp\Big(\tfrac12\sigma^2 t^2\Big).
+\end{equation}
+Podstawiając $t = 1$ i $\sigma^2 = |z|^2$, otrzymujemy kluczowy fakt:
+\begin{equation}
+\mathbb{E}_{\omega}[\exp(\omega^\top z)]= \exp\Big(\tfrac12\|z\|^2\Big).
+\end{equation}
+Wtedy:
+\begin{equation}
+\begin{aligned}
+\mathbb{E}_{\omega}\!\left[\phi_\omega(x)\,\phi_\omega(y)\right]&=\mathbb{E}\big[\exp(\omega^\top (x+y))\big]\cdot \exp\Big(-\tfrac12(|x|^2+|y|^2)\Big)\\
+&=\exp\Big(\tfrac12\|x+y\|^2\Big)\exp\Big(-\tfrac12(\|x\|^2+\|y\|^2)\Big)\\
+&=\exp\Big(\tfrac12(\|x+y\|^2 - \|x\|^2 - \|y\|^2)\Big)\\
+&= \exp(x^\top y).
+\end{aligned}
+\end{equation}
+\end{proof}
+
+\subsection{Implementacja}
+
+
+\subsubsection{Estymator $\boldsymbol{\cosh}$}
+Zauważmy, że:
+\begin{equation}
+\exp(t)=\cosh(t)+\sinh(t),
+\end{equation}
+gdzie $\cosh$ jest funkcją parzystą, a $\sinh$ nieparzystą. Ponieważ rozkład $\omega^\top(x+y)$ jest symetryczny względem zera, mamy:
+\begin{equation}
+\mathbb{E}[\sinh(\omega^\top(x+y))] = 0.
+\end{equation}
+Zatem:
+\begin{equation}
+\mathbb{E}[\exp(\omega^\top (x+y))]= \mathbb{E}[\cosh(\omega^\top(x+y))].
+\end{equation}
+Otrzymujemy:
+\begin{equation}
+\exp(x^\top y)= \mathbb{E}_{\omega}\left[\cosh(\omega^\top(x+y))\right]\cdot\exp\Big(-\tfrac12(\|x\|^2+\|y\|^2)\Big).
+\end{equation}
+
+
+
+
+
+\subsubsection{Porównanie wariancji}
+Mając zdefiniowane dwa nieobciążone estymatory możemy porównać ich wariancję:
+\begin{equation}
+\hat K_{\mathrm{\exp}} = \exp(\omega^\top (q+k)) \exp\Big(-\frac{1}{2}(\|q\|^2 + \|k\|^2)\Big),
+\end{equation}
+\begin{equation}
+\hat K_{\mathrm{\cosh}} = \cosh(\omega^\top (q+k)) \exp\Big(-\frac{1}{2}(\|q\|^2 + \|k\|^2)\Big).
+\end{equation}
+
+
+\begin{equation}
+\begin{aligned}
+\mathbb{E}[\hat K_{\mathrm{exp}}^2] &= \mathbb{E}[\exp(2\omega^\top (q+k))]\exp\Big( -(\|q\|^2 + \|k\|^2)\Big)\\
+&= \exp(2\|q+k\|^2) \exp\Big(-(\|q\|^2+\|k\|^2)\Big).
+\end{aligned}
+\end{equation}
+
+
+Korzystamy z zależności:
+\begin{equation}
+\cosh^2(x) = \frac{1+\cosh(2x)}{2}.
+\end{equation}
+
+Wówczas:
+\begin{equation}
+\begin{aligned}
+\mathbb{E}[\hat K_{\mathrm{\cosh}  }^2] &= \frac{1 + \mathbb{E}[\cosh(2\omega^\top (q+k))]}{2}\exp(-(\|q\|^2+\|k\|^2))\\
+&=\frac{1+\exp(2\|q+k\|^2)}{2}\exp(-(\|q\|^2+\|k\|^2)).
+\end{aligned}
+\end{equation}
+
+Porównujemy teraz wariancję:
+\begin{equation}
+\begin{aligned}
+\Delta_{\mathrm{Var}} &= \mathrm{Var}(\hat K_{\cosh}) - \mathrm{Var}(\hat K_{\mathrm{exp}}) \\ &= \mathbb{E}[\hat K_{\mathrm{\cosh}}^2] - \mathbb{E}[\hat K_{\mathrm{exp}}^2] \\
+&= \exp(-(\|q\|^2+\|k\|^2)) \frac{1-\exp(2\|q+k\|^2)}{2} < 0 \\
+&\implies \mathrm{Var}(\hat K_{\cosh}) < \mathrm{Var}(\hat K_{\mathrm{exp}}).
+\end{aligned}
+\end{equation}
+
+\subsubsection{Estymator $\boldsymbol{\exp}$}
+W~implementacji Performera wykorzystano następującą funkcję $\phi$:
+\begin{equation}
+\phi(x) = \frac{1}{\sqrt{m}}\exp\left(-\frac{1}{2}\|x\|^2\right)
+\begin{bmatrix}
+\exp(\omega_1^\top x) \\
+\vdots \\
+\exp(\omega_m^\top x)
+\end{bmatrix},\qquad \omega_i \sim \mathcal{N}(0,I),
+\end{equation}
+wtedy
+\begin{align}
+\phi(q)^\top \phi(k)&=
+\frac{1}{m} \exp\left(-\frac{1}{2}(\|q\|^2+\|k\|^2)\right)\sum_{i=1}^m\Big[\exp(\omega_i^\top (q+k))\Big] \\
+&\approx \exp(q^\top k) \quad \text{, dla dużego~} m
+\end{align}
+
+
+\subsubsection{Modyfikacja}
+W~naszej pracy używamy modyfikacji oryginalnego estymatora $\exp$:
+\begin{equation}\label{eq:phicosh}
+\phi(x) = \frac{1}{\sqrt{2m}}\exp\left(-\frac{1}{2}\|x\|^2\right)
+\begin{bmatrix}
+\exp(\omega_1^\top x) \\
+\vdots \\
+\exp(\omega_m^\top x) \\
+\exp(-\omega_1^\top x) \\
+\vdots \\
+\exp(-\omega_m^\top x)
+\end{bmatrix},\qquad \omega_i \sim \mathcal{N}(0,I).
+\end{equation}
+Wówczas:
+\begin{equation}
+\begin{aligned}
+\phi(q)^\top \phi(k)&=
+\frac{1}{2m} \exp\left(-\frac{1}{2}(\|q\|^2+\|k\|^2)\right)\sum_{i=1}^m\Big[\exp(\omega_i^\top (q+k))+\exp(-\omega_i^\top (q+k))\Big] \\
+&= \frac{1}{m} \exp\left(-\frac{1}{2}(\|q\|^2+\|k\|^2)\right)\sum_{i=1}^m \cosh\big(\omega_i^\top(q+k)\big) \\
+&\approx \exp(q^\top k) \quad \text{, dla dużego } m.
+\end{aligned}
+\end{equation}
+
+W~ten sposób otrzymujemy estymator o~mniejszej wariancji niż oryginalny.
+\begin{equation}
+\begin{aligned}
+\mathrm{Var}(\phi(q)^\top \phi(k)) &= \frac{1}{m} \mathrm{Var}(\hat K_{\mathrm{\cosh}}) <  \frac{1}{m} \mathrm{Var}(\hat K_{\mathrm{\exp}}).
+\end{aligned}
+\end{equation}
+
+
+
+
+\textit{Uwaga:} Należy zauważyć, że przy użyciu metody $\cosh$ macierze $Q'$ oraz $K'$ rosną dwukrotnie, tzn. $Q' \in \mathbb{R}^{N\times 2m}, \quad K' \in \mathbb{R}^{N\times 2m}$, a~co za tym idzie rośnie złożoność obliczeniowa. Aby zachować ten sam budżet obliczeniowy, rozmiar próbki w~przypadku estymatora $\cosh$ redukujemy do $m/2$, podczas gdy dla estymatora $\exp$ wynosi on $m$.
+
+Porównujemy wariancje estymatorów: 
+\begin{equation}
+\begin{aligned}
+\Delta_{\mathrm{Var}} 
+&= \frac{1}{m/2} \mathrm{Var}(\hat K_{\cosh}) - \frac{1}{m} \mathrm{Var}(\hat K_{\exp}) \\
+&= \frac{2}{m}\left(\mathbb{E}[\hat K_{\cosh}^2] - \mu^2\right) - \frac{1}{m}\left(\mathbb{E}[\hat K_{\exp}^2] - \mu^2\right) \\
+&= \left( \frac{2}{m}\mathbb{E}[\hat K_{\cosh}^2] - \frac{1}{m}\mathbb{E}[\hat K_{\exp}^2] \right) - \frac{1}{m}\mu^2 \\
+&= \frac{1}{m}\exp\big(-(\|q\|^2+\|k\|^2)\big)\Bigg[ \big(1+\exp(2\|q+k\|^2)\big) - \exp(2\|q+k\|^2) \Bigg] - \frac{1}{m}\mu^2 \\
+&= \frac{1}{m} \big[ \exp\big(-(\|q\|^2+\|k\|^2)\big) - \exp(2q^\top k) \big] \leq 0.
+\end{aligned}
+\end{equation}
+Ponieważ $\|q+k\|^2 \geq 0$, czyli $2q^\top k \geq -(\|q\|^2+\|k\|^2)$.
+
+\textit{Uwaga:} W~związku z~powyższym, parametr, który oznaczamy jako \texttt{nb\_features} (patrz tab.~\ref{tab:params_attention}) określa liczbę kolumn macierzy $Q'$ i~$K'$ (patrz rów.~\eqref{eq:QKprime}), a~nie dosłowny rozmiar próbki w~sensie rów.~\eqref{eq:phicosh}.
+
+
+
+
+
+
+\chapter{Eksperymenty}\label{sec:experiments}
+
+\section{Dane}
+
+\subsection{Zbiory danych}
+
+
+\begin{itemize}
+  \item \textbf{Wikipedia.}
+  Korpus artykułów z~anglojęzycznej Wikipedii w~wersji ze zrzutu \texttt{20231101} (Hugging Face Datasets: \texttt{wikimedia/wikipedia}, konfiguracja \texttt{20231101.en}).
+  Zbiór wykorzystano do pretreningu modelu w~zadaniu (MLM).
+  \footnote{\url{https://huggingface.co/datasets/wikimedia/wikipedia/viewer/20231101.en}}
+
+  \item \textbf{IMDb.}
+  Zbiór recenzji filmowych do binarnej klasyfikacji sentymentu (\textit{neg}/\textit{pos}).
+  \footnote{\url{https://huggingface.co/datasets/stanfordnlp/imdb}}
+
+  \item \textbf{arXiv.}
+  Zbiór dokumentów naukowych z~arXiv do wieloklasowej klasyfikacji tematycznej (11 klas).
+  W~wersji \texttt{ccdv/arxiv-classification} etykiety odpowiadają kategoriom arXiv:
+  \texttt{math.AC}, \texttt{cs.CV}, \texttt{cs.AI}, \texttt{cs.SY}, \texttt{math.GR}, \texttt{cs.CE},
+  \texttt{cs.PL}, \texttt{cs.IT}, \texttt{cs.DS}, \texttt{cs.NE}, \texttt{math.ST}.
+  \footnote{\url{https://huggingface.co/datasets/ccdv/arxiv-classification}}
+
+  \item \textbf{Hyperpartisan News Detection.}
+  Zbiór artykułów prasowych do klasyfikacji binarnej: \textit{hyperpartisan} vs \textit{non-hyperpartisan}.
+  W~kontekście zadania \textit{hyperpartisan news} definiuje się jako wiadomości prezentujące skrajnie lewicowy lub skrajnie prawicowy punkt widzenia.  Wariant \texttt{bypublisher} (pliki \texttt{articles-*-bypublisher-20181122.xml} oraz \texttt{ground-truth-*-bypublisher-20181122.xml}) jest etykietowany na podstawie ogólnego uprzedzenia (obciążenia) wydawcy, zgodnie z~ocenami dziennikarzy BuzzFeed lub serwisu MediaBiasFactCheck.
+  Zbiór uczący i~walidacyjny są rozdzielone tak, aby wydawcy nie nakładali się między podziałami danych (ang. \textit{splits}).
+  \footnote{\url{https://zenodo.org/records/1489920}}
+\end{itemize}
+
+\subsection{Przetwarzanie danych}\label{sec:data_processing}
+
+\paragraph{Wikipedia.}
+Z~korpusu Wikipedii wybrano podzbiór $600\,000$ artykułów spełniających kryterium tematyczne:
+tekst artykułu zawierał co najmniej $3$ słowa kluczowe z~ustalonej listy.
+Następnie:
+\begin{itemize}
+  \item $450\,000$ artykułów ztokenizowano do maksymalnej długości $128$ tokenów\footnote{Dane zostały ztokenizowane z~wykorzystaniem \texttt{WordPieceTokenizerWrapper} (patrz sek.~\ref{sec:tokenizer}).\label{fn:data-tokenizer}},
+  \item pozostałe $150\,000$ artykułów ztokenizowano do maksymalnej długości $512$ tokenów\textsuperscript{\ref{fn:data-tokenizer}}.
+\end{itemize}
+Lista słów kluczowych użyta do filtracji artykułów:
+\begin{quote}\small\ttfamily
+film, movie, cinema, television, series, episode, season, actor, actress, director, screenwriter, producer, soundtrack, box, office,
+award, academy, oscar, review, reception, critics, plot, culture, algorithm, theorem, proof, model, dataset, data, method, approach,
+analysis, experiment, simulation, complexity, optimization, neural, network, machine, learning, statistics, statistical, physics, quantum,
+entropy, differential, equation, mathematics, computer, engineering, artificial, intelligence, algorithmic, election, politics, political,
+party, ideology, government, policy, law, immigration, climate, abortion, gun, control, foreign, propaganda, media, bias, populism,
+nationalism, controversy, criticism, debate, movement, public, opinion
+\end{quote}
+
+\paragraph{IMDb.}
+Z~treści recenzji usunięto znaczniki HTML odpowiadające nowym liniom (regex: \verb|<br\s*/?>|).
+Następnie połączono oryginalne podziały \texttt{train} i~\texttt{test} w~jeden zbiór,
+po czym wykonano ponowny podział na zbiory uczący, walidacyjny i~testowy
+w~proporcjach $80\%/10\%/10\%$:
+\[
+40\,000 \text{ (trening)} \quad|\quad 5\,000 \text{ (walidacja)} \quad|\quad 5\,000 \text{ (test)}.
+\]
+Dane ztokenizowano do maksymalnej długości $512$ tokenów\textsuperscript{\ref{fn:data-tokenizer}}.
+
+\paragraph{arXiv.}
+Nie wykonywano dodatkowego czyszczenia danych.
+Połączono oryginalne podziały \texttt{train}, \texttt{validation} i~\texttt{test}, a~następnie zastosowano podział
+na zbiory uczący, walidacyjny i~testowy w~proporcjach $80\%/10\%/10\%$:
+\[
+26\,710 \text{ (trening)} \quad|\quad 3\,339 \text{ (walidacja)} \quad|\quad 3\,339 \text{ (test)}.
+\]
+Dane ztokenizowano do maksymalnej długości $16\,384$ tokenów\textsuperscript{\ref{fn:data-tokenizer}}.
+
+\paragraph{Hyperpartisan News Detection.}
+\TODO{preprocessing + splity}
+Dane ztokenizowano do maksymalnej długości $4\,096$ tokenów\textsuperscript{\ref{fn:data-tokenizer}}.
+
+
+\subsection{Aspekty danych: źródła, licencje, etyka i bias}
+\label{sec:data_aspects}
+
+
+\paragraph{Licencje i sposób użycia.}
+Zbiory wykorzystano wyłącznie do trenowania i~ewaluacji modeli klasyfikacji w~ramach pracy.
+Treści źródłowe (np.\ artykuły, recenzje, pełne teksty) nie były cytowane ani w~żaden sposób redystrybuowane. Dla Wikipedii zastosowanie mają licencje CC BY-SA i~GFDL, natomiast dla~pozostałych zbiorów obowiązują warunki wskazane przez ich wydawców oraz metadane repozytoriów.
+
+
+\paragraph{Etyka, prywatność i~bias.}
+Dane pochodzą z~treści publicznych, jednak mogą zawierać elementy wrażliwe lub kontrowersyjne (np.\ tematy polityczne).
+W~szczególności zbiór Hyperpartisan dotyczy wykrywania wiadomości prezentujących skrajnie lewicowy lub skrajnie prawicowy punkt widzenia; w~wariancie etykietowania \texttt{bypublisher} część etykiet wynika z~profilu wydawcy, co może wprowadzać bias i~powodować uczenie się sygnałów ubocznych (np.\ stylu medium) zamiast samej stronniczości treści.
+
+
+\subsection{EDA}
+
+W~niniejszej sekcji przedstawiono statystyki długości tekstów po tokenizacji (zgodnie z~sek.~\ref{sec:data_processing}) dla poszczególnych zbiorów danych.
+Statystyki obejmują średnią, odchylenie standardowe, medianę oraz wartości minimalne i~maksymalne liczby tokenów. Statystyki zostały przedstawione w~tab.~\ref{tab:eda-nested}.
+
+
+\begin{table}[h!]
+\centering
+\caption{Statystyki długości tokenów po tokenizacji}
+\label{tab:eda-nested}
+\smallskip
+\small
+\begin{tabular}{@{}l r r r r r@{}}
+\toprule
+& \multicolumn{5}{c}{\textbf{Statystyki tokenów}} \\
+\cmidrule(lr){2-6}
+\textbf{Podział} & \textbf{$\mu$} & \textbf{$\sigma$} & \textbf{Med.} & \textbf{Min} & \textbf{Max} \\
+\midrule
+\multicolumn{6}{l}{\textit{Wikipedia}} \\
+\quad 450k (128)  & 127 & 6 & 128 & 19 & 128 \\
+\quad 150k (512)  & 452 & 112 & 512 & 20 & 512 \\
+\addlinespace[0.5em]
+\multicolumn{6}{l}{\textit{IMDb}} \\
+\quad trening    & 263 & 137 & 220 & 10 & 512 \\
+\quad walidacja  & 263 & 138 & 220 & 18 & 512 \\
+\quad test       & 262 & 137 & 221 & 13 & 512 \\
+\addlinespace[0.5em]
+\multicolumn{6}{l}{\textit{arXiv}} \\
+\quad trening    & 12\,095 & 4\,261 & 12\,836 & 910 & 16\,384 \\
+\quad walidacja  & 12\,055 & 4\,321 & 12\,795 & 650 & 16\,384 \\
+\quad test       & 12\,063 & 4\,342 & 12\,863 & 1\,009 & 16\,384 \\
+\addlinespace[0.5em]
+\multicolumn{6}{l}{\textit{Hyperpartisan}} \\
+\quad trening    & 2\,423 & 807 & 2\,150 & 100 & 4\,096 \\
+\quad walidacja  & 2\,503 & 896 & 2\,197 & 1\,255 & 4\,096 \\
+\quad test       & 2\,504 & 899 & 2\,181 & 1\,296 & 4\,096 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+
+\section{Opis eksperymentów}\label{sec:experiments-description}
+
+
+
+\subsection{Zarys ogólny eksperymentów}
+W~celu przeprowadzenia pełnego eksperymentu porównawczego zaprojektowano wieloetapowy proces uczenia, który rozpoczyna się od pretreningu na~korpusie ogólnym (Wikipedia) z~wykorzystaniem zadania modelowania języka z~maskowaniem (ang. \emph{Masked Language Modeling}, MLM) w~celu nauczenia modelu ogólnych struktur językowych i~semantyki, co kończy się utworzeniem zapisanego stanu modelu (ang. \emph{checkpoint}) \texttt{model\_base.pt}. Następnie realizowana jest adaptacja do zadania (ang. \emph{Task-Adaptive Pretraining}, TAPT \cite{gururangan-etal-2020-dont}), polegająca na kontynuacji uczenia MLM na~nieetykietowanych danych z~domeny docelowej --- w~niniejszej pracy wykorzystano do~tego celu te same zbiory, które służą do~późniejszej klasyfikacji (IMDB, Hyperpartisan, ArXiv), przeprowadzając proces TAPT każdorazowo wyłącznie na~zbiorze docelowym startując z~modelu bazowego i~zapisując wynik w~pliku \texttt{model\_tapt.pt}. Ostatnim etapem jest końcowe dostrajanie (ang. \emph{fine-tuning}), w~którym model jest trenowany w~sposób nadzorowany na~konkretnym, etykietowanym zbiorze danych startując z~odpowiedniego punktu kontrolnego TAPT, co pozwala na~uzyskanie końcowego modelu \texttt{model\_finetuned.pt} oraz jego najlepszej wersji \texttt{model\_finetuned\_best.pt}, wyłonionej na~podstawie wyników na~zbiorze walidacyjnym. Po każdym z~etapów następuje transfer wag z~odpowiedniego punktu kontrolnego, podczas gdy pozostałe parametry, takie jak stan optymalizatora, harmonogram współczynnika uczenia (ang. \emph{learning rate scheduler}) oraz skaler gradientów (ang. \emph{gradient scaler}) są resetowane.
+
+\subsection{Architektura}\label{sec:experiments-arch}
+
+\noindent Schemat architektury użytej w~eksperymentach przedstawiono na~rys.~\ref{fig:exp-arch-diagram}.
+
+\paragraph{Oznaczenia} Dla~opisu 
+konfiguracji przyjmujemy następujące oznaczenia parametrów: $l^t$ -- liczba 
+warstw enkodera, $d^h$ -- wymiar ukryty, $d^f$ -- rozmiar 
+warstwy pośredniej FFN, $h$ -- liczba głowic uwagi, $d^{q|k|v}$ -- wymiar 
+przestrzeni zapytań, kluczy i~wartości w~pojedynczej głowicy. Warto zaznaczyć, 
+że w~klasycznym BERT przyjmuje się zazwyczaj $d^{q} = d^{k} = d^{v} = d^{h}/h$.
+
+
+
+\begin{figure}[t!]
+    \centering
+    \resizebox{\textwidth}{!}{
+    \begin{tikzpicture}[
+        node distance=0.8cm, % Zwiększyłem nieco domyślny odstęp
+        box/.style={
+            rectangle, 
+            rounded corners, 
+            draw=black!60, 
+            thick, 
+            minimum width=5cm, 
+            minimum height=1cm, 
+            align=center, 
+            drop shadow,
+            fill=white
+        },
+        headbox/.style={
+            rectangle, 
+            rounded corners, 
+            draw=black!60, 
+            thick, 
+            minimum width=4.2cm, 
+            minimum height=1.2cm, 
+            align=center, 
+            drop shadow,
+            font=\footnotesize
+        },
+        smallbox/.style={
+            rectangle, 
+            rounded corners, 
+            draw=black!60, 
+            thick, 
+            minimum width=4cm, 
+            minimum height=0.8cm, 
+            align=center, 
+            fill=white,
+            font=\footnotesize
+        },
+        circleop/.style={
+            circle, 
+            draw=black, 
+            thick, 
+            fill=white, 
+            inner sep=0pt, 
+            minimum size=15pt
+        },
+        arrow/.style={
+            thick, 
+            ->, 
+            >=stealth
+        },
+        resarrow/.style={
+            thick, 
+            ->, 
+            >=stealth,
+            color=resColor,
+            rounded corners=5pt
+        },
+        paramtext/.style={
+            font=\footnotesize\itshape, 
+            text=paramColor, 
+            anchor=east
+        },
+        % Styl dla ramki pętli (x4)
+        stackFrame/.style={
+            draw=black!70,
+            thick,
+            dashed,
+            rounded corners,
+            inner sep=0.3cm
+        }
+    ]
+
+        % ================= LEWA KOLUMNA (GŁÓWNY MODEL) =================
+        
+        % --- 1. Embeddings ---
+        \node (input) {ID Wejść};
+        
+        \node (emb) [box, fill=embColor, above=0.5cm of input] {
+            \textbf{TextEmbeddings}\\
+            \footnotesize Embedding $\to$ LayerNorm $\to$ Dropout
+        };
+
+        % --- 2. Encoder Block (Jeden blok reprezentatywny) ---
+        
+        % Pojedynczy blok
+        \node (enc) [box, fill=encColor, above=1.2cm of emb] {
+            \textbf{EncoderBlock}\\
+            \footnotesize [AttentionBlock + MLPBlock]
+        };
+        
+        % Ramka oznaczająca powtórzenie x4
+        \node (encStack) [stackFrame, fit=(enc), label={[anchor=east, font=\bfseries\small, text=black!80] left: N Warstw $\times$}] {};
+
+
+        % --- 3. GŁOWY (HEADS) ---
+        
+        % MLM Head
+        \node (headMLM) [headbox, fill=headColor, above left=1.5cm and -1.8cm of encStack] {
+            \textbf{MaskedLMHead}\\
+            \tiny Linear $\to$ GELU $\to$ LayerNorm $\to$ Linear
+        };
+
+        % Classification Head
+        \node (headCLS) [headbox, fill=clsColor, above right=1.5cm and -1.8cm of encStack] {
+            \textbf{ClassificationHead}\\
+            \tiny Pooling $\to$ Linear $\to$ Tanh $\to$ \\ \tiny $\to$ Drop $\to$ Linear
+        };
+
+        % --- 4. Outputs ---
+        \node (outMLM) [above=0.4cm of headMLM, font=\footnotesize] {Logity (Słownik)};
+        \node (outCLS) [above=0.4cm of headCLS, font=\footnotesize] {Logity (Etykiety)};
+
+        % --- Strzałki Lewe ---
+        \draw [arrow] (input) -- (emb);
+        \draw [arrow] (emb) -- (encStack.south); % Strzałka wchodzi w ramkę
+        
+        % Strzałki rozgałęziające się z góry ramki (Encoder Stack)
+        \draw [arrow] (encStack.north) -- ++(0,0.6) -| (headMLM.south) 
+            node[pos=0.3, above, font=\bfseries\scriptsize] {MLM};
+            
+        \draw [arrow] (encStack.north) -- ++(0,0.6) -| (headCLS.south) 
+            node[pos=0.3, above, font=\bfseries\scriptsize] {CLS};
+
+        % Wyjścia z głów
+        \draw [arrow] (headMLM) -- (outMLM);
+        \draw [arrow] (headCLS) -- (outCLS);
+        
+        % Label boczny (opcjonalny) - usunięty na wniosek
+        % \node[rotate=90, anchor=south, text=gray] at ($(encStack.west)+(-0.5, 0)$) {Encoder Stack};
+
+
+        % ================= PRAWA KOLUMNA (SZCZEGÓŁY BLOKU) =================
+        
+        % Pozycjonujemy względem pojedynczego bloku 'enc'
+        \coordinate (detail_center) at ($(enc.east) + (5.5cm, -2.5cm)$);
+        
+        % Budujemy szczegóły od dołu do góry wokół środka
+        \node (add1) [circleop] at (detail_center) {+};
+        
+        \node (attn) [smallbox, fill=encColor!50, below=0.4cm of add1] {
+            \textbf{MHA \textbar\ LSH \textbar\ FAVOR}\\
+            \tiny Linear(QKV) $\to$ RoPE $\to$ $\mathcal{A}(Q, K, V)$ $\to$ \\ \tiny  $\to$ Linear(Out) $\to$ Dropout
+        };
+        
+        \node (b_in) [font=\footnotesize, below=0.6cm of attn] {Wejście};
+        
+        \node (ln1) [smallbox, fill=white, minimum height=0.6cm, above=0.4cm of add1] {LayerNorm};
+
+        \node (mlp) [smallbox, fill=encColor!30, above=0.6cm of ln1] {
+            \textbf{MLP}\\
+            \tiny Linear $\to$ GELU $\to$ Linear $\to$ Dropout
+        };
+
+        \node (add2) [circleop, above=0.4cm of mlp] {+};
+        \node (ln2) [smallbox, fill=white, minimum height=0.6cm, above=0.4cm of add2] {LayerNorm};
+        \node (b_out) [font=\footnotesize, above=0.5cm of ln2] {Wyjście};
+
+        % Połączenia wewnątrz szczegółów
+        \draw [arrow] (b_in) -- (attn);
+        \draw [arrow] (attn) -- (add1);
+        \draw [arrow] (add1) -- (ln1);
+        \draw [arrow] (ln1) -- (mlp);
+        \draw [arrow] (mlp) -- (add2);
+        \draw [arrow] (add2) -- (ln2);
+        \draw [arrow] (ln2) -- (b_out);
+
+        % Residual connections
+        \draw [resarrow] (b_in.north) ++(0,0.2) -- ++(2.8,0) |- node[pos=0.25, right, align=center, font=\tiny, text=resColor]{Połączenie \\ rezydualne} (add1);
+        \draw [resarrow] (ln1.north) ++(0,0.15) -- ++(2.8,0) |- node[pos=0.25, right, align=center, font=\tiny, text=resColor]{Połączenie \\ rezydualne} (add2);
+
+        % Linie łączące lewą stronę (Ogół) z prawą (Szczegół)
+        % Łączymy rogi pojedynczego bloku 'enc' z rogami całego diagramu szczegółowego
+        \draw [dashed, gray, thick] (enc.north east) -- (ln2.north west);
+        \draw [dashed, gray, thick] (enc.south east) -- (attn.south west);
+
+    \end{tikzpicture}
+    }
+    \caption{Schemat architektury użytej w~eksperymentach (nazewnictwo zgodne z~nazwami klas w~sek.~\ref{sec:transformer-arch})}
+    \label{fig:exp-arch-diagram}
+\end{figure}
+
+\paragraph{$\text{BERT}_{\text{SMALL}}$} 
+Traktujemy ten model jako standardową małą architekturę modelu BERT. Została ona po raz pierwszy wprowadzona w~artykule \textcite{turc2019well}, który pokazuje, że małe modele BERT mogą osiągać bardzo dobre wyniki, jeśli są najpierw porządnie pretrenowane, zamiast polegać wyłącznie na destylacji z~dużych modeli.
+Konfiguracja: $l^t = 4$, $d^h = 512$, $d^f = 2048$, $h = 8$, $d^{q|k|v} = 512$.
+
+
+% \paragraph{$\text{AutoTinyBERT}_{\text{S1}}$} 
+% Traktujemy ten model jako alternatywną małą architekturę modelu BERT. Została ona po raz pierwszy wprowadzona w~artykule \textcite{Yin2021AutoTinyBERTAH} -- autorzy zauważają, że standardowe ustawienia hiperparametrów, które sprawdzają się w~dużym modelu BERT, niekoniecznie są optymalne dla modeli bardzo małych. Proponują użycie NAS (\emph{Neural Architecture Search}) -- czyli automatycznego przeszukiwania przestrzeni możliwych architektur, aby znaleźć taką, która daje najlepsze wyniki przy zadanym ograniczeniu prędkości.
+% Konfiguracja: $l^t = 5$, $d^h = 564$, $d^f = 1054$, $h = 8$, $d^{q|k|v} = 512$.
+
+\paragraph{Liczba parametrów}
+W~modelu $\text{BERT}_{\text{SMALL}}$ liczba parametrów poszczególnych modułów wynosi: $15.6$ mln (warstwa osadzeń), $3.15$ mln (pojedynczy blok enkodera), $15.9$ mln (głowica MLM) oraz $0.26$ mln (głowica klasyfikacyjna).
+Dla~architektury $\text{AutoTinyBERT}_{\text{S1}}$ wartości te wynoszą odpowiednio: $17.2$ mln, $2.35$ mln, $17.5$ mln oraz $0.32$ mln.
+Należy zaznaczyć, że w~obu przypadkach ostatnia warstwa liniowa w~głowicy MLM współdzieli wagi z~warstwą osadzeń. Z~tego względu całkowitą liczbę parametrów modelu wyrażamy wzorem:
+\begin{equation}
+P_{\text{total}} = P_{\text{emb}} + l^t \cdot P_{\text{enc}} + P_{\text{head}},
+\end{equation}
+gdzie $P_{\text{head}}$ to liczba parametrów trenowalnych danej głowicy.
+Sumaryczna liczba parametrów dla~$\text{BERT}_{\text{SMALL}}$ wynosi zatem ok. $28.5$ mln (zarówno dla~MLM i~klasyfikacji), a~dla $\text{AutoTinyBERT}_{\text{S1}}$ ok. $29.3$ mln (zarówno dla~MLM i~klasyfikacji).
+
+\subsection{Hiperparametry}
+
+Hiperparametry użyte w~poszczególnych etapach treningu są przedstawione w~tab.~\ref{tab:training-stages-params}.
+Hiperparametry wspólne między wszystkimi etapami treningu i~eksperymentami są przedstawione w~tab.~\ref{tab:common-training-params}.
+Pozostałe hiperparametry i~proces ich optymalizacji jest przedstawiony w~sekcjach \ref{sec:exp1}, \ref{sec:exp2} i~\ref{sec:exp3}. \TODO{poprawić referencje do sekcji}
+Szczegółowy opis użytych parametrów znajduje się w~tabelach: \ref{tab:params_general}, \ref{tab:params_architecture}, \ref{tab:params_attention}, \ref{tab:params_training} i~\ref{tab:params_heads}.
+
+
+
+
+\begin{table}[h!]
+\centering
+\caption{Hiperparametry treningu dla poszczególnych etapów uczenia}
+\label{tab:training-stages-params}
+\smallskip
+\footnotesize
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{@{}llccccc@{}}
+\toprule
+\textbf{Etap} & \textbf{Zbiór danych} & \textbf{\texttt{epochs}} & \textbf{\texttt{learning\_rate}} & \textbf{\texttt{min\_lr\_ratio}} & \textbf{\texttt{max\_length}} & \textbf{\texttt{batch\_size}} \\
+\midrule
+\begin{tabular}{@{}l@{}} Pretrening \\ (MLM) \end{tabular} 
+    & Wikipedia & 10 & $5 \times 10^{-4}$ & 0.5 & 512 & 64 \\
+\midrule
+\multirow{3}{*}{\begin{tabular}{@{}l@{}} TAPT \\ (MLM) \end{tabular}} 
+    & IMDB          & 15 & \multirow{3}{*}{$2 \times 10^{-4}$} & \multirow{3}{*}{0.5} & 512 & 64 \\
+    & Hyperpartisan & 6 &  &  & 4096 & 8 \\
+    & Arxiv         & 2 &  &  & 16384 & 2 \\
+\midrule
+\multirow{3}{*}{\begin{tabular}{@{}l@{}} Dostrajanie \\ (klasyfikacja) \end{tabular}} 
+    & IMDB          & 8 & $3 \times 10^{-5}$ & \multirow{3}{*}{0.2} & 512 & 64 \\
+    & Hyperpartisan & 7 & $2 \times 10^{-5}$ &  & 4096 & 64\textsuperscript{*} \\
+    & Arxiv         & 4 & $3 \times 10^{-4}$ &  & 16384 & 16\textsuperscript{*} \\
+\bottomrule
+\multicolumn{7}{l}{\footnotesize \textsuperscript{*} Z~wykorzystaniem mechanizmu akumulacji gradientów (8 kroków).}
+\end{tabular}
+\end{table}
+
+
+\begin{table}[h!]
+\centering
+\caption{Wspólne hiperparametry dla wszystkich etapów treningu}
+\label{tab:common-training-params}
+\smallskip
+\small
+\begin{tabular}{@{}llll@{}}
+\toprule
+\textbf{Kategoria} & \textbf{Parametr} & \textbf{Wartość} & \\
+\midrule
+\multirow{8}{*}{Architektura} 
+    & \texttt{mlp\_dropout}          & 0.1 & \\
+    & \texttt{embedding\_dropout}    & 0.1 & \\
+    & \texttt{pos\_encoding}         & rope & \\
+    & \texttt{rope\_base} & 10000 & \\
+    & \texttt{rope\_scale} & 1.0 & \\
+    & \texttt{att\_dropout}    & 0.0 & \\
+    & \texttt{att\_out\_drop} & 0.1 & \\
+    & \texttt{projection\_bias}      & true & \\
+\midrule
+\multirow{4}{*}{MLM} 
+    & \texttt{tie\_mlm\_weights}    & true & \\
+    & \texttt{mask\_p}              & 0.15 & \\
+    & \texttt{mask\_token\_p}       & 0.8 & \\
+    & \texttt{random\_token\_p}     & 0.1 & \\
+\midrule
+Klasyfikacja 
+    & \texttt{pooler\_type}         & bert & \\
+\midrule
+\multirow{4}{*}{Trening} 
+    & \texttt{warmup\_ratio}        & 0.1 & \\
+    & \texttt{weight\_decay}        & 0.01 & \\
+    & \texttt{max\_grad\_norm}      & 1.0 & \\
+    & \texttt{loss}                 & cross\_entropy & \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+\subsection{Wyniki modelu bazowego (ang. \emph{baseline})}
+
+Jako punkt odniesienia dla eksperymentów z~modelami Transformer zaimplementowano prosty klasyfikator oparty na~metodzie TF-IDF (\emph{Term Frequency-Inverse Document Frequency}) w~połączeniu z~regresją logistyczną.
+Klasyfikator bazowy wykorzystuje następującą konfigurację:
+\begin{itemize}
+    \item \textbf{TF-IDF}: maksymalnie 20\,000 cech, n-gramy (1,2), minimalna częstość dokumentowa 2, maksymalna częstość dokumentowa 0.9,
+    \item \textbf{Regresja logistyczna}: solver LBFGS, maksymalnie 1000 iteracji.
+\end{itemize}
+
+
+Wyniki klasyfikacji (na~zbiorach testowych) dla~zbioru IMDb przedstawiono w~tab.~\ref{tab:baseline-imdb}, dla~arXiv w~tab.~\ref{tab:baseline-arxiv}, dla~Hyperpartisan w~tab.~\ref{tab:baseline-hyper}.
+
+\begin{table}[h!]
+\centering
+\caption{Wyniki klasyfikatora TF-IDF + LR dla zbioru IMDb}
+\label{tab:baseline-imdb}
+\smallskip
+\small
+\begin{tabular}{@{}lrrr@{}}
+\toprule
+\textbf{Klasa} & \textbf{Precyzja} & \textbf{Czułość} & \textbf{Miara F1} \\
+\midrule
+negative & 89.77 & 89.16 & 89.46 \\
+positive & 89.23 & 89.84 & 89.54 \\
+\midrule
+\textbf{Dokładność} & \multicolumn{3}{c}{89.50} \\
+\textbf{Średnia makro} & 89.50 & 89.50 & 89.50 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+\begin{table}[h!]
+\centering
+\caption{Wyniki klasyfikatora TF-IDF + LR dla zbioru arXiv}
+\label{tab:baseline-arxiv}
+\smallskip
+\footnotesize
+\begin{tabular}{@{}lrrr@{}}
+\toprule
+\textbf{Klasa} & \textbf{Precyzja} & \textbf{Czułość} & \textbf{Miara F1} \\
+\midrule
+math.AC & 95.24 & 94.34 & 94.79 \\
+cs.CV   & 80.00 & 82.47 & 81.22 \\
+cs.AI   & 69.01 & 57.56 & 62.77 \\
+cs.SY   & 85.12 & 88.41 & 86.74 \\
+math.GR & 94.92 & 95.73 & 95.32 \\
+cs.CE   & 78.14 & 72.96 & 75.46 \\
+cs.PL   & 88.19 & 92.95 & 90.51 \\
+cs.IT   & 86.21 & 84.75 & 85.47 \\
+cs.DS   & 87.69 & 89.62 & 88.65 \\
+cs.NE   & 74.77 & 74.43 & 74.60 \\
+math.ST & 81.22 & 87.74 & 84.35 \\
+\midrule
+\textbf{Dokładność} & \multicolumn{3}{c}{84.36} \\
+\textbf{Średnia makro} & 83.68 & 83.72 & 83.62 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+\begin{table}[h!]   
+\centering
+\caption{Wyniki klasyfikatora TF-IDF + LR dla zbioru Hyperpartisan}
+\label{tab:baseline-hyper}
+\smallskip
+\small
+\begin{tabular}{@{}lrrr@{}}
+\toprule
+\textbf{Klasa} & \textbf{Precyzja} & \textbf{Czułość} & \textbf{Miara F1} \\
+\midrule
+not\_hyperpartisan & 48.60 & 13.88 & 21.59 \\
+hyperpartisan      & 49.77 & 85.32 & 62.87 \\
+\midrule
+\textbf{Dokładność} & \multicolumn{3}{c}{49.60} \\
+\textbf{Średnia makro} & 49.18 & 49.60 & 42.23 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+
+\section{Eksperyment 1}\label{sec:exp1}
+
+\TODO{co chcemy zrobić, z jakimi parametrami, po co - co mierzymy: metryki + czas/ram}
+
+\subsection{Opis eksperymentu}
+
+Pierwsza faza eksperymentów koncentruje się na~wyznaczeniu optymalnych hiperparametrów procesu dostrajania dla bazowej architektury $\text{BERT}_{\text{SMALL}}$, wykorzystującej standardową uwagę SDPA. Przetestowano wpływ trzech czynników: liczby zamrożonych warstw enkodera, wartości dropoutu w~głowicy klasyfikacyjnej oraz metody agregacji wektorów (ang. \emph{pooling}). W~kontekście pierwszego czynnika, liczba zamrożonych warstw odnosi się do dolnych bloków enkodera. Dla wartości parametru $> 0$, wskazane warstwy oraz warstwa osadzeń (ang. \emph{embeddings}) pozostają zamrożone przez pierwsze $\lfloor \text{liczba epok} / 2 \rfloor$ epok dostrajania. W~przypadku wartości parametru $= 0$, wszystkie parametry modelu są aktualizowane od początku procesu uczenia. Szczegółową przestrzeń poszukiwań (ang. \emph{Grid Search}) przedstawiono w~tabeli \ref{tab:grid_e1}. 
+
+Wybór metody agregacji jest podyktowany specyfiką przetwarzania długich sekwencji i~jest zgodny z~procesem tokenizacji (sek.~\ref{sec:data_processing}), gdzie co 512 tokenów wstawiany jest token [SEP].
+
+Ze~względu na~odmienne właściwości poszczególnych zbiorów danych (m.in. różnice w~długości sekwencji oraz specyfikę domeny), optymalizacja ta przeprowadzana jest niezależnie (tj. dla każdego zbioru danych osobno). Zestawy optymalnych hiperparametrów, wyłonione na~podstawie metryki $F_1$-macro uzyskanej na~zbiorze walidacyjnym, zostaną wykorzystane dla tych zbiorów danych w~kolejnych eksperymentach (sek.~\ref{sec:exp2} i~\ref{sec:exp3}).
+
+
+
+\begin{table}[t!]
+    \centering
+    \caption{Przestrzeń poszukiwań hiperparametrów w~Eksperymencie 1}
+    \label{tab:grid_e1}
+    \begin{tabular}{ll}
+        \toprule
+        \textbf{Hiperparametr} & \textbf{Testowane wartości} \\
+        \midrule
+        Liczba zamrożonych warstw ($N_{freeze}$) & $\{0, 1, 2\}$ \\
+        Dropout klasyfikatora ($P_{drop}$) & $\{0.1, 0.2\}$ \\
+        Metoda agregacji\textsuperscript{*} & $\{\text{CLS}, \text{Mean}, \text{MeanStep-512}\}$ \\
+        \bottomrule
+        \multicolumn{2}{l}{\footnotesize \textsuperscript{*} CLS i Mean dla IMDB; CLS i MeanStep-512 dla ArXiv i Hyperpartisan.}
+    \end{tabular}
+\end{table}
+
+\subsection{Wyniki eksperymentu}
+
+
+
+
+
+\begin{table}[t!]
+\centering
+\caption{Wyniki F1-macro na~zbiorze testowym dla różnych konfiguracji hiperparametrów.}
+\label{tab:e1-f1-results}
+\smallskip
+\small
+\begin{tabular}{@{}lccc@{}}
+\toprule
+\textbf{Model} & \textbf{IMDB} & \textbf{Hyperpartisan} & \textbf{Arxiv} \\
+\midrule
+\textit{TF-IDF+LR} & -- & -- & -- \\
+\midrule
+\multicolumn{4}{l}{\textit{Agregacja CLS}} \\
+$N_\text{freeze}=0$, $P_\text{drop}=0.1$ & 93.22 & -- & -- \\
+$N_\text{freeze}=0$, $P_\text{drop}=0.2$ & 93.22 & -- & -- \\
+$N_\text{freeze}=1$, $P_\text{drop}=0.1$ & 92.95 & -- & -- \\
+$N_\text{freeze}=1$, $P_\text{drop}=0.2$ & 92.67 & -- & -- \\
+$N_\text{freeze}=2$, $P_\text{drop}=0.1$ & 92.97 & -- & -- \\
+$N_\text{freeze}=2$, $P_\text{drop}=0.2$ & 92.93 & -- & -- \\
+\midrule
+\multicolumn{4}{l}{\textit{Agregacja średnią}} \\
+$N_\text{freeze}=0$, $P_\text{drop}=0.1$ & 92.90 & -- & -- \\
+$N_\text{freeze}=0$, $P_\text{drop}=0.2$ & 92.93 & -- & -- \\
+$N_\text{freeze}=1$, $P_\text{drop}=0.1$ & 92.99 & -- & -- \\
+$N_\text{freeze}=1$, $P_\text{drop}=0.2$ & 92.87 & -- & -- \\
+$N_\text{freeze}=2$, $P_\text{drop}=0.1$ & 92.83 & -- & -- \\
+$N_\text{freeze}=2$, $P_\text{drop}=0.2$ & 92.85 & -- & -- \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+
+Wyniki optymalizacji przedstawione w~tabeli \ref{tab:e1-results} - będą używane dalej \TODO{ref}
+
+
+\begin{table}[t!]
+\centering
+\caption{Optymalne hiperparametry warstwy wybrane w~fazie E1.}
+\label{tab:e1-results}
+\begin{tabular}{@{}lccc@{}}
+\toprule
+\textbf{Zbiór danych} & $\boldsymbol{N_{freeze}}$ & $\boldsymbol{P_{drop}}$ & \textbf{Agregacja} \\
+\midrule
+IMDB          & 2   & 0.2 & Mean \\
+Hyperpartisan & --  & --  & --   \\
+ArXiv         & --  & --  & --   \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+
+
+
+
+\section{Eksperyment 2: Ewaluacja uwagi przybliżonych (LSH i FAVOR)}
+\label{sec:exp2}
+
+\subsection{Opis eksperymentu}
+
+\TODO{co chcemy zrobić, z jakimi parametrami, po co - co mierzymy: metryki + czas/ram}
+
+W~drugiej fazie porównujemy warianty uwagi \textbf{LSH} (Locality Sensitive Hashing) oraz \textbf{FAVOR} (Fast Attention Via positive Orthogonal Random features) zgodnie z~tab.~\ref{tab:attention-hyperparams}, wykorzystując architekturę $\text{BERT}_{\text{SMALL}}$.
+
+\begin{table}[t!]
+\centering
+\caption{Przestrzeń poszukiwań hiperparametrów w~Eksperymencie 2}
+\label{tab:attention-hyperparams}
+\smallskip
+\small
+\begin{tabular}{@{}llc@{}}
+\toprule
+\textbf{Uwaga} & \textbf{Hiperparametr} & \textbf{Testowane wartości} \\
+\midrule
+\multirow{2}{*}{LSH} 
+    & Liczba haszy ($N_{hashes}$)  & $\{2, 4\}$ \\
+    & Wielkość bloku ($Chunk$)     & $\{64, 128\}$ \\
+\midrule
+FAVOR+
+    & Liczba losowych cech ($N_{features}$) & $\{0.125, 0.25, 0.5, 1.0\} \times d^{q|k|v}$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Wyniki eksperymentu}
+
+
+\begin{table}[t!]
+\centering
+\caption{Wyniki F1-macro dla różnych konfiguracji mechanizmów uwagi.}
+\label{tab:attention-results-compact}
+\smallskip
+\small
+\begin{tabular}{@{}lccc@{}}
+\toprule
+\textbf{Model} & \textbf{IMDB} & \textbf{Hyperpartisan} & \textbf{Arxiv} \\
+\midrule
+\textit{TF-IDF+LR} & -- & -- & -- \\
+\midrule
+\multicolumn{4}{l}{\textit{LSH}} \\
+$N_h{=}2$, $C{=}64$  & -- & -- & -- \\
+$N_h{=}2$, $C{=}128$ & -- & -- & -- \\
+$N_h{=}4$, $C{=}64$  & -- & -- & -- \\
+$N_h{=}4$, $C{=}128$ & -- & -- & -- \\
+\midrule
+\multicolumn{4}{l}{\textit{FAVOR+}} \\
+$N_f{=}0.125$ & -- & -- & -- \\
+$N_f{=}0.25$  & -- & -- & -- \\
+$N_f{=}0.5$   & -- & -- & -- \\
+$N_f{=}1.0$   & -- & -- & -- \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+\section{Eksperyment 3}\label{sec:exp3}
+\subsection{Opis eksperymentu}
+
+\TODO{co chcemy zrobić, z jakimi parametrami, po co - co mierzymy: metryki + czas/ram}
+
+W~ostatniej fazie porównujemy architektury $\text{BERT}_{\text{SMALL}}$ z~architekturą {$\text{AutoTinyBERT}_{\text{S1}}$} aby sprawdzić, czy wnioski z~tego artykułu przekładają się na~inne mechanizmy uwagi oraz na~inne dane. Wykorzystamy parametry z~eksperymentu 1 oraz parametry z~eksperymentu 2, które uznaliśmy za najlepsze.
+
+\subsection{Wyniki eksperymentu}
+
+
+
+
+\chapter{Analiza działania systemu}
+
+\section{Testy jednostkowe}\label{sec:unit-tests}
+
+
+\begin{table}[t!]
+\centering
+\caption{Raport pokrycia kodu testami}
+\label{tab:coverage}
+\scriptsize
+\renewcommand{\arraystretch}{0.9}
+\begin{tabular}{lrrr}
+\toprule
+\textbf{Moduł} & \textbf{Instrukcje} & \textbf{Pominięte} & \textbf{Pokrycie} \\
+\midrule
+\multicolumn{4}{l}{\textit{Core}} \\
+\quad \texttt{\_\_init\_\_} & 5 & 0 & 100\% \\
+\addlinespace
+\multicolumn{4}{l}{\textit{Logger}} \\
+\quad \texttt{\_\_init\_\_} & 1 & 0 & 100\% \\
+\quad \texttt{wandb\_logger} & 98 & 16 & 84\% \\
+\addlinespace
+\multicolumn{4}{l}{\textit{Tokenizer}} \\
+\quad \texttt{\_\_init\_\_} & 1 & 0 & 100\% \\
+\quad \texttt{wordpiece\_tokenizer\_wrapper} & 117 & 8 & 93\% \\
+\addlinespace
+\multicolumn{4}{l}{\textit{Training}} \\
+\quad \texttt{\_\_init\_\_} & 2 & 0 & 100\% \\
+\quad \texttt{train} & 52 & 9 &  83\% \\
+\quad \texttt{training\_loop} & 238 & 41 & 83\% \\
+\quad \texttt{utils/\_\_init\_\_} & 4 & 0 & 100\% \\
+\quad \texttt{utils/config} & 56 & 28 & 50\% \\
+\quad \texttt{utils/dataloader\_utils} & 42 & 1 & 98\% \\
+\quad \texttt{utils/metrics\_utils} & 42 & 0 & 100\% \\
+\quad \texttt{utils/train\_utils} & 59 & 1 & 98\% \\
+\addlinespace
+\multicolumn{4}{l}{\textit{Modele -- ogólne i bloki}} \\
+\quad \texttt{\_\_init\_\_} & 13 & 0 & 100\% \\
+\quad \texttt{consts} & 2 & 0 & 100\% \\
+\quad \texttt{transformer} & 40 & 10 & 75\% \\
+\quad \texttt{transformer\_classification} & 29 & 3 & 90\% \\
+\quad \texttt{transformer\_mlm} & 16 & 0 & 100\% \\
+\quad \texttt{blocks/attention\_block} & 24 & 0 & 100\% \\
+\quad \texttt{blocks/mlp\_block} & 10 & 0 & 100\% \\
+\quad \texttt{blocks/transformer\_encoder\_block} & 12 & 0 & 100\% \\
+\addlinespace
+\multicolumn{4}{l}{\textit{Mechanizmy uwagi}} \\
+\quad \texttt{multihead\_sdp\_self\_attention} & 79 & 4 & 95\% \\
+\quad \texttt{multihead\_favor\_self\_attention} & 180 & 13 & 93\% \\
+\quad \texttt{multihead\_lsh\_self\_attention} & 145 & 3 & 98\% \\
+\addlinespace
+\multicolumn{4}{l}{\textit{Embeddingi}} \\
+\quad \texttt{positional\_encodings} & 24 & 0 & 100\% \\
+\quad \texttt{rotary} & 27 & 0 & 100\% \\
+\quad \texttt{text\_embeddings} & 57 & 1 & 98\% \\
+\addlinespace
+\multicolumn{4}{l}{\textit{Pooling i~Głowice}} \\
+\quad \texttt{pooling} & 37 & 1 & 97\% \\
+\quad \texttt{classifier\_head} & 26 & 0 & 100\% \\
+\quad \texttt{mlm\_head} & 22 & 1 & 95\% \\
+\midrule
+\textbf{SUMA} & \textbf{1460} & \textbf{140} & \textbf{90\%} \\
+\bottomrule
+\end{tabular}
+
+\vspace{0.3em}
+\centering
+\tiny{Liczba testów: 115 \quad|\quad Błędy: 0 \quad|\quad Niepowodzenia: 0 \quad|\quad Pominięto: 0}
+\end{table}
+
+
+Testy są uruchamiane przy użyciu \texttt{pytest}. Dla izolacji i kontroli zależności stosowany jest mechanizm \texttt{monkeypatch}.
+
+\begin{itemize}
+    \item \textbf{Mockowanie usług:} W~testach loggera W\&B wykorzystywany jest obiekt zastępczy (\texttt{DummyRun}) oraz \texttt{monkeypatch} do podmiany \texttt{wandb.init}. Dzięki temu testy nie wykonują połączeń sieciowych.
+    \item \textbf{Izolacja I/O:} Zapisy stanów, CSV i~sztucznych zbiorów danych wykonywane są do katalogów tymczasowych (\texttt{tmp\_path}).
+\end{itemize}
+
+
+Testy weryfikują poprawność działania całego pakietu \texttt{src/textclf\_transformer}. Testy są zorganizowane w~katalogu \texttt{tests/unit/} zgodnie z~konwencją nazewnictwa \texttt{pytest} (\texttt{test\_*.py}). Raport pokrycia znajduje się w~tabeli \ref{tab:coverage}. Testy obejmują następujące obszary:
+
+
+
+\begin{itemize}
+    \item \textbf{Logger} (\texttt{tests/unit/logger}):
+    \begin{itemize}
+        \item Poprawność zapisu metryk do plików CSV (przy wyłączonym W\&B) oraz logowanie do serwisu W\&B.
+        \item Rejestrowanie metryk systemowych (np. zużycie pamięci GPU).
+    \end{itemize}
+
+    \item \textbf{Tokenizer} (\texttt{tests/unit/tokenizer}):
+    \begin{itemize}
+        \item Walidacja ładowania i~treningu tokenizera z~plików.
+        \item Poprawność kodowania tekstów (pojedynczych oraz z ramek Pandas) i obsługa etykiet.
+        \item Mechanizm maskowania wejścia dla modelu MLM (z~pominięciem tokenów specjalnych).
+    \end{itemize}
+
+    \item \textbf{Training} (\texttt{tests/unit/training} oraz \texttt{training/utils}):
+    \begin{itemize}
+        \item Logika pętli treningowej dla klasyfikacji (zapis najlepszego modelu) i~MLM, wznawianie treningu oraz tryb dostrajania (ładowanie wag z~pretreningu).
+        \item Rozwiązywanie ścieżek względem katalogu głównego repozytorium, obsługa konfiguracji YAML, zapis i~odczyt zapisanych stanów (pełnych stanów oraz samych wag).
+        \item Obliczanie metryk (perplexity dla MLM, metryki sklearn dla klasyfikacji), poprawne działanie \texttt{collate\_fn} (padding, przycinanie) oraz załadowanie \texttt{TensorDataset}.
+    \end{itemize}
+
+    \item \textbf{Modele - ogólne i bloki} (\texttt{tests/unit/models}, \texttt{blocks}):
+    \begin{itemize}
+        \item Propagacja maski paddingu i poprawność kształtów tensorów wyjściowych.
+        \item Struktura i inicjalizacja bloków MLP, Uwagi oraz Bloku enkodera (mechanizmy rezydualne i normalizacja).
+        \item Współdzielenie wag w~modelu MLM.
+    \end{itemize}
+
+    \item \textbf{Mechanizmy uwagi} (\texttt{tests/unit/models/attention}):
+    \begin{itemize}
+        \item MHA: Zgodność numeryczna z~implementacją PyTorch, obsługa SDPA, determinizm w~trybie ewaluacji.
+        \item FAVOR+: Stabilność numeryczna wariantów funkcji $\phi$ (w tym $\exp$), obsługa masek, poprawność gradientów i mechanizmów stabilizacji.
+        \item LSH: Respektowanie masek (dopełnianie i podział na bloki), stabilność haszowania oraz weryfikacja analityczna na małych próbkach.
+    \end{itemize}
+
+    \item \textbf{Embeddingi} (\texttt{tests/unit/models/embeddings}):
+    \begin{itemize}
+        \item Poprawność wzorów kodowania pozycyjnego: sinusoidalne, uczone oraz RoPE (rotacja, cache, obsługa \texttt{position\_ids}).
+        \item Inicjalizacja embeddingów tekstowych, zerowanie wektora paddingu.
+    \end{itemize}
+
+    \item \textbf{Pooling i~Głowice} (\texttt{tests/unit/models/pooling}, \texttt{heads}):
+    \begin{itemize}
+        \item Poprawność algorytmów CLS, Mean, Max, Min.
+        \item Architektury agregatorów (poolerów) w~głowicach klasyfikacyjnych (BERT/RoBERTa) oraz struktura głowicy MLM.
+    \end{itemize}
+\end{itemize}
+
+
+
+\section{Testy akceptacyjne}
+
+
+Tabela~\ref{tab:wymagania-niefunkcjonalne} przedstawia ocenę spełnienia wymagań niefunkcjonalnych zdefiniowanych w~sek.~\ref{sec:non-functional-requirements}.
+
+Tabela~\ref{tab:wymagania-funkcjonalne} przedstawia ocenę spełnienia wymagań funkcjonalnych zdefiniowanych w~sek.~\ref{sec:functional-requirements}.
+
+
+
+\begin{table}[h!]
+\centering
+\caption{Wymagania niefunkcjonalne}
+\label{tab:wymagania-niefunkcjonalne}
+\small
+\smallskip
+\begin{tabular}{@{}lcc@{}}
+\toprule
+\textbf{Wymaganie} & \textbf{Status} & \textbf{Komentarz} \\
+\midrule
+\multicolumn{3}{c}{\textit{WNF-1 — Wydajność i efektywność zasobowa}} \\
+\midrule
+Środowisko GPU (Colab) & Spełnione & Wykorzystano GPU \textit{A100 40GB}\\
+Wymóg kosztowy (Performer) & \TODO{Częściowo} & Zgodnie z tabelami~\ref{tab:cost-diffs} i~\ref{tab:f1macro-diffs}\\
+Wymóg kosztowy (Reformer) &  & Zgodnie z tabelami~\ref{tab:cost-diffs} i~\ref{tab:f1macro-diffs}\\
+Techniki optymalizacji & Spełnione & Zgodnie z~sek.~\ref{sec:training-loop}\\
+\midrule
+\multicolumn{3}{c}{\textit{WNF-2 — Jakość, niezawodność i testowalność}} \\
+\midrule
+Jakość (SDPA) &  & Zgodnie z tabelami~\ref{tab:cost-diffs} i~\ref{tab:f1macro-diffs}\\
+Jakość (Performer) &  & Zgodnie z tabelami~\ref{tab:cost-diffs} i~\ref{tab:f1macro-diffs}\\
+Jakość (Reformer) &  & Zgodnie z tabelami~\ref{tab:cost-diffs} i~\ref{tab:f1macro-diffs}\\
+Stabilność & \TODO{} & \TODO{tabela rozrzut f1}\\
+Testy komponentów & Spełnione & Zgodnie z sek.~\ref{sec:unit-tests}\\
+\midrule
+\multicolumn{3}{c}{\textit{WNF-3 — Użyteczność i utrzymanie}} \\
+\midrule
+Dokumentacja & Spełnione & Zgodnie z~sek.~\ref{sec:how-to-use}\\
+Struktura katalogów & Spełnione & Zgodnie z~sek.~\ref{sec:system-arch}\\
+Zgodność z PEP-8 & Spełnione & \TODO{załącznik repo} \\
+Wersjonowanie & Spełnione & \TODO{załącznik repo} \\
+Rozszerzalność mechanizmów uwagi & Spełnione & Zgodnie z~sek.~\ref{sec:arch-attention} \\
+Konfiguracja YAML & Spełnione & Zgodnie z~sek.~\ref{sec:experiments_config} \\
+\midrule
+\multicolumn{3}{c}{\textit{WNF-4 — Przenośność i kompatybilność}} \\
+\midrule
+Kompatybilność Python & Spełnione & Zgodnie z~sek.~\ref{sec:how-to-install}\\
+Biblioteki & Spełnione & Zgodnie z~sek.~\ref{sec:how-to-install}\\
+\midrule
+\multicolumn{3}{c}{\textit{WNF-5 — Monitorowanie i obserwowalność}} \\
+\midrule
+Monitorowanie W\&B & Spełnione & Zgodnie z~sek.~\ref{sec:logger}\\
+Monitorowanie CSV & Spełnione & Zgodnie z~sek.~\ref{sec:logger}\\
+Wznowienia treningu & Spełnione & Zgodnie z~sek.~\ref{sec:checkpointing1} i~\ref{sec:checkpointing2}\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+
+
+
+
+
+
+\begin{table}[h!]
+\centering
+\caption{Weryfikacja wymagań funkcjonalnych}
+\label{tab:wymagania-funkcjonalne}
+\small
+\smallskip
+\begin{tabular}{@{}lcc@{}}
+\toprule
+\textbf{Wymaganie} & \textbf{Status} & \textbf{Komentarz} \\
+\midrule
+\multicolumn{3}{c}{\textit{WF-1 — Pretrening i dostrajanie}} \\
+\midrule
+Pełny cykl uczenia (MLM + CLS) & Spełnione & Zgodnie z~sek.~\ref{sec:training-loop} \\
+Zapis i~wznawianie stanu & Spełnione & Zgodnie z~sek.~\ref{sec:checkpointing1} i~\ref{sec:checkpointing2} \\
+Logowanie metryk (CSV, W\&B) & Spełnione & Zgodnie z~sek.~\ref{sec:logger} \\
+\midrule
+\multicolumn{3}{c}{\textit{WF-2 — Wymienne mechanizmy uwagi}} \\
+\midrule
+Deklaratywny wybór w~YAML & Spełnione & Zgodnie z~sek.~\ref{sec:experiments_config} \\
+Obsługa SDPA, LSH, FAVOR+ & Spełnione & Zgodnie z~sek.~\ref{sec:arch-attention} \\
+Kompatybilność interfejsów & Spełnione & Zgodnie z~sek.~\ref{sec:unit-tests} \\
+\midrule
+\multicolumn{3}{c}{\textit{WF-3 — Obsługa długich sekwencji}} \\
+\midrule
+Kodowanie pozycyjne & Spełnione & Zgodnie z~sek.~\ref{sec:pos-encoding} \\
+Obsługa sekwencji > 512 & Spełnione & \begin{tabular}{@{}c@{}}Parametr \texttt{max\_length} przyjmuje \\ dowolną wartość (tab.~\ref{tab:params_general}).\end{tabular} \\
+\midrule
+\multicolumn{3}{c}{\textit{WF-4 — Pipeline danych}} \\
+\midrule
+Tokenizacja WordPiece & Spełnione & Zgodnie z~sek.~\ref{sec:tokenizer} \\
+Dynamiczny padding & Spełnione & Zgodnie z~sek.~\ref{sec:dynamic-batch-size} \\
+Maskowanie MLM (BERT) & Spełnione & Zgodnie z~sek.~\ref{sec:tokenizer} \\
+\midrule
+\multicolumn{3}{c}{\textit{WF-5 — Konfiguracja}} \\
+\midrule
+Generator eksperymentów & Spełnione & Zgodnie z~sek.~\ref{sec:experiments_config} \\
+Separacja pretreningu i dostrajania & Spełnione & Zgodnie z~sek.~\ref{sec:experiments_config} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+
+
+
+
+\chapter{Podsumowanie}:
+\TODO{I Is the final product a success?
+I What could be done better?
+I What we achieved and how we avoided dangers?
+I What are the plans for future?
+I Are there any open problems for future?}
+
+
+Pomysly na Future works:
+-Niskopoziomowa optymalizacja lsh i favor (znalezc prace ktore tak robią). 
+
+-Taktyka dla krotkich sekwencji (np przy ptretreningu uzywac mha) dla dlugich zmienic (sprawdzic czy takie cos istnieje - longformer tak robi startujac z zapisanego stanu roberta i zmiania uwagi na swoja
+
+-Doimplementowanie inncyh uwagi do systemu
+
+
+\TODO{pz-5.4 - moze dac to  ale  jakos przeredagowane}
+
+
+
+% -------------------- 6. Bibliografia -----------------------
+% Bibliografia leksykograficznie wg nazwisk autorów
+% Dla ambitnych - można skorzystać z BibTeX-a
+
+\printbibliography
+
+\thispagestyle{empty}
+\pagenumbering{gobble}
+
+
+
+% --- 7. Wykaz symboli i skrótów - jeśli nie ma, zakomentować
+% \chapter*{Wykaz symboli i skrótów}
+
+% \begin{tabular}{cl}
+% nzw. & nadzwyczajny \\
+% * & operator gwiazdka \\
+% $\widetilde{}$ & tylda
+% \end{tabular}
+% \\
+% Jak nie występują, usunąć.
+% \thispagestyle{empty}
+
+
+% ----- 8. Spis rysunków - jeśli nie ma, zakomentować --------
+\listoffigures
+\thispagestyle{empty}
+% Jak nie występują, usunąć.
+
+
+% ------------ 9. Spis tabel - jak wyżej ------------------
+\renewcommand{\listtablename}{Spis tabel}
+\listoftables
+\thispagestyle{empty}
+% Jak nie występują, usunąć.
+
+
+% 10. Spis załączników - jak nie ma załączników, to zakomentować lub usunąć
+
+\chapter*{Spis załączników}
+\begin{enumerate}
+\item repo
+% \item Załącznik 2
+% \item Jak nie występują, usunąć rozdział.
+\end{enumerate}
+\thispagestyle{empty}
+
+
+\end{document}

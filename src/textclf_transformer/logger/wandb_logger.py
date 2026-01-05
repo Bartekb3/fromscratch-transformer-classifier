@@ -1,14 +1,13 @@
+from typing import Any, Dict, Literal, Optional
+from pathlib import Path
+import torch
+import wandb
 import csv
 import warnings
 from pydantic.warnings import UnsupportedFieldAttributeWarning
 import time
 
 warnings.filterwarnings("ignore", category=UnsupportedFieldAttributeWarning)
-
-import wandb
-import torch
-from pathlib import Path
-from typing import Any, Dict, Literal, Optional
 
 
 class WandbRun:
@@ -69,7 +68,7 @@ class WandbRun:
                     dir=str(self.exp_dir)
                 )
                 print("One minute sleep for loading wandb!")
-                time.sleep(60)  
+                time.sleep(60)
                 print(
                     f"[wandb] Initialized run '{run_name}' in project '{project}' ({entity})")
             except Exception as e:

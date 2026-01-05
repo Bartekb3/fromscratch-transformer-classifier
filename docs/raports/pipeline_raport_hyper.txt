@@ -1,0 +1,17 @@
+Train set size: 58765
+Train Token length stats (avg=1988.4, std=1228.7, median=1631.0, min=79, max=50821)
+Train Character length avg=12085.6, std=7332.9
+
+Test set size: 6500
+Test Token length stats (avg=2258.9, std=1958.6, median=1690.0, min=895, max=36848)
+Test Character length avg=13743.2, std=11529.7
+Accuracy: 0.4960
+                   precision    recall  f1-score   support
+
+not_hyperpartisan    0.48599   0.13877   0.21589      3250
+    hyperpartisan    0.49767   0.85323   0.62866      3250
+
+         accuracy                        0.49600      6500
+        macro avg    0.49183   0.49600   0.42227      6500
+     weighted avg    0.49183   0.49600   0.42227      6500
+

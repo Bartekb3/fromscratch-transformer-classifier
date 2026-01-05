@@ -1,0 +1,83 @@
+Baseline:
+Pipeline(
+            steps=[
+                (
+                    "tfidf",
+                    TfidfVectorizer(
+                        max_features=20000,
+                        ngram_range=(1, 2),
+                        min_df=2,
+                        max_df=0.9,
+                    ),
+                ),
+                (
+                    "clf",
+                    LogisticRegression(
+                        max_iter=1000,
+                        solver="lbfgs",
+                        multi_class="auto",
+                        verbose=0,
+                    ),
+                ),
+            ]
+        )
+
+
+Wikipedia:
+Statystyki po tokenizacji
+450k
+{'avg_tokens': 127.41764068603516, 'std_tokens': 5.4616780281066895, 'median_tokens': 128.0, 'min_tokens': 19, 'max_tokens': 128}
+150k
+{'avg_tokens': 452.4222412109375, 'std_tokens': 111.8324203491211, 'median_tokens': 512.0, 'min_tokens': 20, 'max_tokens': 512}
+
+arxiv
+Statystyki po tokenizacji
+{'train': {'avg_tokens': 12094.607421875, 'std_tokens': 4260.59130859375, 'median_tokens': 12836.0, 'min_tokens': 910, 'max_tokens': 16384}, 'test': {'avg_tokens': 12062.6240234375, 'std_tokens': 4342.11865234375, 'median_tokens': 12863.0, 'min_tokens': 1009, 'max_tokens': 16384}, 'val': {'avg_tokens': 12055.3427734375, 'std_tokens': 4320.77392578125, 'median_tokens': 12795.0, 'min_tokens': 650, 'max_tokens': 16384}}
+
+Raport klasyfinacyny dla baselinu z uzyciem oryginalnych splitow:
+              precision    recall  f1-score   support
+
+     math.AC    0.95238   0.94340   0.94787       212
+       cs.CV    0.80000   0.82474   0.81218       194
+       cs.AI    0.69006   0.57561   0.62766       205
+       cs.SY    0.85124   0.88412   0.86737       233
+     math.GR    0.94915   0.95726   0.95319       234
+       cs.CE    0.78142   0.72959   0.75462       196
+       cs.PL    0.88189   0.92946   0.90505       241
+       cs.IT    0.86207   0.84746   0.85470       236
+       cs.DS    0.87692   0.89623   0.88647       318
+       cs.NE    0.74771   0.74429   0.74600       219
+     math.ST    0.81223   0.87736   0.84354       212
+
+    accuracy                        0.84360      2500
+   macro avg    0.83682   0.83723   0.83624      2500
+weighted avg    0.84118   0.84360   0.84166      2500
+
+imdb
+Statystyki po tokenizacji
+{'train': {'avg_tokens': 262.88775634765625, 'std_tokens': 137.1915740966797, 'median_tokens': 220.0, 'min_tokens': 10, 'max_tokens': 512}, 'test': {'avg_tokens': 262.44219970703125, 'std_tokens': 137.07003784179688, 'median_tokens': 221.0, 'min_tokens': 13, 'max_tokens': 512}, 'val': {'avg_tokens': 263.4132080078125, 'std_tokens': 137.46031188964844, 'median_tokens': 220.0, 'min_tokens': 18, 'max_tokens': 512}}
+
+Raport klasyfikacyjny dla baselinu z uzyciem oryginalnych splitow:
+              precision    recall  f1-score   support
+
+    negative    0.89770   0.89160   0.89464     12500
+    positive    0.89233   0.89840   0.89536     12500
+
+    accuracy                        0.89500     25000
+   macro avg    0.89502   0.89500   0.89500     25000
+weighted avg    0.89502   0.89500   0.89500     25000
+
+
+hyperpartisan
+Statystyki po tokenizacji
+{'train': {'avg_tokens': 2422.914306640625, 'std_tokens': 807.1834106445312, 'median_tokens': 2150.0, 'min_tokens': 100, 'max_tokens': 4096}, 'test': {'avg_tokens': 2504.314453125, 'std_tokens': 898.734375, 'median_tokens': 2181.0, 'min_tokens': 1296, 'max_tokens': 4096}, 'val': {'avg_tokens': 2503.489501953125, 'std_tokens': 896.273681640625, 'median_tokens': 2197.0, 'min_tokens': 1255, 'max_tokens': 4096}}
+
+Raport klasyfikacyjny dla baselinu z uzyciem naszych splitow:
+                   precision    recall  f1-score   support
+
+not_hyperpartisan    0.48599   0.13877   0.21589      3250
+    hyperpartisan    0.49767   0.85323   0.62866      3250
+
+         accuracy                        0.49600      6500
+        macro avg    0.49183   0.49600   0.42227      6500
+     weighted avg    0.49183   0.49600   0.42227      6500

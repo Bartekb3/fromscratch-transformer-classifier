@@ -53,8 +53,18 @@ docs/pz/*.fdb_latexmk
 docs/pz/_minted
 docs/pz/*.out
 docs/pz/*.toc
-docs/thesis/*
-docs/seminarium/*
+
+docs/thesis/main/thesis-pl*
+!docs/thesis/main/thesis-pl.pdf
+!docs/thesis/main/thesis-pl.tex
+
+docs/seminarium/prezentacja-2*
+!docs/seminarium/prezentacja-2.pdf
+!docs/seminarium/prezentacja-2.tex
+
+docs/thesis/title_page/strona-tytulowa-inz-pl*
+!docs/thesis/title_page/strona-tytulowa-inz-pl.pdf
+!docs/thesis/title_page/strona-tytulowa-inz-pl.tex
 
 
 #other
