@@ -9,7 +9,7 @@ logging:
   use_wandb: true
   wandb:
     entity: praca-inzynierska
-    project: text_classification
+    project: demo
     run_name: __WILL_BE_FILLED__
 
   log_eval_metrics: true
@@ -86,7 +86,7 @@ training:
 data:
   train:
     shuffle: true
-    dataset_path: data/tokenized/train_dataset.pt
+    dataset_path: data/tokenized/imdb_train.pt
   val:
     shuffle: false
-    dataset_path: data/tokenized/val_dataset.pt
+    dataset_path: data/tokenized/imdb_val.pt

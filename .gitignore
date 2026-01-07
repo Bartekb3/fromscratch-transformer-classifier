@@ -74,3 +74,4 @@ experiments/finetuning/*
 experiments/pretraining/*
 !experiments/pretraining/.gitkeep
 .DS_Store
+result_tables/
