@@ -252,7 +252,6 @@ class LSHAttention(nn.Module):
         else:
             mask = pad_keys | key_invalid
 
-        # prevent each token from attending to itself TODO only if lot to attend
         idx = torch.arange(chunk_size, device=mask.device)
         mask[:, :, :, :, idx, chunk_size + idx] = True
 
@@ -347,7 +346,6 @@ class LSHAttention(nn.Module):
         v = v.unsqueeze(1).expand(B, self.num_hashes,
                                   self.num_heads, N, dk).contiguous()
 
-        # valid mask - True on 'real' tokens: (B,H#,H,N)
         valid_mask = ~padding_mask_bool[:, None, None, :].expand(
             B, self.num_hashes, self.num_heads, N).contiguous()
         # set pad queries/vals to 0.0

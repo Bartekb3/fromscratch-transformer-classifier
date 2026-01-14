@@ -51,7 +51,7 @@ def build_rope_cache(
     assert dim % 2 == 0, "RoPE requires an even head dimension (dim % 2 == 0)."
     half = dim // 2
 
-    # Frequencies (float32 for numerical stability, then cast)
+    # Frequencies
     theta = 1.0 / \
         (base ** (torch.arange(0, half, device=device, dtype=torch.float32) / half))
     pos = torch.arange(seq_len, device=device,
@@ -90,7 +90,6 @@ def apply_rope(
         Tuple `(q_rot, k_rot)` with the same shapes as `q` and `k`.
     """
     if position_ids is not None:
-        # Expand and gather per position
         idx = position_ids[:, None, :,
                            None].expand(-1, q.size(1), -1, q.size(-1))
         cos = cos.expand(q.size(0), q.size(1), -1, -1).gather(2, idx)

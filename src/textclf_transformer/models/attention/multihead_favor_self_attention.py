@@ -25,7 +25,6 @@ def _gaussian_orthogonal_random_matrix(n_rows: int, n_cols: int, device, out_dty
             d = torch.where(diag >= 0, torch.ones_like(diag), -torch.ones_like(diag))  # ±1
             q = q * d.unsqueeze(0)
 
-            # (opcja lepsza jakościowo) skala „gaussian length” (chi):
             g = torch.randn(block_rows, n_cols, device=device, dtype=compute_dtype)
             lengths = g.norm(dim=1, keepdim=True)
             block = q[:block_rows] * lengths
@@ -76,7 +75,7 @@ class FAVORAttention(nn.Module):
         embed_dim: int,
         num_heads: int,
         bias: bool = True,
-        attn_dropout: float = 0.0,   # kept for API parity; not used in core FAVOR math
+        attn_dropout: float = 0.0,  
         out_dropout: float = 0.0,
         attention_embed_dim: int | None = None,
         nb_features: int = 256,
@@ -115,7 +114,7 @@ class FAVORAttention(nn.Module):
         self.stabilize = bool(stabilize)
         self.eps = float(eps)
 
-        # Random features (only used for phi='exp'); stored per head: (H, M, dk)
+        # Random features 
         self.register_buffer("_omega", torch.empty(0), persistent=True)
         self.register_buffer("_calls", torch.tensor(0, dtype=torch.long), persistent=False)
 
@@ -192,16 +191,13 @@ class FAVORAttention(nn.Module):
         if self.phi_kind != "exp":
             return
 
-        # First-time init: draw even in eval so we have valid Ω loaded/created.
         if self._omega.numel() == 0:
             self._draw_features(device, dtype)
             return
 
-        # After init, do not redraw in eval.
         if not self.training or self.redraw_interval <= 0:
             return
 
-        # Redraw during training if interval is enabled and reached.
         if self._calls.item() % self.redraw_interval == 0:
             self._draw_features(device, dtype)
     
@@ -228,7 +224,6 @@ class FAVORAttention(nn.Module):
         x32 = x.float() / scale              # [B, H, N, D]
         omega32 = self._omega.float()        # [H, M, D] 
 
-        # projekcje: [B, H, N, M]
         proj = torch.einsum("bhnd,hmd->bhnm", x32, omega32)
 
         if self.stabilize:
@@ -305,14 +300,12 @@ class FAVORAttention(nn.Module):
         B, N, D = x.shape
         assert D == self.embed_dim
 
-        # Projections → split heads: (B, H, N, dk)
         qkv = self.Uqkv(x)
         Q, K, V = qkv.chunk(3, dim=-1)
         Q = self._split_heads(Q, self.num_heads)
         K = self._split_heads(K, self.num_heads)
         V = self._split_heads(V, self.num_heads)
 
-        # Apply RoPE if provided
         if rope is None:
             rope = {}
         rope_cos = rope.get('rope_cos', None)
@@ -327,14 +320,14 @@ class FAVORAttention(nn.Module):
             key_padding_mask, B=B, N=N, device=Q.device, dtype=Q.dtype
         )
         Q = Q * valid
-        K = K * valid  # ensure masked keys do not affect feature stabilization
+        K = K * valid 
         V = V * valid
 
         self._maybe_redraw_features(Q.device, Q.dtype)
 
         Qf = self._phi(Q, is_query=True)        # (B, H, N, M)
         Kf = self._phi(K, is_query=False)        # (B, H, N, M)
-        Kf = Kf * valid          # zero out masked key features explicitly
+        Kf = Kf * valid
 
         # Core FAVOR+ in fp32 for stability
         with torch.amp.autocast('cuda', enabled=False):
@@ -349,16 +342,13 @@ class FAVORAttention(nn.Module):
             Ksum32 = Kf32.sum(dim=2) # (B, H, M)
             den32 = torch.einsum("bhnm,bhm->bhn", Qf32, Ksum32).unsqueeze(-1)
 
-            # Slightly larger eps for half/bfloat16 inputs
             eps_val = self.eps if x.dtype == torch.float32 else max(self.eps, 1e-5)
             den32 = den32.clamp_min(eps_val)
 
-            # num = φ(Q) S → (B, H, N, dk)
             num32 = torch.einsum("bhnm,bhmd->bhnd", Qf32, S32)
             ctx32 = num32 / den32
             ctx32 = ctx32 * valid32  
 
-            # Merge heads → output proj
             ctx = ctx32.to(Q.dtype)
         out = self._merge_heads(ctx)
         out = self.Uout(out)

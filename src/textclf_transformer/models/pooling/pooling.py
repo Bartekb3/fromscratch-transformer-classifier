@@ -18,17 +18,14 @@ class SepExperimentalPooling(nn.Module):
         Returns:
             Tensor: Pooled representation of shape (B, D).
         """
-        # Select tokens at indices 0, step, 2*step, ...
-        x_sub = x[:, ::self.step]  # (B, N_sub, D)
+        x_sub = x[:, ::self.step]
 
         if key_padding_mask is None:
             return x_sub.mean(dim=1)
 
-        # Select mask values at the same indices
         mask_sub = key_padding_mask[:, ::self.step]  # (B, N_sub)
-        
-        # Logic mirroring MeanPooling for the subset
-        valid_mask = ~mask_sub  # True for valid (non-PAD)
+
+        valid_mask = ~mask_sub
         denom = valid_mask.sum(dim=1, keepdim=True).clamp(min=1).to(x.dtype)
         masked_x = x_sub * valid_mask.unsqueeze(-1).to(x.dtype)
         
@@ -81,7 +78,7 @@ class MeanPooling(nn.Module):
         """
         if key_padding_mask is None:
             return x.mean(dim=1)
-        mask = ~key_padding_mask  # True for valid (non-PAD)
+        mask = ~key_padding_mask
         denom = mask.sum(dim=1, keepdim=True).clamp(min=1).to(x.dtype)  # (B,1)
         masked = x * mask.unsqueeze(-1).to(x.dtype)
         return masked.sum(dim=1) / denom

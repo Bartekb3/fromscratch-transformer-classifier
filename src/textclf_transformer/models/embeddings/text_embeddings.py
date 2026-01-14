@@ -47,14 +47,12 @@ class TransformerTextEmbeddings(nn.Module):
         super().__init__()
         self.word_embeddings = nn.Embedding(vocab_size, embedding_dim, padding_idx=pad_token_id)
 
-        # Token type embeddings (opcjonalnie)
         self.use_token_type = bool(type_vocab_size)
         if self.use_token_type:
             self.token_type_embeddings = nn.Embedding(type_vocab_size, embedding_dim)
         else:
             self.token_type_embeddings = None
 
-        # Positional embeddings/encodings
         pos_encoding = pos_encoding.lower()
         self.pos_kind = pos_encoding
         if pos_encoding == "learned":
@@ -62,7 +60,6 @@ class TransformerTextEmbeddings(nn.Module):
         elif pos_encoding == "sinusoidal":
             self.position = SinusoidalPositionalEncoding(embedding_dim, max_position_embeddings)
         elif pos_encoding == "rope":
-            # RoPE uses rotary on (Q, K) inside attention; no absolute positions are added here.
             self.position = None
         else:
             raise ValueError(
@@ -123,7 +120,6 @@ class TransformerTextEmbeddings(nn.Module):
             pos_emb = pos.unsqueeze(0).expand(B, N, -1)
             x = word_emb + pos_emb
         elif self.pos_kind == "rope":
-            # No absolute positions added here (RoPE will be applied to Q/K in attention).
             x = word_emb
         else:
             raise RuntimeError("Unsupported positional encoding kind.")
