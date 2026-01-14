@@ -3,7 +3,7 @@ import wandb
 import matplotlib.pyplot as plt
 
 entity = "praca-inzynierska"
-project = "final-experiments"
+project = "final-experiments" 
 
 
 def get_experiments_dict(entity=entity, project=project):
