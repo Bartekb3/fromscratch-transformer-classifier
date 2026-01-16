@@ -48,6 +48,9 @@ class WandbRun:
         self.csv_eval_path = self.exp_dir / log_cfg.get(
             "csv_eval_metrics_path", "metrics/eval/metrics.csv"
         )
+        self.csv_test_path = self.exp_dir / log_cfg.get(
+            "csv_test_metrics_path", "metrics/test/metrics.csv"
+        )
 
         self.log_eval_metrics = log_cfg.get("log_eval_metrics", True)
 
@@ -82,6 +85,7 @@ class WandbRun:
         if self.log_metrics_csv:
             self.csv_train_path.parent.mkdir(parents=True, exist_ok=True)
             self.csv_eval_path.parent.mkdir(parents=True, exist_ok=True)
+            self.csv_test_path.parent.mkdir(parents=True, exist_ok=True)
 
     def log_train(
         self,
@@ -122,10 +126,11 @@ class WandbRun:
             else:
                 self._wandb_run.log(prefixed)
 
-        self._write_csv(self.csv_eval_path, prefixed, step)
+        target_path = self.csv_test_path if kind == "test" else self.csv_eval_path
+        self._write_csv(target_path, prefixed, step)
 
     def _write_csv(self, path: Path, metrics: Dict[str, Any], step: Optional[int]) -> None:
-        """Append a metrics row to a CSV file, creating headers if needed.
+        """Append a metrics row to a CSV file, updating headers if new fields appear.
 
         Args:
             path: Destination CSV file path.
@@ -136,12 +141,56 @@ class WandbRun:
             return
         row = {"step": step if step is not None else 0, **metrics}
 
-        file_exists = path.exists()
-        with open(path, "a", newline="") as f:
-            writer = csv.DictWriter(f, fieldnames=row.keys())
-            if not file_exists:
+        if not path.exists():
+            path.parent.mkdir(parents=True, exist_ok=True)
+            with open(path, "w", newline="") as f:
+                writer = csv.DictWriter(f, fieldnames=list(row.keys()))
                 writer.writeheader()
-            writer.writerow(row)
+                writer.writerow(row)
+            return
+
+        # Check existing header
+        with open(path, "r", newline="") as f:
+            reader = csv.reader(f)
+            try:
+                existing_header = next(reader)
+            except StopIteration:
+                existing_header = []
+
+        if not existing_header:
+            # Treat as new file
+            with open(path, "w", newline="") as f:
+                writer = csv.DictWriter(f, fieldnames=list(row.keys()))
+                writer.writeheader()
+                writer.writerow(row)
+            return
+
+        # Check for new keys
+        current_keys = list(row.keys())
+        new_keys = [k for k in current_keys if k not in existing_header]
+
+        if new_keys:
+            # We need to extend the CSV schema
+            updated_header = existing_header + new_keys
+
+            # Read all existing data
+            with open(path, "r", newline="") as f:
+                reader = csv.DictReader(f)
+                # Note: corrupt rows in existing file might be read incorrectly here,
+                # but we preserve the file's current state as best as possible.
+                data = list(reader)
+
+            # Rewrite file with new header
+            with open(path, "w", newline="") as f:
+                writer = csv.DictWriter(f, fieldnames=updated_header)
+                writer.writeheader()
+                writer.writerows(data)
+                writer.writerow(row)
+        else:
+            # Append respecting existing header order
+            with open(path, "a", newline="") as f:
+                writer = csv.DictWriter(f, fieldnames=existing_header)
+                writer.writerow(row)
 
     def finish(self) -> None:
         """Finish the underlying W&B run if active."""

@@ -6,14 +6,14 @@ experiment:
   seed: 420
 
 logging:
-  use_wandb: true
+  use_wandb: false
   wandb:
     entity: praca-inzynierska
     project: demo
     run_name: __WILL_BE_FILLED__
 
   log_eval_metrics: true
-  log_metrics_csv: false
+  log_metrics_csv: true
   log_gpu_memory: true
   csv_train_metrics_path: metrics/train/metrics.csv
   csv_eval_metrics_path: metrics/eval/metrics.csv
@@ -29,9 +29,9 @@ tokenizer:
   max_length: 512
 
 architecture:
-  embedding_dim: 512
-  num_layers: 4
-  mlp_size: 2048
+  embedding_dim: 128
+  num_layers: 2
+  mlp_size: 256
   mlp_dropout: 0.1
   embedding_dropout: 0.1
   pos_encoding: rope # 'learned' | 'sinusoidal' | 'rope'
@@ -41,15 +41,15 @@ architecture:
 
   attention:
     attention_embedding_dim:
-    num_heads: 8
+    num_heads: 4
     projection_bias: true # (Q/K/V/out) bias
     attn_out_dropout: 0.1 # dropout na projekcji wyjściowej
     attn_dropout: 0.0 # dropout na wagach atencji (po softmax)
 
-    kind: lsh # 'mha' | 'lsh' | 'favor'
+    kind: mha # 'mha' | 'lsh' | 'favor'
     ###attention_params###
     mha:
-      use_native_sdpa: false
+      use_native_sdpa: true
     lsh:
       num_hashes: 4
       chunk_size: 64
@@ -70,7 +70,7 @@ classification_head:
 
 training:
   batch_size: 16
-  epochs: 10
+  epochs: 2
   learning_rate: 2.0e-4
   warmup_ratio: 0.1
   min_lr_ratio: 0.2
@@ -83,10 +83,10 @@ training:
 
   head_lr_mult: 1.0
   backbone_lr_mult: 0.5
-  freeze: true
-  freeze_n_layers: 3
-  freeze_epochs: 1
-  freeze_embeddings: true
+  freeze: false
+  freeze_n_layers: 0
+  freeze_epochs: 0
+  freeze_embeddings: false
 
 data:
   train:

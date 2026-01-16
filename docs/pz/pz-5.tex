@@ -1,0 +1,1174 @@
+\documentclass{article}
+\usepackage{caption}
+\usepackage{graphicx} % Wymagane do wstawiania obrazów
+\usepackage[T1]{fontenc} % Zalecane dla lepszej obsługi czcionek
+\usepackage[utf8]{inputenc} % Kodowanie wejściowe, kluczowe dla polskich znaków (dla pdflatex)
+\usepackage{booktabs}
+
+\usepackage{float}
+\usepackage[polish]{babel} % Wsparcie dla języka polskiego (nazwy sekcji, dzielenie wyrazów)
+\usepackage{svg}
+\usepackage{amsmath}
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric, arrows.meta, positioning, shadows.blur, fit, backgrounds, calc}
+\usepackage{threeparttable}
+
+
+% Definicje kolorów
+\definecolor{phase1bg}{HTML}{E3F2FD}
+\definecolor{phase1border}{HTML}{1976D2}
+\definecolor{phase2bg}{HTML}{FFF3E0}
+\definecolor{phase2border}{HTML}{F57C00}
+\definecolor{phase3bg}{HTML}{F1F8E9}
+\definecolor{phase3border}{HTML}{558B2F}
+\definecolor{startcolor}{HTML}{FCE4EC}
+\definecolor{startborder}{HTML}{C2185B}
+\definecolor{endcolor}{HTML}{C8E6C9}
+\definecolor{endborder}{HTML}{388E3C}
+\definecolor{nodebg}{HTML}{FFFFFF}
+\definecolor{arrowcolor}{HTML}{546E7A}
+
+\tikzset{
+    startstop/.style={
+        rectangle,
+        rounded corners=12pt,
+        minimum width=3.5cm,
+        minimum height=0.9cm,
+        text centered,
+        font=\small\bfseries,
+        draw=#1,
+        line width=1.5pt,
+        fill=#1!20,
+        blur shadow={shadow blur steps=5, shadow xshift=0.5mm, shadow yshift=-0.5mm}
+    },
+    process/.style={
+        rectangle,
+        rounded corners=6pt,
+        minimum width=5.5cm,
+        minimum height=1cm,
+        text centered,
+        text width=5cm,
+        font=\footnotesize,
+        draw=gray!60,
+        line width=0.8pt,
+        fill=nodebg,
+        blur shadow={shadow blur steps=5, shadow xshift=0.3mm, shadow yshift=-0.3mm}
+    },
+    phaselabel/.style={
+        font=\small\bfseries\sffamily,
+        text=#1,
+    },
+    arrow/.style={
+        -Stealth,
+        line width=1.2pt,
+        color=arrowcolor,
+        shorten >=2pt,
+        shorten <=2pt
+    },
+    bigarrow/.style={
+        -Stealth,
+        line width=2pt,
+        color=arrowcolor!80,
+        shorten >=4pt,
+        shorten <=4pt
+    }
+}
+
+\usepackage{geometry}
+\geometry{a4paper, margin=2cm}
+
+\title{Implementacja transformera oraz eksperymenty z wariantami mechanizmu uwagi (Performer, Reformer) w zadaniach klasyfikacji tekstu\\[0.25em]
+\large Dokumentacja projektu~\textendash{} część~V}
+\author{Bartłomiej Borycki, Michał Iwaniuk}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\tableofcontents
+\newpage
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Instrukcja instalacji}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+Poniżej przedstawiono kroki niezbędne do uruchomienia systemu w środowisku produkcyjnym.
+
+\subsection{Wymagania systemowe}
+
+\begin{itemize}
+    \item Python 3.12 lub nowszy
+    \item CUDA (opcjonalnie, do treningu na GPU). Aby wykorzystać akcelerację GPU, upewnij się, że masz zainstalowane odpowiednie sterowniki CUDA oraz bibliotekę PyTorch z obsługą CUDA.
+\end{itemize}
+
+\subsection{Instalacja środowiska}
+
+\begin{enumerate}    
+    \item \textbf{Utworzenie wirtualnego środowiska Python:}
+    \begin{verbatim}
+python -m venv .venv
+source .venv/bin/activate   # Linux/macOS
+# lub na Windows:
+# .\.venv\Scripts\Activate.ps1
+    \end{verbatim}
+    
+    \item \textbf{Aktualizacja pip i instalacja zależności:}
+    \begin{verbatim}
+pip install --upgrade pip
+pip install -r requirements.txt
+    \end{verbatim}
+\end{enumerate}
+
+\subsection{Zależności projektu}
+
+Plik \texttt{requirements.txt} zawiera następujące pakiety:
+
+\begin{itemize}
+    \item \texttt{torch==2.8.0}
+    \item \texttt{transformers==4.56.2}
+    \item \texttt{tokenizers==0.22.1}
+    \item \texttt{pandas==2.2.3}
+    \item \texttt{numpy==1.26.4}
+    \item \texttt{scikit-learn==1.6.1}
+    \item \texttt{wandb==0.22.1}
+    \item \texttt{PyYAML==6.0.2}
+    \item \texttt{pytest==8.3.4}
+    \item \texttt{datasets==4.3.0}
+    \item \texttt{pydantic>=2.12.0}
+\end{itemize}
+
+
+
+
+
+
+\section{Testy akceptacyjne}
+
+
+Tabela~\ref{tab:wymagania-niefunkcjonalne} prezentuje ocenę spełnienia wymagań niefunkcjonalnych określonych w sekcji 4 Dokumentu 1 (Laboratorium 1 – Uzasadnienie biznesowe). \\
+
+Tabela~\ref{tab:wymagania-funkcjonalne} przedstawia ocenę spełnienia wymagań funkcjonalnych zdefiniowanych w sekcji 3 Dokumentu 1~(Laboratorium 1 – Uzasadnienie biznesowe).
+
+
+
+\begin{table}[H]
+\centering
+\caption{Wymagania niefunkcjonalne}
+\label{tab:wymagania-niefunkcjonalne}
+\small
+\begin{threeparttable}
+\smallskip
+\begin{tabular}{@{}lcc@{}}
+\toprule
+\textbf{Wymaganie} & \textbf{Status} & \textbf{Komentarz} \\
+\midrule
+\multicolumn{3}{c}{\textit{WNF-1 — Wydajność i efektywność zasobowa}} \\
+\midrule
+Środowisko GPU (Colab) & Spełnione & Wykorzystano GPU \textit{A100 40GB}\\
+Wymóg kosztowy (Performer) & Częściowo spełnione $^{*}$ & Zgodnie z tabelami~\ref{tab:attention-f1-comparison} i~\ref{tab:time-comparison}\\
+Wymóg kosztowy (Reformer) & Częściowo spełnione $^{*}$& Zgodnie z tabelami~\ref{tab:attention-f1-comparison} i~\ref{tab:time-comparison}\\
+Techniki optymalizacji & Spełnione & Zgodnie z sek. 4 Dok. 3\\
+\midrule
+\multicolumn{3}{c}{\textit{WNF-2 — Jakość, niezawodność i testowalność}} \\
+\midrule
+Jakość (SDPA) & Spełnione & Zgodnie z tabelą~\ref{tab:attention-f1-comparison}\\
+Jakość (Performer) & Częściowo spełnione  & Zgodnie z tabelą~\ref{tab:attention-f1-comparison}\\
+Jakość (Reformer) & Spełnione & Zgodnie z tabelą~\ref{tab:attention-f1-comparison}\\
+Stabilność & Spełnione & Zgodnie z tabelą ~\ref{tab:sdpa-imdb-seeds}  \\
+Testy komponentów & Spełnione & Zgodnie z sek. 1 Dok. 4 \\
+\midrule
+\multicolumn{3}{c}{\textit{WNF-3 — Użyteczność i utrzymanie}} \\
+\midrule
+Dokumentacja & Spełnione & Zgodnie z sek. 3 Dok. 5\\
+Struktura katalogów & Spełnione & Zgodnie z sek. 3 Dok. 5\\
+Zgodność z PEP-8 & Spełnione &  - \\
+Wersjonowanie & Spełnione & - \\
+Rozszerzalność mechanizmów uwagi & Spełnione & Zgodnie z sek. 3.2 Dok. 3 \\
+Konfiguracja YAML & Spełnione & Zgodnie z sek.~\ref{sec:experiments_config} Dok. 5\\
+\midrule
+\multicolumn{3}{c}{\textit{WNF-4 — Przenośność i kompatybilność}} \\
+\midrule
+Kompatybilność Python & Spełnione & Zgodnie z sek. 1 Dok. 5\\
+Biblioteki & Spełnione & Zgodnie z sek. 1 Dok. 5\\
+\midrule
+\multicolumn{3}{c}{\textit{WNF-5 — Monitorowanie i obserwowalność}} \\
+\midrule
+Monitorowanie W\&B & Spełnione & Zgodnie z sek. 4.3 Dok.3\\
+Monitorowanie CSV & Spełnione & Zgodnie z sek. 4.3 Dok.3\\
+Wznowienia treningu & Spełnione & Zgodnie z sek. 4.2.5 Dok.3\\
+\bottomrule
+\end{tabular}
+
+  \begin{tablenotes}
+    \footnotesize
+    \item[$^{*}$] Wymagania początkowo określono względem naszej implementacji SDPA.
+    Końcowa weryfikacja została wykonana w porównaniu z natywną
+    implementacją Flash Attention (zgodnie z sek. 2.4 Dok. 4), charakteryzującą się wyższą wydajnością.
+
+  \end{tablenotes}
+\end{threeparttable}
+
+\end{table}
+
+
+
+
+
+\begin{table}[H]
+\centering
+\caption{Weryfikacja wymagań funkcjonalnych}
+\label{tab:wymagania-funkcjonalne}
+\small
+\smallskip
+\begin{tabular}{@{}lcc@{}}
+\toprule
+\textbf{Wymaganie} & \textbf{Status} & \textbf{Komentarz} \\
+\midrule
+\multicolumn{3}{c}{\textit{WF-1 — Pretrening i dostrajanie}} \\
+\midrule
+Pełny cykl uczenia (MLM + CLS) & Spełnione & Zgodnie z sek. 4.2 Dok.3 \\
+Zapis i wznawianie stanu & Spełnione & Zgodnie z sek. 4.2.5 Dok.3 \\
+Logowanie metryk (CSV, W\&B) & Spełnione & Zgodnie z sek. 4.3 Dok.3 \\
+\midrule
+\multicolumn{3}{c}{\textit{WF-2 — Wymienne mechanizmy uwagi}} \\
+\midrule
+Deklaratywny wybór w YAML & Spełnione & Zgodnie z sek. 5 Dok. 3 \\
+Obsługa SDPA, LSH, FAVOR+ & Spełnione & Zgodnie z sek. 3.2 Dok. 3 \\
+Kompatybilność interfejsów & Spełnione & Zgodnie z sek. 3.2 Dok. 3 \\
+\midrule
+\multicolumn{3}{c}{\textit{WF-3 — Obsługa długich sekwencji}} \\
+\midrule
+Kodowanie pozycyjne & Spełnione & Zgodnie z sek. 3.3.4 Dok. 3 \\
+Obsługa sekwencji > 512 & Spełnione & \begin{tabular}{@{}c@{}}Parametr \texttt{max\_length} przyjmuje \\ dowolną wartość (tab.1 Dok. 3).\end{tabular} \\
+\midrule
+\multicolumn{3}{c}{\textit{WF-4 — Pipeline danych}} \\
+\midrule
+Tokenizacja WordPiece & Spełnione & Zgodnie z sek.~\ref{sec:tokenizer} Dok. 5 \\
+Dynamiczny padding & Spełnione & Zgodnie z sek. 4.2.3  Dok. 3 \\
+Maskowanie MLM (BERT) & Spełnione & Zgodnie z sek.~\ref{sec:tokenizer} Dok. 5\\
+\midrule
+\multicolumn{3}{c}{\textit{WF-5 — Konfiguracja}} \\
+\midrule
+Generator eksperymentów & Spełnione & Zgodnie z sek.~\ref{sec:experiments_config} Dok. 5\\
+Separacja pretrening/finetuning & Spełnione & Zgodnie z sek.~\ref{sec:experiments_config} Dok. 5 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Podręcznik użytkownika}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+Niniejszy podręcznik opisuje, jak korzystać z systemu. Uproszczony schemat użytkowania systemu przedstawiony jest na rys.~\ref{fig:usage-scheme}.
+
+\begin{figure}[H]
+    \centering
+    \resizebox{\textwidth}{!}{
+    \begin{tikzpicture}
+
+    % ===== FAZA 1: PRZETWARZANIE DANYCH =====
+    \node[phaselabel=phase1border] (L1) at (0, 9.3) {PRZETWARZANIE DANYCH};
+
+    \node[process] (A1) at (0, 7.0) {
+        Przetwarzanie danych\\
+        (tokenizacja)
+    };
+
+    \node[process] (A2) at (0, 4.5) {
+        Zapisanie plików\\
+        \texttt{Dataset .pt} w katalogu \texttt{data/tokenized/}
+    };
+
+    \node[
+        draw=phase1border!80, dashed, line width=1pt, rounded corners=5pt,
+        fit=(A1),
+        inner sep=8pt,
+        label={[font=\footnotesize\bfseries\ttfamily, text=phase1border]north:WordPieceTokenizerWrapper}
+    ] (A_SCRIPT) {};
+
+    % ===== FAZA 2: KONFIGURACJA =====
+    \node[phaselabel=phase2border] (L2) at (9, 9.3) {KONFIGURACJA};
+
+    % Kontener skryptu generującego
+    \node[process, fill=white] (B_GEN) at (9, 7.0) {
+        Generowanie pliku katalogu eksperymentu \\
+        i pliku konfiguracyjnego \texttt{config.yaml}
+    };
+
+    \node[
+        draw=phase2border!80, dashed, line width=1pt, rounded corners=5pt,
+        fit=(B_GEN),
+        inner sep=8pt,
+        label={[align=center, font=\footnotesize\bfseries\ttfamily, text=phase2border]north:generate\_*\_experiment.py\\{\scriptsize\normalfont\color{gray!90}* $\in$ \{\texttt{pretraining}, \texttt{finetuning}\}}}
+    ] (B_SCRIPT) {};
+
+    \node[process] (B_EDIT) at (9, 4.5) {
+        Edycja pliku \texttt{config.yaml}\\
+        (ustawienie parametrów i ścieżek do plików \texttt{.pt})
+    };
+
+    % ===== FAZA 3: TRENING =====
+    \node[phaselabel=phase3border] (L3) at (18, 9.3) {TRENING};
+
+    % Kontener skryptu train.py
+    \node[process, fill=white] (C_LOAD) at (18, 6.8) {
+        Wczytanie konfiguracji, inicjalizacja modelu\\
+        i załadowanie danych.
+    };
+
+    \node[process, fill=white] (C_LOOP) at (18, 5.2) {
+        Pętla treningowa\\
+        (\texttt{TrainingLoop})
+    };
+
+    \node[
+        draw=phase3border!80, dashed, line width=1pt, rounded corners=5pt,
+        fit=(C_LOAD) (C_LOOP),
+        inner sep=8pt,
+        label={[font=\footnotesize\bfseries\ttfamily, text=phase3border]north:train.py}
+    ] (C_SCRIPT) {};
+
+    \node[startstop=endborder] (C_END) at (18, 2.8) {Zapisany model i metryki};
+
+    % ===== STRZAŁKI WEWNĘTRZNE =====
+
+    \draw[arrow] (A_SCRIPT.south) -- (A2.north);
+
+    % Strzałka od notatki do edycji (wizualnie od skryptu)
+    \draw[arrow] (B_SCRIPT.south) -- (B_EDIT.north);
+
+    \draw[arrow] (C_LOAD) -- (C_LOOP);
+    \draw[arrow] (C_SCRIPT.south) -- (C_END.north);
+
+    % ===== STRZAŁKI MIĘDZY FAZAMI =====
+    \draw[bigarrow, rounded corners=8pt] 
+        (A2.east) -- ++(1.2,0) |- (B_SCRIPT.west);
+
+    \draw[bigarrow, rounded corners=8pt] 
+        (B_EDIT.east) -- ++(1.2,0) |- (C_SCRIPT.west);
+
+    % ===== IKONY/NUMERACJA FAZ =====
+    \node[
+        circle,
+        fill=phase1border,
+        text=white,
+        font=\bfseries,
+        minimum size=0.7cm
+    ] (N1) at (-3, 9.3) {1};
+
+    \node[
+        circle,
+        fill=phase2border,
+        text=white,
+        font=\bfseries,
+        minimum size=0.7cm
+    ] (N2) at (6, 9.3) {2};
+
+    \node[
+        circle,
+        fill=phase3border,
+        text=white,
+        font=\bfseries,
+        minimum size=0.7cm
+    ] (N3) at (15, 9.3) {3};
+
+    % ===== TŁA (BACKGROUNDS) =====
+    % Rysujemy tła na końcu, używając warstwy tła i dopasowania do węzłów
+    \begin{scope}[on background layer]
+        % Faza 1
+        \node[
+            draw=phase1border,
+            line width=2pt,
+            rounded corners=10pt,
+            fill=phase1bg,
+            fit=(L1) (A_SCRIPT) (A2) (N1),
+            inner sep=10pt
+        ] (phase1box) {};
+
+        % Faza 2
+        \node[
+            draw=phase2border,
+            line width=2pt,
+            rounded corners=10pt,
+            fill=phase2bg,
+            fit=(L2) (B_SCRIPT) (B_EDIT) (N2),
+            inner sep=10pt
+        ] (phase2box) {};
+
+        % Faza 3
+        \node[
+            draw=phase3border,
+            line width=2pt,
+            rounded corners=10pt,
+            fill=phase3bg,
+            fit=(L3) (C_SCRIPT) (C_END) (N3),
+            inner sep=10pt
+        ] (phase3box) {};
+    \end{scope}
+
+    \end{tikzpicture}
+    }
+    \caption{Schemat użytkowania systemu}
+    \label{fig:usage-scheme}
+\end{figure}
+
+%----------------------------------------------------------------------------
+\subsection{Przechowywanie danych}
+%----------------------------------------------------------------------------
+
+Katalog \texttt{data/} służy do przechowywania surowych oraz stokenizowanych danych z następującą strukturą:
+\begin{itemize}
+    \item \texttt{data/raw/} --- surowe pliki (np. CSV, TXT, Parquet).
+    \item \texttt{data/tokenized/} --- gotowe do użycia zestawy danych w formacie \texttt{.pt} (zserializowane przez \texttt{torch.save}), kompatybilne z oczekiwanym formatem \texttt{DataLoader}.
+\end{itemize}
+Oczekiwany format zestawu danych (.pt):
+\begin{itemize}
+    \item \textbf{Pretrening (MLM):} \texttt{TensorDataset} zawierający tensory: \texttt{input\_ids, attention\_mask}
+    \item \textbf{Dostrajanie (CLS):} \texttt{TensorDataset} zawierający tensory: \texttt{input\_ids, attention\_mask, labels}
+\end{itemize}
+
+
+\subsection{Tokenizacja danych}
+\label{sec:tokenizer}
+
+Do tokenizacji wykorzystywany jest wrapper \texttt{WordPieceTokenizerWrapper}.
+
+\subsubsection{Trenowanie tokenizera}
+Jeśli nie dysponujemy gotowym tokenizerem (plik \texttt{vocab.txt}), możemy go wytrenować na dowolnym korpusie tekstowym:
+\begin{verbatim}
+from textclf_transformer.tokenizer.wordpiece_tokenizer_wrapper \
+    import WordPieceTokenizerWrapper
+
+tokenizer = WordPieceTokenizerWrapper()
+tokenizer.train(tokenizer_dir="my_tokenizer_dir", input="data/raw/input.txt")
+\end{verbatim}
+
+\subsubsection{Tokenizacja z plików lub listy tekstów}
+\begin{verbatim}
+from textclf_transformer.tokenizer.wordpiece_tokenizer_wrapper \
+    import WordPieceTokenizerWrapper
+import torch
+import pathlib
+
+tokenizer = WordPieceTokenizerWrapper()
+tokenizer.load("src/textclf_transformer/tokenizer/my_tokenizer_dir")
+
+# Użycie encode z plikiem tekstowym
+ds = tokenizer.encode(
+    input="data/raw/text_input.txt",
+    # labels=labels_tensor, # opcjonalne
+    max_length=512,
+)
+
+out = pathlib.Path("data/tokenized/train_dataset.pt")
+out.parent.mkdir(parents=True, exist_ok=True)
+torch.save(ds, out)
+\end{verbatim}
+
+\subsubsection{Tokenizacja z Pandas}
+\begin{verbatim}
+import pandas as pd
+
+df = pd.read_csv("data/raw/data.csv")
+ds = tokenizer.encode_pandas(
+    df=df,
+    text_col="text",
+    label_col="label", # opcjonalne
+    max_length=512
+)
+\end{verbatim}
+
+%----------------------------------------------------------------------------
+\subsection{Konfiguracja eksperymentów}
+\label{sec:experiments_config}
+%----------------------------------------------------------------------------
+
+Katalog \texttt{experiments/} służy do definiowania eksperymentów i ich konfiguracji. Każdy podkatalog w \texttt{pretraining/} lub \texttt{finetuning/} reprezentuje pojedynczy, powtarzalny przebieg eksperymentu. Szablony plików konfiguracyjnych \texttt{pretraining.yaml} i \texttt{finetuning.yaml} przechowywane są w \texttt{experiments/config\_templates/}, na ich podstawie generowane są pliki \texttt{config.yaml} w odpowiednich katalogach eksperymentów.
+
+\subsubsection{Generowanie eksperymentów}
+
+\paragraph{Pretrening (MLM):}
+\begin{verbatim}
+python experiments/generate_pretraining_experiment.py -p <pre_name>
+\end{verbatim}
+Wynik: \texttt{experiments/pretraining/<pre\_name>/config.yaml}
+
+\paragraph{Dostrajanie (CLS):}
+\begin{verbatim}
+python experiments/generate_finetuning_experiment.py \
+    -f <fin_name> -p <pre_name>
+\end{verbatim}
+Wynik: \texttt{experiments/finetuning/<fin\_name>/config.yaml}
+
+
+
+
+\subsubsection{Wznawianie pretreningu}
+
+\begin{verbatim}
+python experiments/generate_pretraining_experiment.py \
+    -p <pre_name> -rp <resume_from_name>
+\end{verbatim}
+Skrypt automatycznie kopiuje plik konfiguracyjny \texttt{config.yaml} i aktualizuje sekcję \texttt{training.resume}:
+\begin{itemize}
+    \item Ustawia flagę \texttt{is\_resume} na \texttt{true}.
+    \item Przypisuje nazwę wznawianego eksperymentu do \texttt{resume\_pretraining\_name}.
+    \item Ustawia ścieżkę \texttt{checkpoint\_path} na ostatni zapisany model (\texttt{model.ckpt}).
+\end{itemize}
+W zależności od celu wznawiania, należy zweryfikować i ewentualnie dostosować parametr \texttt{load\_only\_model\_state}:
+\begin{itemize}
+    \item \textbf{Kontynuacja przerwanego treningu:} Ustaw \texttt{false}, aby wczytać pełny stan (model, optymalizator, scheduler, skaler).
+    \item \textbf{Transfer learning / TAPT:} Ustaw \texttt{true}, aby wczytać wyłącznie wagi modelu.
+\end{itemize}
+Dodatkowo, w razie potrzeby można ręcznie zmienić ścieżkę do punktu kontrolnego, np. na \texttt{best-model.ckpt}.
+
+%----------------------------------------------------------------------------
+\subsection{Trening}
+%----------------------------------------------------------------------------
+
+Głównym interfejsem do uruchamiania treningu jest skrypt \texttt{train.py}.
+
+
+\subsubsection{Uruchomienie pretreningu}
+\begin{verbatim}
+python train.py -n <pre_name> -m pretraining
+\end{verbatim}
+
+\subsubsection{Uruchomienie dostrajania}
+\begin{verbatim}
+python train.py -n <fin_name> -m finetuning
+\end{verbatim}
+
+\subsubsection{Artefakty generowane w folderze eksperymentu}
+
+\begin{itemize}
+    \item \textbf{Checkpointy:} \texttt{checkpoints/}
+    \begin{itemize}
+        \item \texttt{best-model.ckpt} -- najlepszy model (pełny stan z optymalizatorem/schedulerem/skalerem)
+        \item \texttt{model.ckpt} -- model końcowy (tylko wagi)
+    \end{itemize}
+    \item \textbf{Metryki CSV:} \texttt{metrics/train/metrics.csv}, \texttt{metrics/eval/metrics.csv} (gdy \texttt{logging.log\_metrics\_csv=True})
+    \item \textbf{Logowanie W\&B:} metadane i artefakty przechowywane w katalogu \texttt{wandb/} (gdy \texttt{logging.use\_wandb=True})
+\end{itemize}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Testy integracyjne}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+W niniejszej sekcji przedstawiono scenariusze testów integracyjnych, weryfikujące poprawność współdziałania poszczególnych komponentów systemu w pełnym cyklu uczenia.
+
+%----------------------------------------------------------------------------
+\subsection{Środowisko testowe}
+%----------------------------------------------------------------------------
+
+Testy przeprowadzono w następującym środowisku:
+\begin{itemize}
+    \item System operacyjny: Windows 11
+    \item GPU: NVIDIA GeForce RTX 4050
+    \item Python: 3.12
+    \item PyTorch: 2.8.0
+\end{itemize}
+
+%----------------------------------------------------------------------------
+\subsection{Scenariusz 1: TAPT + finetuning z mechanizmem SDPA (IMDB)}
+%----------------------------------------------------------------------------
+
+\subsubsection{Cel testu}
+Weryfikacja poprawności integracji wszystkich komponentów systemu: tokenizacji danych, pretreningu MLM oraz dostrajania klasyfikatora na zbiorze IMDB z wykorzystaniem mechanizmu uwagi SDPA (Scaled Dot-Product Attention).
+
+\subsubsection{Kroki wykonania}
+
+\begin{enumerate}
+    \item \textbf{Tokenizacja danych:}
+\begin{verbatim}
+ds = load_dataset("imdb")
+merged = concatenate_datasets([ds["test"], ds["train"]])
+df = pd.DataFrame(merged)
+
+tokenizer = WordPieceTokenizerWrapper()
+tokenizer.load("src/textclf_transformer/tokenizer/BERT_original")
+
+train_df, test_df = train_test_split(df, test_size=0.2, random_state=42, 
+                                      stratify=df['label'])
+test_df, val_df = train_test_split(test_df, test_size=0.5, random_state=42, 
+                                    stratify=test_df['label'])
+
+for name, data in [("train", train_df), ("val", val_df), ("test", test_df)]:
+    ds = tokenizer.encode_pandas(data, text_col="text", label_col="label", 
+                                  max_length=512)
+    torch.save(ds, f"data/tokenized/imdb_{name}.pt")
+\end{verbatim}
+    
+    \item \textbf{Generowanie eksperymentu pretreningu:}
+\begin{verbatim}
+python experiments/generate_pretraining_experiment.py -p sdpa_imdb_integration
+\end{verbatim}
+    
+    \item \textbf{Uruchomienie pretreningu:}
+\begin{verbatim}
+python train.py -n sdpa_imdb_integration -m pretraining
+\end{verbatim}
+    
+    \item \textbf{Generowanie eksperymentu dostrajania:}
+\begin{verbatim}
+python experiments/generate_finetuning_experiment.py -f sdpa_imdb_ft -p sdpa_imdb_integration
+\end{verbatim}
+    
+    \item \textbf{Uruchomienie dostrajania:}
+\begin{verbatim}
+python train.py -n sdpa_imdb_ft -m finetuning
+\end{verbatim}
+\end{enumerate}
+
+\subsubsection{Konfiguracja eksperymentu}
+
+Kluczowe parametry konfiguracji (plik \texttt{config.yaml}):
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Parametr} & \textbf{Wartość} \\
+\midrule
+\multicolumn{2}{l}{\textit{Pretrening}} \\
+Mechanizm uwagi & SDPA (mha) \\
+Liczba epok & 2 \\
+Batch size & 16 \\
+Learning rate & 2e-5 \\
+Max sequence length & 512 \\
+\midrule
+\multicolumn{2}{l}{\textit{Dostrajanie}} \\
+Liczba epok & 2 \\
+Batch size & 16 \\
+Learning rate & 2e-4 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsubsection{Przykładowe logi}
+
+\paragraph{Pretraining (fragment):}
+\begin{verbatim}
+$ python train.py -n sdpa_imdb_integration -m pretraining
+
+wandb: Syncing run sdpa_imdb_integration
+wandb: View run at https://wandb.ai/praca-inzynierska/demo/runs/cnr5rft3
+
+Epoch: 0
+Epoch: 1
+
+wandb: Run summary:
+wandb:            eval/epoch  2
+wandb:             eval/loss  5.21974
+wandb:       eval/perplexity  184.88689
+wandb:  train/avg_epoch_loss  5.36163
+wandb: train/gpu_mem_peak_mb  3996.75342
+
+[OK] Zapisano checkpoint: .../checkpoints/model.ckpt
+\end{verbatim}
+
+\paragraph{Finetuning (fragment):}
+\begin{verbatim}
+$ python train.py -n sdpa_imdb_ft -m finetuning
+
+[WARN] Brakujące klucze: ['classifier.pooler.0.weight', ...]
+[WARN] Nieoczekiwane klucze: ['mlm.transform.0.weight', ...]
+
+wandb: Syncing run sdpa_imdb_ft
+wandb: View run at https://wandb.ai/praca-inzynierska/demo/runs/u60l225i
+
+Epoch: 0
+Epoch: 1
+
+wandb: Run summary:
+wandb:           eval/accuracy  0.8908
+wandb:  eval/balanced_accuracy  0.8908
+wandb:         eval/class_0_f1  0.89188
+wandb:         eval/class_1_f1  0.8897
+wandb:           eval/f1_macro  0.89079
+wandb: train/gpu_mem_peak_mb    3996.75
+
+[OK] Zapisano checkpoint: .../checkpoints/model.ckpt
+\end{verbatim}
+
+\subsubsection{Wyniki}
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Metryka} & \textbf{Wartość} \\
+\midrule
+Accuracy (eval) & 0.8908 \\
+F1-macro (eval) & 0.8908 \\
+Pretraining loss (final) & 5.220 \\
+Pretraining perplexity (final) & 184.89 \\
+Max VRAM (pretraining) & 3996.75 MB \\
+Max VRAM (finetuning) & 3996.75 MB \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsubsection{Wizualizacja procesu uczenia}
+
+% TODO: Wstaw zrzuty ekranu z W&B
+
+\begin{figure}[H]
+   \centering
+   \includegraphics[width=0.8\textwidth]{figures/sdpa_pretraining_loss.png}
+   \caption{Krzywa straty podczas pretreningu MLM (SDPA)}
+   \label{fig:sdpa-pretraining-loss}
+\end{figure}
+
+
+\subsubsection{Status testu}
+
+\textbf{PASSED} --- System poprawnie wykonał pełny cykl pretrening → dostrajanie z mechanizmem SDPA.
+
+%----------------------------------------------------------------------------
+\subsection{Scenariusz 2: TAPT + finetuning z mechanizmem FAVOR+ (IMDB)}
+%----------------------------------------------------------------------------
+
+\subsubsection{Cel testu}
+Weryfikacja poprawności integracji komponentów systemu z alternatywnym mechanizmem uwagi FAVOR+ (Performer). Test potwierdza możliwość wymiany mechanizmu uwagi bez modyfikacji pozostałych komponentów pipeline'u.
+
+\subsubsection{Kroki wykonania}
+
+\begin{enumerate}
+    \item \textbf{Tokenizacja danych:}
+    
+    Wykorzystano dane stokenizowane w Scenariuszu 1.
+    
+    \item \textbf{Generowanie eksperymentu pretreningu:}
+\begin{verbatim}
+python experiments/generate_pretraining_experiment.py -p favor_imdb_integration
+\end{verbatim}
+    
+    \item \textbf{Konfiguracja mechanizmu FAVOR+:}
+    
+    W pliku \texttt{config.yaml} ustawiono:
+\begin{verbatim}
+attention:
+  kind: favor
+  favor:
+    nb_features: 256
+\end{verbatim}
+    
+    \item \textbf{Uruchomienie pretreningu:}
+\begin{verbatim}
+python train.py -n favor_imdb_integration -m pretraining
+\end{verbatim}
+    
+    \item \textbf{Generowanie eksperymentu dostrajania:}
+\begin{verbatim}
+python experiments/generate_finetuning_experiment.py -f favor_imdb_ft -p favor_imdb_integration
+\end{verbatim}
+    
+    \item \textbf{Uruchomienie dostrajania:}
+\begin{verbatim}
+python train.py -n favor_imdb_ft -m finetuning
+\end{verbatim}
+\end{enumerate}
+
+\subsubsection{Konfiguracja eksperymentu}
+
+Kluczowe parametry konfiguracji (plik \texttt{config.yaml}):
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Parametr} & \textbf{Wartość} \\
+\midrule
+\multicolumn{2}{l}{\textit{Pretrening}} \\
+Mechanizm uwagi & FAVOR+ \\
+nb\_features & 256 \\
+Liczba epok & 2 \\
+Batch size & 16 \\
+Learning rate & 2e-5 \\
+Max sequence length & 512 \\
+\midrule
+\multicolumn{2}{l}{\textit{Dostrajanie}} \\
+Liczba epok & 2 \\
+Batch size & 16 \\
+Learning rate & 2e-4 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsubsection{Przykładowe logi}
+
+\paragraph{Pretraining (fragment):}
+\begin{verbatim}
+$ python train.py -n favor_imdb_integration -m pretraining
+
+wandb: Syncing run favor_imdb_integration
+wandb: View run at https://wandb.ai/praca-inzynierska/demo/runs/id0t8lnc
+
+Epoch: 0
+Epoch: 1
+
+wandb: Run summary:
+wandb:            eval/epoch  2
+wandb:             eval/loss  6.11616
+wandb:       eval/perplexity  453.12034
+wandb:  train/avg_epoch_loss  6.2152
+wandb: train/gpu_mem_peak_mb  5924.81982
+
+[OK] Zapisano checkpoint: .../checkpoints/model.ckpt
+\end{verbatim}
+
+\paragraph{Finetuning (fragment):}
+\begin{verbatim}
+$ python train.py -n favor_imdb_ft -m finetuning
+
+[WARN] Brakujące klucze: ['classifier.pooler.0.weight', ...]
+[WARN] Nieoczekiwane klucze: ['mlm.transform.0.weight', ...]
+
+wandb: Syncing run favor_imdb_ft
+wandb: View run at https://wandb.ai/praca-inzynierska/demo/runs/ygtyw0og
+
+Epoch: 0
+Epoch: 1
+
+wandb: Run summary:
+wandb:           eval/accuracy  0.8958
+wandb:  eval/balanced_accuracy  0.8958
+wandb:         eval/class_0_f1  0.89549
+wandb:         eval/class_1_f1  0.89611
+wandb:           eval/f1_macro  0.8958
+wandb: train/gpu_mem_peak_mb    5924.82
+
+[OK] Zapisano checkpoint: .../checkpoints/model.ckpt
+\end{verbatim}
+
+\subsubsection{Wyniki}
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Metryka} & \textbf{Wartość} \\
+\midrule
+Accuracy (eval) & 0.8958 \\
+F1-macro (eval) & 0.8958 \\
+Pretraining loss (final) & 6.116 \\
+Pretraining perplexity (final) & 453.12 \\
+Max VRAM (pretraining) & 5924.82 MB \\
+Max VRAM (finetuning) & 5924.82 MB \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsubsection{Wizualizacja procesu uczenia}
+
+
+\begin{figure}[H]
+   \centering
+   \includegraphics[width=0.8\textwidth]{figures/favor_pretraining_loss.png}
+   \caption{Krzywa straty podczas pretreningu MLM (FAVOR+)}
+   \label{fig:favor-pretraining-loss}
+\end{figure}
+
+
+\subsubsection{Status testu}
+
+\textbf{PASSED} --- System poprawnie wykonał pełny cykl pretrening → dostrajanie z mechanizmem FAVOR+. Potwierdza to modularność architektury i możliwość wymiany mechanizmu uwagi poprzez konfigurację YAML.
+
+%----------------------------------------------------------------------------
+\subsection{Podsumowanie testów integracyjnych}
+%----------------------------------------------------------------------------
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{@{}clc@{}}
+\toprule
+\textbf{Nr} & \textbf{Scenariusz} & \textbf{Status} \\
+\midrule
+1 & Pełny pipeline SDPA na IMDB (TAPT + finetuning) & PASSED \\
+2 & Pełny pipeline FAVOR+ na IMDB (TAPT + finetuning) & PASSED \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+Przeprowadzone testy integracyjne potwierdzają:
+\begin{itemize}
+    \item Poprawność współdziałania wszystkich komponentów systemu (tokenizacja → pretrening → dostrajanie).
+    \item Modularność architektury --- możliwość wymiany mechanizmu uwagi (SDPA, FAVOR+) bez modyfikacji kodu, wyłącznie poprzez zmianę konfiguracji YAML.
+    \item Zgodność z wymaganiami funkcjonalnymi określonymi w specyfikacji projektu.
+\end{itemize}
+
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Dokumentacja doświadczenia projektowego}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+Realizacja niniejszego projektu stanowiła kompleksowe przedsięwzięcie inżynierskie, łączące teorię głębokiego uczenia ze standardami wytwarzania oprogramowania. Poniżej przedstawiono kluczowe obszary kompetencji oraz wnioski płynące z realizacji prac.
+
+\subsection{Głębokie Uczenie i NLP}
+
+Najistotniejszym elementem projektu była implementacja architektury Transformer \textit{from scratch}, bez polegania na gotowych abstrakcjach modelowych z biblioteki \texttt{transformers}. Pozwoliło to na:
+\begin{itemize}
+    \item \textbf{Zrozumienie mechanizmu uwagi:} Implementacja klasycznego \textit{Scaled Dot-Product Attention} oraz jego wariantów : \textit{LSH Attention} (Reformer) i \textit{FAVOR+} (Performer). Analiza ta uwypukliła kompromisy między precyzją aproksymacji a zyskiem obliczeniowym.
+    \item \textbf{Pełny cykl treningowy:} Praktyczne opanowanie wieloetapowego procesu uczenia modeli NLP, obejmującego pretrening na korpusie ogólnym (MLM), adaptację do domeny (TAPT) oraz końcowe dostrajanie (finetuning) na zadaniu klasyfikacji.
+\end{itemize}
+
+\subsection{Inżynieria Oprogramowania}
+
+Projekt został zrealizowany zgodnie z zasadami \textit{Clean Code} i nowoczesnymi praktykami Python:
+\begin{itemize}
+    \item \textbf{Modularność i wzorce projektowe:} Zastosowanie wzorca Strategii do implementacji różnych wariantów mechanizmu uwagi, co umożliwia łatwą wymianę komponentów.
+    \item \textbf{Typowanie statyczne:} Konsekwentne stosowanie \texttt{type hints} oraz walidacja konfiguracji za pomocą biblioteki \texttt{Pydantic} zapewniła bezpieczeństwo typów i czytelność kodu.
+    \item \textbf{Testowanie:} Implementacja testów jednostkowych z użyciem \texttt{pytest}, obejmujących kluczowe komponenty (tokenizery, warstwy uwagi), co gwarantuje poprawność implementacji.
+\end{itemize}
+
+\subsection{MLOps i Zarządzanie Eksperymentami}
+
+Istotnym aspektem pracy było stworzenie powtarzalnego i skalowalnego środowiska badawczego:
+\begin{itemize}
+    \item \textbf{Reprodukowalność:} Pełna kontrola nad ziarnem losowości (\textit{seed}) oraz wersjonowanie konfiguracji eksperymentów.
+    \item \textbf{Zarządzanie konfiguracją:} Wykorzystanie szablonów YAML i skryptów generujących \\(\texttt{generate\_*\_experiment.py}) do automatyzacji tworzenia struktury eksperymentów, co eliminuje błędy ludzkie przy ręcznej edycji parametrów.
+    \item \textbf{Śledzenie eksperymentów:} Integracja z platformą \textit{Weights \& Biases} (W\&B) umożliwiająca monitorowanie metryk eksperymentów,  zużycia zasobów systemowych oraz porównywanie wielu przebiegów.
+\end{itemize}
+
+
+Podsumowując, projekt ten pozwolił na zdobycie praktycznego doświadczenia w pełnym cyklu badania modelu uczenia maszynowego: od implementacji niskopoziomowych algorytmów, przez inżynierię oprogramowania, aż po zarządzanie procesem badawczym i ewaluację wyników.
+
+\clearpage
+\appendix
+\section{Załączniki - wyniki eksperymentów}
+\label{sec:appendix}
+
+W~niniejszym załączniku przedstawiono szczegółowe wyniki eksperymentów,
+do których odwołano się w~sekcji testów akceptacyjnych oraz w~tabelach
+wymagań funkcjonalnych i~niefunkcjonalnych.
+
+\subsection{Szczegółowe wyniki eksperymentów}
+\label{sec:appendix-costs}
+
+
+\begin{table}[H]
+\centering
+\caption{Wyniki testowanych konfiguracji w pretreningu na zbiorze Wikipedia}
+\label{tab:appendix-wikipedia-results}
+\small
+\begin{tabular}{@{}lccc@{}}
+\toprule
+\textbf{Konfiguracja} & \textbf{Max VRAM [MB]} & \textbf{Czas/epokę [s]} & \textbf{Min. loss} \\
+\midrule
+\textit{SDPA} & 14786 & 472.86 & 2.157 \\
+\midrule
+\multicolumn{4}{l}{\textit{LSH}} \\
+$N_h{=}2$, $C{=}64$          & 19544 & 764.79 & 2.345 \\
+$N_h{=}2$, $C{=}128$         & 21848 & 1088.88 & 2.278 \\
+$N_h{=}4$, $C{=}64$          & 24964 & 1076.57 & 2.286 \\
+$N_h{=}4$, $C{=}128$         & 29574 & 1703.65 & 2.248 \\
+\midrule
+\multicolumn{4}{l}{\textit{FAVOR+}} \\
+$N_f{=}0.125$ & 17018 & 659.34 & 3.069 \\
+$N_f{=}0.25$  & 18843 & 727.16 & 2.694 \\
+$N_f{=}0.5$   & 22494 & 917.32 & 2.666 \\
+$N_f{=}1.0$   & 29795 & 1303.79 & 2.579 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[H]
+\centering
+\caption{Wyniki testowanych konfiguracji w zadaniu TAPT}
+\label{tab:attention-tapt}
+\small
+\begin{tabular}{@{}lccccccccc@{}}
+\toprule
+& \multicolumn{3}{c}{\textbf{Max VRAM [MB]}} & \multicolumn{3}{c}{\textbf{Czas/epokę [s]}} & \multicolumn{3}{c}{\textbf{Min avg loss}} \\
+\cmidrule(lr){2-4} \cmidrule(lr){5-7} \cmidrule(lr){8-10}
+\textbf{Model} & \textbf{IMDB} & \textbf{Hyper.} & \textbf{Arxiv} & \textbf{IMDB} & \textbf{Hyper.} & \textbf{Arxiv} & \textbf{IMDB} & \textbf{Hyper.} & \textbf{Arxiv} \\
+\midrule
+\textit{SDPA} & 14784 & 14786 & 14793 & 74.21 & 999.06 & 4205.80 & 2.388 & 1.887 & 1.672 \\
+\midrule
+\multicolumn{10}{l}{\textit{LSH}} \\
+$N_h{=}2$, $C{=}64$  & 19544 & 19545 & 19552 & 118.27 & 1116.21 & 2289.29 & 2.603 & 2.557 & 2.300 \\
+$N_h{=}2$, $C{=}128$ & 21848 & 21850 & 21856 & 136.91 & 1294.44 & 2615.22 & 2.502 & 2.440 & 2.224 \\
+$N_h{=}4$, $C{=}64$  & 24966 & 24967 & 24974 & 168.14 & 1609.29 & 3300.44 & 2.535 & 2.351 & 2.072 \\
+$N_h{=}4$, $C{=}128$ & 29574 & 29575 & 29580 & 204.73 & 1967.90 & 3950.40 & 2.478 & 2.263 & 2.024 \\
+\midrule
+\multicolumn{10}{l}{\textit{FAVOR+}} \\
+$N_f{=}0.125$ & 17016 & 16990 & 16992 & 91.05 & 930.79 & 2070.34 & 3.200 & 4.505 & 5.033 \\
+$N_f{=}0.25$  & 18841 & 18787 & 18784 & 102.68 & 1055.93 & 2324.77 & 2.866 & 3.914 & 4.797 \\
+$N_f{=}0.5$   & 22490 & 22377 & 22372 & 129.63 & 1357.21 & 2843.42 & 2.834 & 3.665 & 4.632 \\
+$N_f{=}1.0$   & 29793 & 29564 & 29547 & 202.15 & 1922.34 & 3895.12 & 2.762 & 3.268 & 4.316 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+\begin{table}[H]
+\centering
+\caption{Wyniki testowanych konfiguracji w zadaniu klasyfikacji}
+\label{tab:finetune-f1-metrics}
+\small
+\begin{tabular}{@{}lccccccccc@{}}
+\toprule
+& \multicolumn{3}{c}{\textbf{Max VRAM [MB]}} & \multicolumn{3}{c}{\textbf{Czas/epokę [s]}} & \multicolumn{3}{c}{\textbf{F1 macro}} \\
+\cmidrule(lr){2-4} \cmidrule(lr){5-7} \cmidrule(lr){8-10}
+\textbf{Model} & \textbf{IMDB} & \textbf{Hyper.} & \textbf{Arxiv} & \textbf{IMDB} & \textbf{Hyper.} & \textbf{Arxiv} & \textbf{IMDB} & \textbf{Hyper.} & \textbf{Arxiv} \\
+\midrule
+\textit{TF-IDF} & - & - & - & - & - & - & 0.8950 & 0.4223 & 0.8362 \\
+\midrule
+\textit{SDPA} & 3399.7 & 3518.3 & 3524.0 & 38.65 & 619.76 & 3308.77 & 0.929 & 0.646 & 0.884 \\
+\midrule
+\multicolumn{10}{l}{\textit{LSH}} \\
+$N_h{=}2$, $C{=}64$  & 9258.3 & 5297.5 & 6224.1 & 80.85 & 756.79 & 1556.02 & 0.928 & 0.654 & 0.869 \\
+$N_h{=}2$, $C{=}128$ & 12042.3 & 6567.8 & 12174.6 & 98.85 & 938.26 & 1881.28 & 0.927 & 0.613 & 0.873 \\
+$N_h{=}4$, $C{=}64$  & 16270.9 & 8770.4 & 16404.6 & 127.57 & 1252.92 & 2583.98 & 0.925 & 0.625 & 0.867 \\
+$N_h{=}4$, $C{=}128$ & 21841.3 & 11314.8 & 21973.8 & 162.27 & 1616.40 & 3236.11 & 0.930 & 0.557 & 0.874 \\
+\midrule
+\multicolumn{10}{l}{\textit{FAVOR+}} \\
+$N_f{=}0.125$ & 5633.7 & 5727.9 & 5725.7 & 56.58 & 562.32 & 1328.55 & 0.912 & 0.534 & 0.860 \\
+$N_f{=}0.25$  & 7456.0 & 7519.0 & 7517.1 & 66.99 & 688.69 & 1572.99 & 0.910 & 0.570 & 0.865 \\
+$N_f{=}0.5$   & 11106.0 & 11114.3 & 11104.4 & 91.07 & 984.21 & 2079.88 & 0.916 & 0.593 & 0.865 \\
+$N_f{=}1.0$   & 18846.4 & 18797.1 & 18783.6 & 154.00 & 1537.12 & 3096.50 & 0.917 & 0.550 & 0.856 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+
+
+\subsection{Porównanie kosztów i metryki F1-macro względem SDPA na poszczególnych zbiorach danych}
+\label{sec:appendix-experiments}
+
+
+
+\begin{table}[H]
+\centering
+\caption{Porównanie maksymalnego zużycia pamięci VRAM: pretrening na Wikipedii oraz TAPT+dostrajanie na zbiorach dowcelowych. Wartości pokazują różnicę procentową względem SDPA.}
+\label{tab:vram-comparison}
+\small
+\begin{tabular}{@{}lcccc@{}}
+\toprule
+& \textbf{Pretrening} & \multicolumn{3}{c}{\textbf{TAPT + Finetune}} \\
+\cmidrule(lr){2-2} \cmidrule(lr){3-5}
+\textbf{Model} & \textbf{Wikipedia} & \textbf{IMDB} & \textbf{Hyper.} & \textbf{Arxiv} \\
+
+\midrule
+\multicolumn{5}{l}{\textit{LSH}} \\
+$N_h{=}2$, $C{=}64$ & +32.2\% & +32.2\% & +32.2\% & +32.2\% \\
+$N_h{=}2$, $C{=}128$ & +47.8\% & +47.8\% & +47.8\% & +47.7\% \\
+$N_h{=}4$, $C{=}64$ & +68.8\% & +68.9\% & +68.9\% & +68.8\% \\
+$N_h{=}4$, $C{=}128$ & +100.0\% & +100.0\% & +100.0\% & +100.0\% \\
+\midrule
+\multicolumn{5}{l}{\textit{FAVOR+}} \\
+$N_f{=}0.125$ & +15.1\% & +15.1\% & +14.9\% & +14.9\% \\
+$N_f{=}0.25$ & +27.4\% & +27.4\% & +27.1\% & +27.0\% \\
+$N_f{=}0.5$ & +52.1\% & +52.1\% & +51.3\% & +51.2\% \\
+$N_f{=}1.0$ & +101.5\% & +101.5\% & +99.9\% & +99.7\% \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+\begin{table}[H]
+\centering
+\caption{Porównanie czasu treningu: pretrening na Wikipedii oraz TAPT+dostrajanie na zbiorach docelowych. Wartości pokazują różnicę procentową względem SDPA.}
+\label{tab:time-comparison}
+\small
+\begin{tabular}{@{}lcccc@{}}
+\toprule
+& \textbf{Pretrening} & \multicolumn{3}{c}{\textbf{TAPT + Finetune}} \\
+\cmidrule(lr){2-2} \cmidrule(lr){3-5}
+\textbf{Model} & \textbf{Wikipedia} & \textbf{IMDB} & \textbf{Hyper.} & \textbf{Arxiv} \\
+
+\midrule
+\multicolumn{5}{l}{\textit{LSH}} \\
+$N_h{=}2$, $C{=}64$ & +61.7\% & +70.2\% & +16.1\% & $-50.1\%$ \\
+$N_h{=}2$, $C{=}128$ & +130.3\% & +100.0\% & +38.7\% & $-41.1\%$ \\
+$N_h{=}4$, $C{=}64$ & +127.7\% & +149.1\% & +78.3\% & $-21.8\%$ \\
+$N_h{=}4$, $C{=}128$ & +260.3\% & +207.2\% & +123.8\% & $-3.7\%$ \\
+\midrule
+\multicolumn{5}{l}{\textit{FAVOR+}} \\
+$N_f{=}0.125$ & +39.4\% & +27.8\% & $-7.9\%$ & $-56.3\%$ \\
+$N_f{=}0.25$ & +53.8\% & +46.0\% & +8.0\% & $-49.5\%$ \\
+$N_f{=}0.5$ & +94.0\% & +87.9\% & +45.5\% & $-35.3\%$ \\
+$N_f{=}1.0$ & +175.7\% & +199.8\% & +115.8\% & $-6.8\%$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+
+\begin{table}[H]
+\centering
+\caption{Porównanie wyników testowanych mechanizmów atencji z baseline TF-IDF+LR i SDPA. Dla TF-IDF+LR i SDPA podano wartości bezwzględne metryki F1-macro ($\times 100$), dla LSH i FAVOR+ podano różnicę w punktach procentowych (pp) względem SDPA i względem TF-IDF+LR.}
+\label{tab:attention-f1-comparison}
+\small
+\begin{tabular}{@{}lccc@{}}
+\toprule
+\textbf{Model} & \textbf{IMDB} & \textbf{Hyperpartisan} & \textbf{Arxiv} \\
+\midrule
+\textit{TF-IDF + LR (baseline)} & 89.50\% & 42.23\% & 83.62\% \\
+\midrule
+\textit{SDPA} & 92.90\% (+3.4 pp) & 64.6\% (+22.3 pp) & 88.4\% (+4.8 pp) \\
+\midrule
+\multicolumn{4}{l}{\textit{LSH (vs SDPA / vs TF-IDF)}} \\
+$N_h{=}2$, $C{=}64$ & $-0.1$ / $+3.3$ & $+0.8$ / $+23.1$ & $-1.5$ / $+3.3$ \\
+$N_h{=}2$, $C{=}128$ & $-0.2$ / $+3.2$ & $-3.3$ / $+19.0$ & $-1.1$ / $+3.7$ \\
+$N_h{=}4$, $C{=}64$ & $-0.4$ / $+3.0$ & $-2.1$ / $+20.2$ & $-1.7$ / $+3.1$ \\
+$N_h{=}4$, $C{=}128$ & $+0.1$ / $+3.5$ & $-8.9$ / $+13.4$ & $-1.0$ / $+3.8$ \\
+\midrule
+\multicolumn{4}{l}{\textit{FAVOR+ (vs SDPA / vs TF-IDF)}} \\
+$N_f{=}0.125$ & $-1.7$ / $+1.7$ & $-11.1$ / $+11.2$ & $-2.4$ / $+2.4$ \\
+$N_f{=}0.25$ & $-1.9$ / $+1.5$ & $-7.6$ / $+14.8$ & $-1.9$ / $+2.9$ \\
+$N_f{=}0.5$ & $-1.2$ / $+2.1$ & $-5.2$ / $+17.1$ & $-1.9$ / $+2.9$ \\
+$N_f{=}1.0$ & $-1.1$ / $+2.2$ & $-9.5$ / $+12.8$ & $-2.8$ / $+1.9$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Stabilność uczenia}
+\begin{table}[H]
+\centering
+\caption{Stabilność wyników F1-macro ($\times 100$) na zbiorze testowym dla modelu SDPA
+na zbiorze IMDB (3 uruchomienia z~różnymi seedami)}
+\label{tab:sdpa-imdb-seeds}
+\small
+\smallskip
+\begin{tabular}{@{}lcccc@{}}
+\toprule
+\textbf{Konfiguracja} &
+\textbf{Agregacja} &
+\textbf{Max F1} &
+\textbf{Min F1} &
+\textbf{Różnica [p.p.]} \\
+\midrule
+$f{=}0$, $d{=}0.1$ & CLS  & 93.58 & 93.46 & 0.12 \\
+$f{=}0$, $d{=}0.1$ & Mean & 93.88 & 93.80 & 0.08 \\
+$f{=}0$, $d{=}0.2$ & CLS  & 93.52 & 93.44 & 0.08 \\
+$f{=}0$, $d{=}0.2$ & Mean & 93.86 & 93.72 & 0.14 \\
+$f{=}1$, $d{=}0.1$ & CLS  & 93.68 & 93.54 & 0.14 \\
+$f{=}1$, $d{=}0.1$ & Mean & 94.12 & 93.80 & 0.32 \\
+$f{=}1$, $d{=}0.2$ & CLS  & 93.70 & 93.52 & 0.18 \\
+$f{=}1$, $d{=}0.2$ & Mean & 93.98 & 93.80 & 0.18 \\
+$f{=}2$, $d{=}0.1$ & CLS  & 93.66 & 93.44 & 0.22 \\
+$f{=}2$, $d{=}0.1$ & Mean & 93.86 & 93.64 & 0.22 \\
+$f{=}2$, $d{=}0.2$ & CLS  & 93.64 & 93.46 & 0.18 \\
+$f{=}2$, $d{=}0.2$ & Mean & 93.88 & 93.62 & 0.26 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+\end{document}
