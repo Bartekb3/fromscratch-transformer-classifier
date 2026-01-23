@@ -1,0 +1,163 @@
+_wandb:
+    value:
+        cli_version: 0.23.1
+        e:
+            7k5q0vbgvw6ce97soti6rz3ute9bwgo5:
+                args:
+                    - -n
+                    - E2_finetuning_imdb_bertsmall_lsh_h4_c64
+                    - -m
+                    - finetuning
+                codePath: train.py
+                codePathLocal: train.py
+                cpu_count: 6
+                cpu_count_logical: 12
+                cudaVersion: "12.4"
+                disk:
+                    /:
+                        total: "253055008768"
+                        used: "48042762240"
+                email: iwaniuk.michal03@gmail.com
+                executable: /usr/bin/python3
+                git:
+                    commit: c79a7ff758c821617e16b2cf587cc06f0a9f2ebb
+                    remote: https://github.com/Bartekb3/fromscratch-transformer-classifier.git
+                gpu: NVIDIA A100-SXM4-40GB
+                gpu_count: 1
+                gpu_nvidia:
+                    - architecture: Ampere
+                      cudaCores: 6912
+                      memoryTotal: "42949672960"
+                      name: NVIDIA A100-SXM4-40GB
+                      uuid: GPU-cfb2dc8e-ea35-050f-084b-6a3ea586d681
+                host: 40ddfcf980b4
+                memory:
+                    total: "89629220864"
+                os: Linux-6.6.105+-x86_64-with-glibc2.35
+                program: /content/fromscratch-transformer-classifier/train.py
+                python: CPython 3.12.12
+                root: /content/fromscratch-transformer-classifier/experiments/finetuning/E2_finetuning_imdb_bertsmall_lsh_h4_c64
+                startedAt: "2025-12-18T11:26:56.476089Z"
+                writerId: 7k5q0vbgvw6ce97soti6rz3ute9bwgo5
+        m: []
+        python_version: 3.12.12
+        t:
+            "1":
+                - 1
+                - 5
+                - 11
+                - 49
+                - 53
+                - 105
+            "2":
+                - 1
+                - 5
+                - 11
+                - 49
+                - 53
+                - 105
+            "3":
+                - 2
+                - 13
+                - 16
+                - 61
+            "4": 3.12.12
+            "5": 0.23.1
+            "6": 4.57.3
+            "12": 0.23.1
+            "13": linux-x86_64
+architecture:
+    value:
+        attention:
+            attention_embedding_dim: 512
+            attn_dropout: 0
+            attn_out_dropout: 0.1
+            favor:
+                eps: 1e-06
+                nb_features: FILL_ARCH
+                ortho_features: true
+                phi: exp
+                redraw_interval: 0
+                stabilize: true
+            kind: lsh
+            lsh:
+                chunk_size: 64
+                mask_within_chunks: false
+                num_hashes: 4
+            mha:
+                use_native_sdpa: true
+            num_heads: 8
+            projection_bias: true
+        embedding_dim: 512
+        embedding_dropout: 0.1
+        mlp_dropout: 0.1
+        mlp_size: 2048
+        num_layers: 4
+        pos_encoding: rope
+        rope:
+            rope_base: 10000
+            rope_scale: 1
+classification_head:
+    value:
+        classifier_dropout: 0.2
+        num_labels: 2
+        pooler_type: bert
+        pooling: mean
+data:
+    value:
+        test:
+            dataset_path: data/tokenized/imdb_test.pt
+            shuffle: false
+        train:
+            dataset_path: data/tokenized/imdb_train.pt
+            shuffle: true
+        val:
+            dataset_path: data/tokenized/imdb_val.pt
+            shuffle: false
+experiment:
+    value:
+        kind: finetuning
+        name: E2_finetuning_imdb_bertsmall_lsh_h4_c64
+        output_dir: experiments/finetuning/E2_finetuning_imdb_bertsmall_lsh_h4_c64
+        seed: 420
+logging:
+    value:
+        csv_eval_metrics_path: metrics/eval/metrics.csv
+        csv_train_metrics_path: metrics/train/metrics.csv
+        log_eval_metrics: true
+        log_gpu_memory: true
+        log_metrics_csv: false
+        use_wandb: true
+        wandb:
+            entity: praca-inzynierska
+            project: final-experiments
+            run_name: E2_finetuning_imdb_bertsmall_lsh_h4_c64
+pretrained_experiment:
+    value:
+        checkpoint: checkpoints/model.ckpt
+        name: E2_pretraining_imdb_bertsmall_lsh_h4_c64
+        path: experiments/pretraining/E2_pretraining_imdb_bertsmall_lsh_h4_c64
+tokenizer:
+    value:
+        max_length: 512
+        vocab_dir: src/textclf_transformer/tokenizer/BERT_original
+        wrapper_path: src/textclf_transformer/tokenizer/wordpiece_tokenizer_wrapper.py
+training:
+    value:
+        backbone_lr_mult: 1
+        batch_size: 64
+        device: auto
+        epochs: 8
+        freeze: true
+        freeze_embeddings: true
+        freeze_epochs: 4
+        freeze_n_layers: 2
+        grad_accum_steps: 1
+        head_lr_mult: 1
+        learning_rate: 3e-05
+        loss: cross_entropy
+        max_grad_norm: 1
+        min_lr_ratio: 0.2
+        use_amp: true
+        warmup_ratio: 0.1
+        weight_decay: 0.01

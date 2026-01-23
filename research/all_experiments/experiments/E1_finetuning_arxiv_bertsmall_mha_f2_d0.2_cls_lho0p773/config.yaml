@@ -1,0 +1,163 @@
+_wandb:
+    value:
+        cli_version: 0.23.1
+        e:
+            cx8fv8gord4791oi2c0xczx04fajdnx2:
+                args:
+                    - -n
+                    - E1_finetuning_arxiv_bertsmall_mha_f2_d0.2_cls
+                    - -m
+                    - finetuning
+                codePath: train.py
+                codePathLocal: train.py
+                cpu_count: 6
+                cpu_count_logical: 12
+                cudaVersion: "12.4"
+                disk:
+                    /:
+                        total: "253055008768"
+                        used: "70927446016"
+                email: iwaniuk.michal03@gmail.com
+                executable: /usr/bin/python3
+                git:
+                    commit: 4d2754c06f23a9f2f60120a3497ee0d35556db6b
+                    remote: https://github.com/Bartekb3/fromscratch-transformer-classifier.git
+                gpu: NVIDIA A100-SXM4-40GB
+                gpu_count: 1
+                gpu_nvidia:
+                    - architecture: Ampere
+                      cudaCores: 6912
+                      memoryTotal: "42949672960"
+                      name: NVIDIA A100-SXM4-40GB
+                      uuid: GPU-93cdf4f9-117e-accf-2b21-b788c83b19dd
+                host: 91f9189416cb
+                memory:
+                    total: "89629220864"
+                os: Linux-6.6.105+-x86_64-with-glibc2.35
+                program: /content/fromscratch-transformer-classifier/train.py
+                python: CPython 3.12.12
+                root: /content/fromscratch-transformer-classifier/experiments/finetuning/E1_finetuning_arxiv_bertsmall_mha_f2_d0.2_cls
+                startedAt: "2025-12-30T09:39:08.650623Z"
+                writerId: cx8fv8gord4791oi2c0xczx04fajdnx2
+        m: []
+        python_version: 3.12.12
+        t:
+            "1":
+                - 1
+                - 5
+                - 11
+                - 49
+                - 53
+                - 105
+            "2":
+                - 1
+                - 5
+                - 11
+                - 49
+                - 53
+                - 105
+            "3":
+                - 2
+                - 13
+                - 16
+                - 61
+            "4": 3.12.12
+            "5": 0.23.1
+            "6": 4.57.3
+            "12": 0.23.1
+            "13": linux-x86_64
+architecture:
+    value:
+        attention:
+            attention_embedding_dim: 512
+            attn_dropout: 0
+            attn_out_dropout: 0.1
+            favor:
+                eps: 1e-06
+                nb_features: FILL_ARCH
+                ortho_features: true
+                phi: exp
+                redraw_interval: 0
+                stabilize: true
+            kind: mha
+            lsh:
+                chunk_size: FILL_ARCH
+                mask_within_chunks: false
+                num_hashes: FILL_ARCH
+            mha:
+                use_native_sdpa: true
+            num_heads: 8
+            projection_bias: true
+        embedding_dim: 512
+        embedding_dropout: 0.1
+        mlp_dropout: 0.1
+        mlp_size: 2048
+        num_layers: 4
+        pos_encoding: rope
+        rope:
+            rope_base: 10000
+            rope_scale: 1
+classification_head:
+    value:
+        classifier_dropout: 0.2
+        num_labels: 11
+        pooler_type: bert
+        pooling: cls
+data:
+    value:
+        test:
+            dataset_path: data/tokenized/arxiv_test.pt
+            shuffle: false
+        train:
+            dataset_path: data/tokenized/arxiv_train.pt
+            shuffle: true
+        val:
+            dataset_path: data/tokenized/arxiv_val.pt
+            shuffle: false
+experiment:
+    value:
+        kind: finetuning
+        name: E1_finetuning_arxiv_bertsmall_mha_f2_d0.2_cls
+        output_dir: experiments/finetuning/E1_finetuning_arxiv_bertsmall_mha_f2_d0.2_cls
+        seed: 420
+logging:
+    value:
+        csv_eval_metrics_path: metrics/eval/metrics.csv
+        csv_train_metrics_path: metrics/train/metrics.csv
+        log_eval_metrics: true
+        log_gpu_memory: true
+        log_metrics_csv: false
+        use_wandb: true
+        wandb:
+            entity: praca-inzynierska
+            project: final-experiments
+            run_name: E1_finetuning_arxiv_bertsmall_mha_f2_d0.2_cls
+pretrained_experiment:
+    value:
+        checkpoint: checkpoints/model.ckpt
+        name: E1_pretraining_arxiv_bertsmall_mha
+        path: experiments/pretraining/E1_pretraining_arxiv_bertsmall_mha
+tokenizer:
+    value:
+        max_length: 16384
+        vocab_dir: src/textclf_transformer/tokenizer/BERT_original
+        wrapper_path: src/textclf_transformer/tokenizer/wordpiece_tokenizer_wrapper.py
+training:
+    value:
+        backbone_lr_mult: 1
+        batch_size: 2
+        device: auto
+        epochs: 4
+        freeze: true
+        freeze_embeddings: true
+        freeze_epochs: 2
+        freeze_n_layers: 2
+        grad_accum_steps: 8
+        head_lr_mult: 1
+        learning_rate: 0.0003
+        loss: cross_entropy
+        max_grad_norm: 1
+        min_lr_ratio: 0.2
+        use_amp: true
+        warmup_ratio: 0.1
+        weight_decay: 0.01

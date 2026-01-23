@@ -1,0 +1,155 @@
+_wandb:
+    value:
+        cli_version: 0.23.1
+        e:
+            6k71vvu8fggtosl1qtajbkcc0ygdzrwy:
+                args:
+                    - -n
+                    - E2_pretraining_hyperpartisan_bertsmall_lsh_h4_c64
+                    - -m
+                    - pretraining
+                codePath: train.py
+                codePathLocal: train.py
+                cpu_count: 6
+                cpu_count_logical: 12
+                cudaVersion: "12.4"
+                disk:
+                    /:
+                        total: "253055008768"
+                        used: "112753299456"
+                email: 01180691@pw.edu.pl
+                executable: /usr/bin/python3
+                git:
+                    commit: 4f69e067f209ac04bab505cbac854573b315308b
+                    remote: https://github.com/Bartekb3/fromscratch-transformer-classifier.git
+                gpu: NVIDIA A100-SXM4-40GB
+                gpu_count: 1
+                gpu_nvidia:
+                    - architecture: Ampere
+                      cudaCores: 6912
+                      memoryTotal: "42949672960"
+                      name: NVIDIA A100-SXM4-40GB
+                      uuid: GPU-57f8e5d4-dbe9-e04e-d72c-7c93ccbe6735
+                host: 12bb709805db
+                memory:
+                    total: "89629220864"
+                os: Linux-6.6.105+-x86_64-with-glibc2.35
+                program: /content/fromscratch-transformer-classifier/train.py
+                python: CPython 3.12.12
+                root: /content/fromscratch-transformer-classifier/experiments/pretraining/E2_pretraining_hyperpartisan_bertsmall_lsh_h4_c64
+                startedAt: "2025-12-29T02:56:33.140484Z"
+                writerId: 6k71vvu8fggtosl1qtajbkcc0ygdzrwy
+        m: []
+        python_version: 3.12.12
+        t:
+            "1":
+                - 1
+                - 5
+                - 11
+                - 49
+                - 53
+                - 105
+            "2":
+                - 1
+                - 5
+                - 11
+                - 49
+                - 53
+                - 105
+            "3":
+                - 2
+                - 13
+                - 16
+                - 61
+            "4": 3.12.12
+            "5": 0.23.1
+            "6": 4.57.3
+            "12": 0.23.1
+            "13": linux-x86_64
+architecture:
+    value:
+        attention:
+            attention_embedding_dim: 512
+            attn_dropout: 0
+            attn_out_dropout: 0.1
+            favor:
+                eps: 1e-06
+                nb_features: FILL_ARCH
+                ortho_features: true
+                phi: exp
+                redraw_interval: 0
+                stabilize: true
+            kind: lsh
+            lsh:
+                chunk_size: 64
+                mask_within_chunks: false
+                num_hashes: 4
+            mha:
+                use_native_sdpa: true
+            num_heads: 8
+            projection_bias: true
+        embedding_dim: 512
+        embedding_dropout: 0.1
+        mlp_dropout: 0.1
+        mlp_size: 2048
+        num_layers: 4
+        pos_encoding: rope
+        rope:
+            rope_base: 10000
+            rope_scale: 1
+data:
+    value:
+        train:
+            dataset_path: data/tokenized/hyperpartisan_train.pt
+            shuffle: true
+        val:
+            dataset_path: data/tokenized/hyperpartisan_val.pt
+            shuffle: false
+experiment:
+    value:
+        kind: pretraining
+        name: E2_pretraining_hyperpartisan_bertsmall_lsh_h4_c64
+        output_dir: experiments/pretraining/E2_pretraining_hyperpartisan_bertsmall_lsh_h4_c64
+        seed: 420
+logging:
+    value:
+        csv_eval_metrics_path: metrics/eval/metrics.csv
+        csv_train_metrics_path: metrics/train/metrics.csv
+        log_eval_metrics: true
+        log_gpu_memory: true
+        log_metrics_csv: false
+        use_wandb: true
+        wandb:
+            entity: praca-inzynierska
+            project: final-experiments
+            run_name: E2_pretraining_hyperpartisan_bertsmall_lsh_h4_c64
+mlm_head:
+    value:
+        mask_p: 0.15
+        mask_token_p: 0.8
+        random_token_p: 0.1
+        tie_mlm_weights: true
+tokenizer:
+    value:
+        max_length: 4096
+        vocab_dir: src/textclf_transformer/tokenizer/BERT_original
+        wrapper_path: src/textclf_transformer/tokenizer/wordpiece_tokenizer_wrapper.py
+training:
+    value:
+        batch_size: 8
+        device: auto
+        epochs: 6
+        grad_accum_steps: 1
+        learning_rate: 0.0002
+        loss: cross_entropy
+        max_grad_norm: 1
+        min_lr_ratio: 0.5
+        resume:
+            checkpoint_path: ../E2_pretraining_wikipedia_bertsmall_lsh_h4_c64/checkpoints/model.ckpt
+            is_resume: true
+            load_only_model_state: true
+            resume_pretrainig_name: E2_pretraining_wikipedia_bertsmall_lsh_h4_c64
+            strict: true
+        use_amp: true
+        warmup_ratio: 0.1
+        weight_decay: 0.01

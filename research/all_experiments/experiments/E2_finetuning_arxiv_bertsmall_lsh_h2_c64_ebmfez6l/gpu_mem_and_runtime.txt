@@ -1,0 +1,2 @@
+peak_gpu_mem_mb: 9389.609375
+runtime_s: 6224.09112851
