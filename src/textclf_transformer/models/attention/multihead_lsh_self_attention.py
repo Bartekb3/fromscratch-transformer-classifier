@@ -63,7 +63,6 @@ class LSHAttention(nn.Module):
         self._reset_parameters()
 
     def _reset_parameters(self):
-        # Xavier init for Uqv projection, same as in Pythorch implementation
         nn.init.xavier_uniform_(self.Uqv.weight)
         nn.init.xavier_uniform_(self.Uout.weight)
         if self.proj_bias:
@@ -89,11 +88,9 @@ class LSHAttention(nn.Module):
         B, N, D = x.shape
         S = self.chunk_size
 
-        # pad to multiple of chunk_size
         pad_to_multiple = (S - (N % S)) % S
         N1 = N + pad_to_multiple
 
-        # pad so number of buckets (N1 // S) is even
         n_buckets = N1 // S
         if n_buckets % 2 != 0:
             pad_to_even_buckets = S
@@ -115,36 +112,30 @@ class LSHAttention(nn.Module):
     def random_hash(self, x: Tensor, n_buckets: int) -> Tensor:
         B, num_hashes, num_heads, N, dk = x.shape
         with torch.no_grad():
-            # Random hashing matrix R: (H#, H, dk, nb/2)
             R = torch.randn(
                 num_hashes, num_heads, dk, n_buckets // 2,
                 device=x.device, dtype=x.dtype
             )
             R = R / torch.norm(R, dim=2, keepdim=True)
 
-            # x: (B,H#,H,N,dk)
-            # R: (H#,H,dk,n_buckets)
             projections = torch.einsum(
-                'BhHNd, hHdn -> BhHNn', x.detach(), R)  # x@R
+                'BhHNd, hHdn -> BhHNn', x.detach(), R)
 
             hash_values = torch.argmax(
                 torch.cat([projections, -projections], dim=-1), dim=-1
             )
-            # hash: (B,H#,H,N)
         return hash_values
 
     def get_permutation_from_hash(self, hash_codes: torch.Tensor):
         B, Hh, H, N = hash_codes.shape
         device = hash_codes.device
 
-        # sorting by key keeps original order of hashes
         pos = torch.arange(N, device=device).view(1, 1, 1, N)
         key = hash_codes * (N + 1) + pos
 
         # perm: (B,H#,H,N) - permutation sorting hashes, used for sorting sequence along N dimension
         perm = torch.argsort(key, dim=-1)
 
-        # used to restore original sequence order
         inv_perm = torch.empty_like(perm)
         inv_perm.scatter_(dim=-1, index=perm,
                           src=pos.expand(B, Hh, H, N))
@@ -234,13 +225,11 @@ class LSHAttention(nn.Module):
             x_concat = torch.cat([x_prev, x_chunks, x_next], dim=4)
             return x_concat
 
-        # look back to previous and next chunk
         k_both = _get_next_and_previous_chunk(k_chunks, 0.0)
         v_both = _get_next_and_previous_chunk(v_chunks, 0.0)
         b_both = _get_next_and_previous_chunk(b_chunks, BUCKET_PAD_ID)
         valid_both = _get_next_and_previous_chunk(valid_chunks, False)
 
-        # Compute attention scores: (B,H#,H, n_chunks, chunk_size, 3*chunk_size)
         scores = torch.matmul(
             q_chunks, k_both.transpose(-2, -1)) / (dk ** 0.5)
 
@@ -255,21 +244,18 @@ class LSHAttention(nn.Module):
         idx = torch.arange(chunk_size, device=mask.device)
         mask[:, :, :, :, idx, chunk_size + idx] = True
 
-        # make mask additive
         dtype = scores.dtype
         neg_large = -1e4 if dtype in (torch.float16, torch.bfloat16) else -1e9
         add_mask = mask.to(dtype=dtype) * neg_large
         scores = scores + add_mask
 
-        # calculate attention
         attn_weights = F.softmax(scores, dim=-1)
         attn_weights = self.attn_drop(attn_weights)
         out = torch.matmul(attn_weights, v_both)
 
-        # force zeros for padded tokens
         out = out * valid_chunks.unsqueeze(-1).to(out.dtype)
 
-        return out  # [B, H#, H, n_chunks, chunk_size, dk]
+        return out
 
     def forward(
         self,
@@ -316,13 +302,12 @@ class LSHAttention(nn.Module):
                 out vectors of shape **[B, N, D]** in the original token order.
         """
 
-        # additional pad to make number of buckets (N/chunk_size) even
         x, padding_mask_bool, n_pad = self.pad_to_even_buckets(
             x, key_padding_mask)
         B, N, _ = x.shape
         dk = self.dk
 
-        qv = self.Uqv(x)  # [B, N, 2*D]
+        qv = self.Uqv(x) 
         q, v = qv.chunk(2, dim=-1)
 
         q = q.view(B, N, self.num_heads, dk).transpose(
@@ -330,7 +315,6 @@ class LSHAttention(nn.Module):
         v = v.view(B, N, self.num_heads, dk).transpose(
             1, 2).contiguous()
 
-        # Apply RoPE if provided
         if rope is None:
             rope = {}
         rope_cos = rope.get('rope_cos', None)
@@ -348,18 +332,17 @@ class LSHAttention(nn.Module):
 
         valid_mask = ~padding_mask_bool[:, None, None, :].expand(
             B, self.num_hashes, self.num_heads, N).contiguous()
-        # set pad queries/vals to 0.0
+
         mask_float = valid_mask.to(dtype=q.dtype).unsqueeze(-1)
         q = q * mask_float
         v = v * mask_float
 
-        # hashing queries
+        
         n_buckets = N // self.chunk_size
         hash_codes = self.random_hash(q, n_buckets)  # (B,H#,H,N)
-        # set padding bucket to -1
+        
         hash_codes = hash_codes.masked_fill(~valid_mask, BUCKET_PAD_ID)
 
-        # sort q, v, mask, and buckets according to the order of hash codes
         sort_indices, undo_sort = self.get_permutation_from_hash(hash_codes)
         idx = sort_indices.unsqueeze(-1).expand(B,
                                                 self.num_hashes, self.num_heads, N, dk)
@@ -370,7 +353,6 @@ class LSHAttention(nn.Module):
             valid_mask.to(dtype=torch.long), dim=3, index=sort_indices
         ).to(dtype=torch.bool)
 
-        # chunked attention : (B, H#, H, n_chunks, chunk_size, dk)
         ctx = self.chunk_attention(
             q_sorted, q_sorted, v_sorted, buckets,
             valid_mask_sorted,
@@ -378,21 +360,18 @@ class LSHAttention(nn.Module):
 
         ctx = ctx.contiguous().view(B, self.num_hashes, self.num_heads, N, dk)
 
-        # unsort the outputs
         idx = undo_sort.unsqueeze(-1).expand(B,
                                              self.num_hashes, self.num_heads, N, dk)
         ctx_unsorted = torch.gather(ctx, dim=3, index=idx)
 
-        # mean over hash rounds
         ctx_unsorted = ctx_unsorted.transpose(
             2, 3).reshape(B, self.num_hashes, N, self.attention_embed_dim)
         ctx_mean = ctx_unsorted.mean(dim=1)
 
-        # Final output projection
         out = self.Uout(ctx_mean)
         out = self.out_drop(out)
 
         if n_pad > 0:
             out = out[:, :-n_pad, :]
 
-        return out  # (B,N,D)
+        return out 

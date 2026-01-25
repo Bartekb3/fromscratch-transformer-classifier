@@ -158,36 +158,28 @@ class WandbRun:
                 existing_header = []
 
         if not existing_header:
-            # Treat as new file
             with open(path, "w", newline="") as f:
                 writer = csv.DictWriter(f, fieldnames=list(row.keys()))
                 writer.writeheader()
                 writer.writerow(row)
             return
 
-        # Check for new keys
         current_keys = list(row.keys())
         new_keys = [k for k in current_keys if k not in existing_header]
 
         if new_keys:
-            # We need to extend the CSV schema
             updated_header = existing_header + new_keys
 
-            # Read all existing data
             with open(path, "r", newline="") as f:
                 reader = csv.DictReader(f)
-                # Note: corrupt rows in existing file might be read incorrectly here,
-                # but we preserve the file's current state as best as possible.
                 data = list(reader)
 
-            # Rewrite file with new header
             with open(path, "w", newline="") as f:
                 writer = csv.DictWriter(f, fieldnames=updated_header)
                 writer.writeheader()
                 writer.writerows(data)
                 writer.writerow(row)
         else:
-            # Append respecting existing header order
             with open(path, "a", newline="") as f:
                 writer = csv.DictWriter(f, fieldnames=existing_header)
                 writer.writerow(row)

@@ -60,14 +60,12 @@ class MultiheadSelfAttention(nn.Module):
         self.attn_drop = nn.Dropout(attn_dropout)
         self.out_drop = nn.Dropout(out_dropout)
 
-        # Projections
         self.Uqkv = nn.Linear(embed_dim, 3*attention_embed_dim, bias=self.proj_bias)
         self.Uout = nn.Linear(attention_embed_dim, embed_dim, bias=self.proj_bias)
 
         self._reset_parameters()
 
     def _reset_parameters(self):
-        # Xavier init for Uqkv projection, same as in Pythorch implementation
         nn.init.xavier_uniform_(self.Uqkv.weight)
         nn.init.xavier_uniform_(self.Uout.weight)
         if self.proj_bias:
@@ -96,21 +94,19 @@ class MultiheadSelfAttention(nn.Module):
             additive mask shaped (B,1,1,N) to add to attention scores.
         """
         def _neg_large_for(dtype):
-            # Large finite negative constant chosen per dtype
             if dtype in (torch.float16, torch.bfloat16):
                 return -1e4
-            else:  # torch.float32, float64
+            else:  
                 return -1e9
 
         neg_large = _neg_large_for(dtype)
         add_mask = key_padding_mask.to(dtype=dtype) * neg_large
-        # shape to (B,1,1,N) so it broadcasts over (B,H,N,N) on the key dimension
         return add_mask.unsqueeze(1).unsqueeze(2)  # (B,1,1,N)
 
     def sdp_attention(self, Q, K, V, key_padding_mask):
-        # Q,K,V: (B,H,N,dk) -> context (B,H,N,dk), attn (B,H,N,N)
+        
         dk = self.dk
-        # Key padding mask
+        
         kp_add = None
         if key_padding_mask is not None:
             kp_add = self._make_kp_additive_mask(
@@ -167,17 +163,15 @@ class MultiheadSelfAttention(nn.Module):
         """
         _, N, _ = x.shape
 
-        # qkv projection -> x @ Uqkv -> (B, N, 3D)
+        
         qkv = self.Uqkv(x)
-        # spliting (B, N, 3D) into Q, K, V
+        
         Q, K, V = qkv.chunk(3, dim=-1)
 
-        # Split heads -> (B, H, N, dk)
         Q = self._split_heads(Q, self.num_heads)
         K = self._split_heads(K, self.num_heads)
         V = self._split_heads(V, self.num_heads)
 
-        # Apply RoPE if provided
         if rope is None:
             rope = {}
         rope_cos = rope.get('rope_cos', None)
@@ -189,11 +183,9 @@ class MultiheadSelfAttention(nn.Module):
             Q, K = apply_rope(Q, K, rope_cos, rope_sin, rope_position_ids)
 
 
-        # scaled dot product attention
         ctx = self.sdp_attention(
             Q, K, V, key_padding_mask=key_padding_mask)
 
-        # merging heads
         ctx = self._merge_heads(ctx)
 
         # Output projection -> (B, N, D)
