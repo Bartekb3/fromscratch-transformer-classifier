@@ -10,7 +10,7 @@
 
 
 \usepackage{amsmath, amsfonts, amsthm, latexsym} % głównie symbole matematyczne, środowiska twierdzeń
-
+\usepackage{longtable}
 \usepackage{pifont}
 \newcommand{\cmark}{\ding{51}}
 \usepackage{enumitem}
@@ -19,7 +19,7 @@
 \usepackage[final]{pdfpages} % inputowanie pdfa
 \usepackage{placeins}
 
-
+\usepackage{threeparttable}
 % Bibliografia
 \usepackage[backend=biber,style=numeric,sorting=nyt]{biblatex}
 \addbibresource{references.bib}
@@ -548,7 +548,7 @@ Przed transformerami w~NLP dominowały architektury rekurencyjne:
 
 \textbf{Transformer} (2017)~\cite{vaswani2017attention} -- całkowite odejście od~rekurencji. Mechanizm uwagi pozwala każdemu tokenowi patrzeć na~wszystkie inne tokeny jednocześnie. Umożliwia pełne zrównoleglenie obliczeń na~GPU.
 
-\textbf{BERT} (2019)~\cite{devlin2019bert}, czyli transformer tylko z~enkoderem (ang.\ \emph{Encoder-only transformer}) -- trenowany na~dwóch zadaniach: modelowanie języka z~maskowaniem (ang.\ \emph{Masked Language Modeling (MLM)}) oraz predykcja następnego zdania (ang.\ \emph{Next Sentence Prediction (NSP)}) -- stał się standardem dla~zadań rozumienia języka.
+\textbf{BERT} (2019, \textit{preprint 2018})~\cite{devlin2019bert}, czyli transformer tylko z~enkoderem (ang.\ \emph{Encoder-only transformer}) -- trenowany na~dwóch zadaniach: modelowanie języka z~maskowaniem (ang.\ \emph{Masked Language Modeling (MLM)}) oraz predykcja następnego zdania (ang.\ \emph{Next Sentence Prediction (NSP)}) -- stał się standardem dla~zadań rozumienia języka.
 
 \textbf{RoBERTa} (2019)~\cite{liu2019roberta} -- zoptymalizowana wersja BERT z~usuniętym zadaniem NSP, dłuższym treningiem i~większymi batchami. Pokazuje, że procedura treningowa ma duży wpływ na~jakość modelu. W~naszej pracy wzorujemy się na tym podejściu, rezygnując z~zadania NSP.
 
@@ -2205,7 +2205,8 @@ Wtedy dla elementu $i$, $Attention(i)$ można zapisać jako:
 o_i = \sum_{j=0}^{N-1} \exp\Big(q_i \cdot k_j - m(j, \mathcal{P}_i) - z(i, \mathcal{P}_i)\Big) v_j
 .
 \end{equation}
-Dla przejrzystości pomijamy skalowanie przez $\sqrt{d_k}$.
+
+\textit{Uwaga:} Dla przejrzystości pomijamy skalowanie przez $\sqrt{d_k}$ (tutaj i w dalszej części), w implementacji uwzględniamy to skalowanie.
 
 Teraz przechodzimy do uwagi LSH. Aby uzyskać $b$ koszyków, najpierw ustalamy losową macierz $R$ o rozmiarze $[d_k, b/2]$, to znaczy 
 $Q, K, V$ (wiersze to tokeny, kolumny to cechy)
@@ -2377,6 +2378,9 @@ $Q,K,V \in \mathbb{R}^{N\times d}$ i~wykorzystuje macierz wag uwagi
 \begin{equation}
 A \in \mathbb{R}^{N\times N}, \qquad A_{ij} = \exp(q_i^\top k_j).
 \end{equation}
+
+\textit{Uwaga:} Dla przejrzystości pomijamy skalowanie przez $\sqrt{d_k}$ (tutaj i w dalszej części), w implementacji uwzględniamy to skalowanie.
+
 Wyjście attention można zapisać jako
 \begin{equation}
 \mathrm{Att}(Q,K,V) = D^{-1}\Big(A V\Big), 
@@ -2740,7 +2744,7 @@ Statystyki obejmują średnią, odchylenie standardowe, medianę oraz wartości 
 
 \begin{table}[t!]
 \centering
-\caption{Statystyki długości tokenów po tokenizacji}
+\caption{Statystyki długości tekstu (liczba tokenów) po tokenizacji}
 \label{tab:eda-nested}
 \smallskip
 \small
@@ -3000,7 +3004,7 @@ przestrzeni zapytań, kluczy i wartości w pojedynczej głowicy. Warto zaznaczy�
 
 \paragraph{$\text{BERT}_{\text{SMALL}}$} 
 We wszystkich eksperymentach wykorzystano architekturę $\text{BERT}_{\text{SMALL}}$, wprowadzoną w~artykule \textcite{turc2019well}.
-Konfiguracja: $l^t = 4$, $d^h = 512$, $d^f = 2048$, $h = 8$, $d^{q|k|v} = 512$.
+Konfiguracja: $l^t = 4$, $d^h = 512$, $d^f = 2048$, $h = 8$, $d^{q|k|v} = 64$.
 
 
 \paragraph{Liczba parametrów}
@@ -3110,7 +3114,7 @@ Dla mechanizmów uwagi przybliżonej (LSH, FAVOR+) zdefiniowano przestrzeń hipe
     & Wielkość bloku ($C$)     & $\{64, 128\}$ \\
 \midrule
 FAVOR+
-    & Liczba losowych cech ($N_f$) & $\{0.125, 0.25, 0.5, 1.0\} \times d^{q|k|v}$ \\
+    & Liczba losowych cech ($N_f$) & $\{0.125, 0.25, 0.5, 1.0\} \times d^h$ \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -3428,7 +3432,7 @@ $N_f{=}1.0$ & 18.40 & 18.36 & 18.34 & 2.57 & 25.62 & 51.61 & 91.74 & 55.02 & 85.
 \section{Analiza i porównanie wyników}\label{sec:analysis}
 \subsection{Analiza}
 
-W~niniejszej sekcji przedstawiono zbiorczą analizę wyników ze wszystkich etapów eksperymentu. Tabele~\ref{tab:vram-comparison} i~\ref{tab:time-comparison} zestawiają względne różnice w~zużyciu pamięci VRAM oraz czasie treningu dla mechanizmów przybliżonych względem SDPA. Różnice procentowe w~czasie treningu obliczono na podstawie całkowitego czasu obu etapów (suma: liczba epok TAPT $\times$ czas epoki TAPT + liczba epok dostrajania $\times$ czas epoki dostrajania), a~nie pojedynczych epok. Tabela~\ref{tab:attention-f1-comparison} podsumowuje wyniki klasyfikacji F1-macro w~odniesieniu do baseline'u oraz SDPA.
+W~niniejszej sekcji przedstawiono zbiorczą analizę wyników ze wszystkich etapów eksperymentu. Tabele~\ref{tab:vram-comparison} i~\ref{tab:time-comparison} zestawiają względne różnice w~zużyciu pamięci VRAM oraz czasie treningu dla mechanizmów przybliżonych względem SDPA. Różnice procentowe w~czasie treningu obliczono na podstawie całkowitego czasu obu etapów (suma: liczba epok TAPT $\times$ czas epoki TAPT + liczba epok dostrajania $\times$ czas epoki dostrajania), a~nie pojedynczych epok. Tabele~\ref{tab:attention-f1-vs-baseline}~i~\ref{tab:attention-f1-vs-sdpa} podsumowują wyniki klasyfikacji F1-macro w~odniesieniu do baseline'u oraz SDPA.
 
 Aby zidentyfikować konfiguracje oferujące najlepszy kompromis między jakością a~kosztem obliczeniowym, przeprowadziliśmy analizę Pareto. Konfiguracja należy do frontu Pareto, jeśli żadna inna konfiguracja nie jest od niej jednocześnie lepsza pod względem wszystkich trzech kryteriów: F1-macro, czasu treningu oraz zużycia VRAM. Analizę przeprowadzono dla etapów TAPT i~dostrajania łącznie, osobno dla każdego zbioru danych. Wyniki przedstawiono w~tab.~\ref{tab:pareto} Ze względu na brak replikacji eksperymentów, analiza Pareto ma charakter orientacyjny -- konfiguracje o~zbliżonych wartościach F1-macro (różnice $<1$~pp) mogłyby zmienić pozycję względem frontu przy powtórzeniu z~inną inicjalizacją.
 
@@ -3515,10 +3519,38 @@ $N_f{=}1.0$ & +175.8\% & +199.8\% & +115.8\% & -6.8\% \\
 \end{tabular}
 \end{table}
 
+% \begin{table}[t!]
+% \centering
+% \caption{F1 macro [\%] - porównanie mechanizmów uwagi z baseline TF-IDF+LR i SDPA. Dla TF-IDF+LR i SDPA podano wartości bezwzględne, dla LSH i FAVOR+ podano różnicę w punktach procentowych (pp) względem SDPA i względem TF-IDF+LR.}
+% \label{tab:attention-f1-comparison}
+% \smallskip
+% \begin{tabular}{@{}lccc@{}}
+% \toprule
+% \textbf{Model} & \textbf{IMDb} & \textbf{Hyper.} & \textbf{Arxiv} \\
+% \midrule
+% \textit{TF-IDF + LR} & 89.50 & 42.23 & 83.62 \\
+% \midrule
+% \textit{SDPA} (vs TF-IDF+LR) & 92.86 (+3.4) & 64.55 (+22.3) & 88.38 (+4.8) \\
+% \midrule
+% \multicolumn{4}{l}{\textit{LSH (vs SDPA / vs TF-IDF+LR)}} \\
+% $N_h{=}2$, $C{=}64$ & -0.1 / +3.3 & +0.8 / +23.1 & -1.5 / +3.3 \\
+% $N_h{=}2$, $C{=}128$ & -0.2 / +3.2 & -3.3 / +19.0 & -1.1 / +3.7 \\
+% $N_h{=}4$, $C{=}64$ & -0.4 / +3.0 & -2.1 / +20.2 & -1.7 / +3.1 \\
+% $N_h{=}4$, $C{=}128$ & +0.1 / +3.5 & -8.9 / +13.4 & -1.0 / +3.8 \\
+% \midrule
+% \multicolumn{4}{l}{\textit{FAVOR+ (vs SDPA / vs TF-IDF+LR)}} \\
+% $N_f{=}0.125$ & -1.7 / +1.7 & -11.1 / +11.2 & -2.4 / +2.4 \\
+% $N_f{=}0.25$ & -1.9 / +1.5 & -7.6 / +14.8 & -1.9 / +2.9 \\
+% $N_f{=}0.5$ & -1.2 / +2.1 & -5.2 / +17.1 & -1.9 / +2.9 \\
+% $N_f{=}1.0$ & -1.1 / +2.2 & -9.5 / +12.8 & -2.8 / +1.9 \\
+% \bottomrule
+% \end{tabular}
+% \end{table}
+
 \begin{table}[t!]
 \centering
-\caption{F1 macro [\%] - porównanie mechanizmów uwagi z baseline TF-IDF+LR i SDPA. Dla TF-IDF+LR i SDPA podano wartości bezwzględne, dla LSH i FAVOR+ podano różnicę w punktach procentowych (pp) względem SDPA i względem TF-IDF+LR.}
-\label{tab:attention-f1-comparison}
+\caption{F1 macro [\%] - porównanie mechanizmów uwagi z baseline TF-IDF+LR. Dla TF-IDF+LR podano wartości bezwzględne, dla pozostałych modeli podano różnicę w punktach procentowych (pp) względem TF-IDF+LR.}
+\label{tab:attention-f1-vs-baseline}
 \smallskip
 \begin{tabular}{@{}lccc@{}}
 \toprule
@@ -3526,32 +3558,227 @@ $N_f{=}1.0$ & +175.8\% & +199.8\% & +115.8\% & -6.8\% \\
 \midrule
 \textit{TF-IDF + LR} & 89.50 & 42.23 & 83.62 \\
 \midrule
-\textit{SDPA} (vs TF-IDF+LR) & 92.86 (+3.4) & 64.55 (+22.3) & 88.38 (+4.8) \\
+\textit{SDPA} & +3.4 & +22.3 & +4.8 \\
 \midrule
-\multicolumn{4}{l}{\textit{LSH (vs SDPA / vs TF-IDF+LR)}} \\
-$N_h{=}2$, $C{=}64$ & -0.1 / +3.3 & +0.8 / +23.1 & -1.5 / +3.3 \\
-$N_h{=}2$, $C{=}128$ & -0.2 / +3.2 & -3.3 / +19.0 & -1.1 / +3.7 \\
-$N_h{=}4$, $C{=}64$ & -0.4 / +3.0 & -2.1 / +20.2 & -1.7 / +3.1 \\
-$N_h{=}4$, $C{=}128$ & +0.1 / +3.5 & -8.9 / +13.4 & -1.0 / +3.8 \\
+\multicolumn{4}{l}{\textit{LSH}} \\
+$N_h{=}2$, $C{=}64$ & +3.3 & +23.1 & +3.3 \\
+$N_h{=}2$, $C{=}128$ & +3.2 & +19.0 & +3.7 \\
+$N_h{=}4$, $C{=}64$ & +3.0 & +20.2 & +3.1 \\
+$N_h{=}4$, $C{=}128$ & +3.5 & +13.4 & +3.8 \\
 \midrule
-\multicolumn{4}{l}{\textit{FAVOR+ (vs SDPA / vs TF-IDF+LR)}} \\
-$N_f{=}0.125$ & -1.7 / +1.7 & -11.1 / +11.2 & -2.4 / +2.4 \\
-$N_f{=}0.25$ & -1.9 / +1.5 & -7.6 / +14.8 & -1.9 / +2.9 \\
-$N_f{=}0.5$ & -1.2 / +2.1 & -5.2 / +17.1 & -1.9 / +2.9 \\
-$N_f{=}1.0$ & -1.1 / +2.2 & -9.5 / +12.8 & -2.8 / +1.9 \\
+\multicolumn{4}{l}{\textit{FAVOR+}} \\
+$N_f{=}0.125$ & +1.7 & +11.2 & +2.4 \\
+$N_f{=}0.25$ & +1.5 & +14.8 & +2.9 \\
+$N_f{=}0.5$ & +2.1 & +17.1 & +2.9 \\
+$N_f{=}1.0$ & +2.2 & +12.8 & +1.9 \\
 \bottomrule
 \end{tabular}
 \end{table}
 
 
+\begin{table}[t!]
+\centering
+\caption{F1 macro [\%] - porównanie mechanizmów uwagi z SDPA. Dla SDPA podano wartości bezwzględne, dla LSH i FAVOR+ podano różnicę w punktach procentowych (pp) względem SDPA.}
+\label{tab:attention-f1-vs-sdpa}
+\smallskip
+\begin{tabular}{@{}lccc@{}}
+\toprule
+\textbf{Model} & \textbf{IMDb} & \textbf{Hyper.} & \textbf{Arxiv} \\
+\midrule
+\textit{SDPA} & 92.86 & 64.55 & 88.38 \\
+\midrule
+\multicolumn{4}{l}{\textit{LSH}} \\
+$N_h{=}2$, $C{=}64$ & -0.1 & +0.8 & -1.5 \\
+$N_h{=}2$, $C{=}128$ & -0.2 & -3.3 & -1.1 \\
+$N_h{=}4$, $C{=}64$ & -0.4 & -2.1 & -1.7 \\
+$N_h{=}4$, $C{=}128$ & +0.1 & -8.9 & -1.0 \\
+\midrule
+\multicolumn{4}{l}{\textit{FAVOR+}} \\
+$N_f{=}0.125$ & -1.7 & -11.1 & -2.4 \\
+$N_f{=}0.25$ & -1.9 & -7.6 & -1.9 \\
+$N_f{=}0.5$ & -1.2 & -5.2 & -1.9 \\
+$N_f{=}1.0$ & -1.1 & -9.5 & -2.8 \\
+\bottomrule
+\end{tabular}
+\end{table}
 
-\clearpage
+
+\FloatBarrier
+% \clearpage
 
 
 \subsection{Wnioski}
 Poniżej granicy $4000$ tokenów SDPA dominuje we wszystkich trzech wymiarach -- jest szybsza, zużywa mniej pamięci i~osiąga konkurencyjną jakość. 
 
 Mechanizmy przybliżone zwiększają zużycie pamięci VRAM o~$15-100\%$ w stosunku do SDPA. Ich przewagą jest przyspieszenie dla długich sekwencji, przy czym LSH oferuje lepszy stosunek jakości do czasu niż FAVOR+. Dla sekwencji długości $16384$ tokenów (ArXiv), LSH w~konfiguracji ($N_h{=}2$, $C{=}64$) oferuje redukcję czasu o~$50\%$ przy niewielkiej stracie jakości ($1.5$~pp F1-macro) względem SDPA. Metoda FAVOR+, pomimo osiągania najkrótszych czasów treningu, wykazuje się niższą jakością, zauważalną już na etapie pretreningu modelu.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+\section{Analiza jakościowa błędów klasyfikacji na zbiorze Hyperpartisan}
+
+W celu głębszego zrozumienia przyczyn znacznie gorszych wyników mechanizmu  FAVOR+ względem standardowej uwagi SDPA na zbiorze Hyperpartisan, przeprowadzono analizę błędów klasyfikacji. Analizę przeprowadzono dla konfiguracji FAVOR+ z parametrem $N_f = 0.125$, która dała najgorsze wyniki w eksperymentach.
+
+\subsection{Charakterystyka błędów}
+
+Analiza macierzy pomyłek na losowej próbie $100$ przykładów ze zbioru testowego ujawniła istotną różnicę w charakterze błędów popełnianych przez oba modele. Próba zawierała $54$ przypadki klasy \textit{neutral} (klasa $0$) oraz $46$ przypadków klasy \textit{partisan} (klasa $1$). Wyniki przedstawiono w tabeli~\ref{tab:confusion_comparison_qual}.
+
+\begin{table}[H]
+\centering
+\caption{Macierze pomyłek dla FAVOR+ ($N_f=0.125$) i SDPA na losowej próbie $100$ przykładów ze zbioru testowego}
+\label{tab:confusion_comparison_qual}
+\smallskip
+
+\begin{tabular}{lcc}
+\toprule
+\multicolumn{3}{c}{\textbf{FAVOR+ ($N_f=0.125$)}} \\
+\midrule
+& \multicolumn{2}{c}{Prawdziwa etykieta} \\
+\cmidrule(lr){2-3}
+Predykcja & Neutral & Partisan \\
+\midrule
+Neutral & 19 & 8 \\
+Partisan & 35 & 38 \\
+\bottomrule
+\end{tabular}
+\hspace{1cm}
+\begin{tabular}{lcc}
+\toprule
+\multicolumn{3}{c}{\textbf{SDPA}} \\
+\midrule
+& \multicolumn{2}{c}{Prawdziwa etykieta} \\
+\cmidrule(lr){2-3}
+Predykcja & Neutral & Partisan \\
+\midrule
+Neutral & 34 & 16 \\
+Partisan & 20 & 30 \\
+\bottomrule
+\end{tabular}
+
+\end{table}
+
+Wśród 21 przypadków, w których SDPA klasyfikowała poprawnie, a FAVOR+ błędnie, aż~$20 (95.2\%)$ stanowiły błędy typu \textit{false positive}. Oznacza to, że FAVOR+ wykazuje wyraźną tendencję do nadmiernego przypisywania etykiety \textit{partisan} tekstom neutralnym, podczas gdy SDPA zachowuje większą ostrożność w tej klasie.
+
+\subsection{Analiza przykładów błędnych klasyfikacji}
+
+Aby zidentyfikować potencjalne wzorce prowadzące do błędów FAVOR+, wybrano ze zbioru testowego $20$ przykładów klasy \textit{neutral}, w których FAVOR+ klasyfikował błędnie (błędy typu \textit{false positive}), podczas gdy SDPA klasyfikował poprawnie. Pełną listę przykładów wraz z początkowymi fragmentami tekstów przedstawiono w tabeli~\ref{tab:favor-fp-sdpa-correct}.
+
+
+\paragraph{Długość sekwencji}
+Spośród $20$ analizowanych przykładów, aż $5$ miało maksymalną długość $4096$ tokenów. Może to wynikać z różnic rozkładów długości w zbiorach (rys.~\ref{fig:train_lengths} i~\ref{fig:test_lengths}) oraz odwrócenia zależności długość–etykieta: w treningu odsetek dokumentów o długości $4096$ jest większy dla klasy $1$ (\textit{partisan}: $12.07\%$) niż dla klasy $0$ (\textit{neutral}: $5.97\%$), natomiast w teście sytuacja jest odwrotna (klasa $0$: $21.72\%$, klasa $1$: $6.58\%$). FAVOR+ dla bardzo długich sekwencji może tracić zdolność utrzymania kontekstu.
+
+\begin{figure}[b!]
+\centering
+\includegraphics[width=0.85\textwidth]{static/train_lengths.pdf}
+\caption{Rozkład długości sekwencji w zbiorze treningowym Hyperpartisan według etykiety}
+\label{fig:train_lengths}
+\end{figure}
+
+\begin{figure}[t!]
+\centering
+\includegraphics[width=0.85\textwidth]{static/test_lengths.pdf}
+\caption{Rozkład długości sekwencji w zbiorze testowym Hyperpartisan według etykiety}
+\label{fig:test_lengths}
+\end{figure}
+\paragraph{Wzorce prefiksowe}
+Istnieje korelację błędów z obecnością specyficznych wzorców leksykalnych na początku dokumentów. W szczególności:
+\begin{itemize}
+    \item $9$ z $20$ przykładów ($45\%$) rozpoczynało się od frazy \texttt{more on:} lub \texttt{for more on:},
+    \item $10$ z $20$ przykładów $(50\%)$ zawierało substring \texttt{more on} w pierwszych $64$ tokenach.
+\end{itemize}
+
+Frazy te stanowią artefakt redakcyjny charakterystyczny dla publikacji pochodzących z określonych źródeł.
+\begin{itemize}
+    \item W zbiorze treningowym prefiks \texttt{more on} nie występuje w ogóle ($0\%$ w obu klasach),
+    \item W zbiorze testowym występuje jako prefiks u 39,48\% dokumentów klasy 0 (\textit{neutral}),
+    % \item Analiza występowania bigramu \texttt{more on} gdziekolwiek w dokumencie potwierdza ten wzorzec: train -- 2,22\% (label 0) vs test -- 54,12\% (label 0).
+\end{itemize}
+
+Ten wzorzec sugeruje, że FAVOR+ ma trudności z~rozpoznawaniem nowych, nieznanych z~treningu wzorców tekstowych (takich jak \texttt{more on:}). Model może mylnie traktować te artefakty formatowania jako wskaźnik tendencyjności tekstu.
+
+\paragraph{Powiązanie długości i prefiksów}
+Warto zauważyć, że oba zaobserwowane wzorce -- długie sekwencje oraz obecność artefaktów \texttt{more on} -- często występują jednocześnie. Spośród $5$ przykładów o maksymalnej długości $4096$ tokenów, $3$ rozpoczynają się od \texttt{more on}. Może to wskazywać na kumulatywny efekt: aproksymacja w FAVOR+ może być problematyczna gdy długi kontekst łączy się z nietypowymi wzorcami.
+
+\begin{table}[h]
+\centering
+\caption{Porównanie liczby zmian w wynikach klasyfikacji dla metod FAVOR+ i SDPA po usunięciu prefiksu (\texttt{more on}) i skróceniu sekwencji do $2000$ tokenów (N=$50$)}
+\smallskip
+\label{tab:hyper-predict-change}
+\begin{tabular}{lccc}
+\hline
+\textbf{Metoda} & \textbf{Liczba zmian} & \textbf{$1 \rightarrow 0$} & \textbf{$0 \rightarrow 1$} \\
+\hline
+FAVOR+ & 8/50 & 7 & 1 \\
+SDPA   & 5/50 & 5 & 0 \\
+\hline
+\end{tabular}
+\end{table}
+
+\paragraph{Usunięcie prefiksu i skrócenie do długości $2000$}
+Przeanalizowano dokumenty o maksymalnej długości ($4096$ tokenów), które rozpoczynają się od prefiksu \texttt{more on}. W zbiorze testowym występuje $335$ takich przypadków, z tej puli wylosowano $50$ tekstów, a następnie usunięto z nich prefiks orazskrócono tekst do $2000$ tokenów. Następnie sprawdzono, w ilu przypadkach modyfikacja ta zmieniła predykcję modeli względem wersji oryginalnej. Wyniki przedstawione w tab.~\ref{tab:hyper-predict-change} częściowo potwierdzają powyższe rozważania.
+
+
+
+
+
+\subsection{Hipoteza dotycząca mechanizmu błędów}
+Powyższe obserwacje sugerują, że FAVOR+ może mieć trudności z:
+\begin{enumerate}
+    \item \textbf{Utrzymaniem kontekstu semantycznego w długich sekwencjach} -- aproksymacja softmax może osłabiać zdolność modelu do powiązania informacji z odległych fragmentów tekstu. W długich dokumentach (>2000 tokenów), gdzie kluczowe dla klasyfikacji informacje mogą być rozproszone, model może polegać bardziej na powierzchniowych wskaźnikach (np. obecność określonych słów) niż na głębszym zrozumieniu semantyki całego tekstu.
+    
+    \item \textbf{Rozróżnianiem sygnału semantycznego od artefaktów formatowania} -- wzorce nieobecne w treningu (np. \texttt{more on:}) mogą być błędnie interpretowane jako oznaka tendencyjności.
+    
+    \item \textbf{Radzeniem sobie z przesunięciem dystrybucji} -- różnice między zbiorami treningowym i testowym (długość tekstów, wzorce leksykalne) mogą bardziej negatywnie wpływać na FAVOR+ niż na SDPA, ze względu na ograniczenia aproksymacji.
+\end{enumerate}
+
+\subsection{Ograniczenia analizy}
+
+Przeprowadzona analiza ma charakter wstępny i eksploracyjny:
+
+\begin{itemize}
+    \item \textbf{Mała próba} -- analiza opiera się na zaledwie 20 wyselekcjonowanych przykładach.
+    
+    \item \textbf{Powierzchowna analiza} -- obserwacje opierają się na prostych miarach (długość tekstu, obecność wzorców prefiksowych) bez głębszej analizy semantycznej czy lingwistycznej. Nie zbadano szczegółowo treści tekstów.
+    
+    \item \textbf{Charakter selekcji} -- wybrano wyłącznie przypadki rozbieżności między modelami, co nie odzwierciedla typowego zachowania FAVOR+ na całym zbiorze.
+    
+    \item \textbf{Brak analizy przyczynowej} -- zaobserwowane korelacje nie oznaczają związku przyczynowego. Długość i wzorce prefiksowe mogą współwystępować z innymi, niezbadanymi czynnikami faktycznie odpowiedzialnymi za błędy klasyfikacji.
+\end{itemize}
+
+Celem tej analizy było jedynie wstępne rozpoznanie możliwych kierunków dalszych badań, nie dostarczenie definitywnych wyjaśnień mechanizmów błędów FAVOR+. Pełniejsza typologia błędów wymagałaby analizy znacznie większej próby przykładów oraz bardziej szczegółowych metod badawczych.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3761,15 +3988,15 @@ Tabela~\ref{tab:wymagania-funkcjonalne} przedstawia ocenę spełnienia wymagań 
 \multicolumn{3}{c}{\textit{WNF-1 -- Wydajność i~efektywność zasobowa}} \\
 \midrule
 Środowisko GPU (Colab) & Spełnione & Wykorzystano GPU \textit{A100 40GB}\\
-Wymóg kosztowy (Performer) & Częściowo spełnione & Zgodnie z tab.~\ref{tab:attention-f1-comparison},~\ref{tab:time-comparison} i~\ref{tab:vram-comparison}\\
-Wymóg kosztowy (Reformer) & Częściowo spełnione & Zgodnie z tab.~\ref{tab:attention-f1-comparison},~\ref{tab:time-comparison} i~\ref{tab:vram-comparison}\\
+Wymóg kosztowy (Performer) & Częściowo spełnione & Zgodnie z tab.~\ref{tab:attention-f1-vs-baseline},~\ref{tab:attention-f1-vs-sdpa},~\ref{tab:time-comparison} i~\ref{tab:vram-comparison}\\
+Wymóg kosztowy (Reformer) & Częściowo spełnione & Zgodnie z tab.~\ref{tab:attention-f1-vs-baseline},~\ref{tab:attention-f1-vs-sdpa},~\ref{tab:time-comparison} i~\ref{tab:vram-comparison}\\
 Techniki optymalizacji & Spełnione & Zgodnie z~sek.~\ref{sec:training-loop}\\
 \midrule
 \multicolumn{3}{c}{\textit{WNF-2 -- Jakość, niezawodność i~testowalność}} \\
 \midrule
-Jakość (SDPA) & Spełnione & Zgodnie z tab.~\ref{tab:attention-f1-comparison}\\
-Jakość (Performer) & Częściowo spełnione & Zgodnie z tab.~\ref{tab:attention-f1-comparison}\\
-Jakość (Reformer) & Spełnione & Zgodnie z tab.~\ref{tab:attention-f1-comparison}\\
+Jakość (SDPA) & Spełnione & Zgodnie z tab.~\ref{tab:attention-f1-vs-baseline},~\ref{tab:attention-f1-vs-sdpa}\\
+Jakość (Performer) & Częściowo spełnione & Zgodnie z tab.~\ref{tab:attention-f1-vs-baseline},~\ref{tab:attention-f1-vs-sdpa}\\
+Jakość (Reformer) & Spełnione & Zgodnie z tab.~\ref{tab:attention-f1-vs-baseline},~\ref{tab:attention-f1-vs-sdpa}\\
 Stabilność & Spełnione & Zgodnie z tab.~\ref{tab:sdpa-imdb-seeds}\\
 Testy komponentów & Spełnione & Zgodnie z sek.~\ref{sec:unit-tests}\\
 \midrule
@@ -3912,7 +4139,7 @@ Ze względu na losowość procesu uczenia pojedynczy przebieg treningu może nie
 \subsection{Analiza interpretowalności}
 Ponieważ rozważane mechanizmy różnią się sposobem dystrybucji uwagi, wartościowe byłoby porównanie wzorców uwagi pomiędzy modelami -- wizualizacje macierzy uwagi dla wybranych przykładów, analiza koncentracji na tokenach specjalnych oraz preferencji lokalnych vs dalekozasięgowych.
 
-Dodatkowej analizy wymaga mechanizm FAVOR+, którego wyniki klasyfikacji okazały się słabsze, zwłaszcza na zbiorze Hyperpartisan. Co więcej, na Hyperpartisan wyniki wszystkich modeli cechowała duża wariancja, dlatego warto sprawdzić możliwe przyczyny -- np. czy modele (lub mechanizmy uwagi) mają tendencję do zapamiętywania słów kluczowych zamiast uczenia się ogólnych reprezentacji języka.
+Dodatkowej analizy wymaga mechanizm FAVOR+, którego wyniki klasyfikacji okazały się słabsze, zwłaszcza na zbiorze Hyperpartisan. Co więcej, na Hyperpartisan wyniki wszystkich modeli cechowała duża wariancja, dlatego warto dokładniej sprawdzić możliwe przyczyny -- np. czy modele (lub mechanizmy uwagi) mają tendencję do zapamiętywania słów kluczowych zamiast uczenia się ogólnych reprezentacji języka.
 
 \subsection{Porównanie z gotowymi modelami}
 Aby oszacować, jak dużo tracimy przez skrócony pretrening i ograniczony korpus, warto porównać nasze modele z dostępnymi checkpointami, np. BERT-small z biblioteki Hugging Face na zbiorze IMDB (gotowy model obsługuje sekwencje do $512$ tokenów) oraz z innymi modelami na dłuższych zbiorach danych -- np. Longformer -- w celach wyłącznie porównawczych.
@@ -3932,8 +4159,8 @@ Aby oszacować, jak dużo tracimy przez skrócony pretrening i ograniczony korpu
 
 \printbibliography
 
-\thispagestyle{empty}
-\pagenumbering{gobble}
+% \thispagestyle{empty}
+% \pagenumbering{gobble}
 
 
 \clearpage
@@ -3958,14 +4185,14 @@ Aby oszacować, jak dużo tracimy przez skrócony pretrening i ograniczony korpu
 
 % ----- 8. Spis rysunków - jeśli nie ma, zakomentować --------
 \listoffigures
-\thispagestyle{empty}
+% \thispagestyle{empty}
 % Jak nie występują, usunąć.
 
 
 % ------------ 9. Spis tabel - jak wyżej ------------------
 \renewcommand{\listtablename}{Spis tabel}
 \listoftables
-\thispagestyle{empty}
+% \thispagestyle{empty}
 % Jak nie występują, usunąć.
 
 
@@ -4004,7 +4231,7 @@ Aby oszacować, jak dużo tracimy przez skrócony pretrening i ograniczony korpu
 
 
 
-\chapter*{Załącznik}
+\chapter*{Załącznik} 
 \appendix
 \renewcommand{\thesection}{\Alph{section}}
 \renewcommand{\thetable}{\Alph{section}.\arabic{table}}
@@ -4338,6 +4565,59 @@ $f{=}2$, $d{=}0.2$ & Mean & 93.88 & 93.62 & 0.26 \\
 \end{table}
 
 \FloatBarrier
+\setcounter{table}{0}
+\section{Analiza jakościowa błędów Hyperpartisan}\label{app:qualitative-analysis}
+\setlength{\LTcapwidth}{\textwidth}
+\begin{longtable}{@{}rcp{0.75\textwidth}@{}}
+\caption{Przykłady tekstów ze zbioru Hyperpartisan błędnie sklasyfikowanych przez FAVOR+ jako \textit{partisan}, a poprawnie rozpoznanych przez SDPA jako \textit{neutral}.}
+\label{tab:favor-fp-sdpa-correct} \\
+\toprule
+\textbf{ID} &
+\textbf{Długość} &
+\textbf{Fragment tekstu} \\
+\midrule
+\endfirsthead
+
+\multicolumn{3}{c}%
+{\tablename\ \thetable\ -- \textit{kontynuacja}} \\
+\toprule
+\textbf{ID} &
+\textbf{Długość} &
+\textbf{Fragment tekstu} \\
+\midrule
+\endhead
+
+\midrule
+\multicolumn{3}{r}{\textit{Kontynuacja na następnej stronie}} \\
+\endfoot
+
+\bottomrule
+\endlastfoot
+
+6 & 2271 & more on : on september 21st the fed announced that it would be selling \$ 400 billion in short - term treasurys and buying \$ 400 billion in longer - term treasurys to replace them - a maneuver titled "... \\
+7 & 1873 & perusing the coverage of president donald j. trump ' s first ten months in office, a reader could easily conclude that the global trading system, which has been in existence essentially since 1945, is... \\
+12 & 3044 & for more on : the debate over skyscrapers and their place in the american city has endured for over a century, and new york city has often led the conversation. in 1913, the equitable life assurance s... \\
+17 & 4045 & " [ gcmaf ] is also believed, " the web site also reported, " to be capable of treating and reversing autism, hiv, liver / kidney disease and diabetes. " rumor has it that gcmaf has the potential to b... \\
+27 & 4096 & much has been said over the past few years about the novelty of the security challenges now facing the united states. in what is still the most popular version of events, history started on 9 / 11, wh... \\
+40 & 2088 & with the announcement last week that vice president of communication natalie kerris is leaving twitter after only six months on the job, the company ' s public relations troubles are in the news again... \\
+47 & 2365 & more on : this is a guest post by mrs. joan sikand, esq. she has served as development coordinator of the wildlife foundation since its inception in 2000. she has been a member of friends of nairobi n... \\
+48 & 3360 & this post is co - authored by sungtae " jacky " park, research associate for korea studies at the council on foreign relations. \& \# 160 ; a version of this post is more on : north korea ' s intense se... \\
+51 & 4096 & christine cumming of the new york fed joins andres rozental from the mexican council on foreign relations to discuss current economic trends and the role of the fed in the financial regulatory system.... \\
+53 & 4096 & the concept of " american exceptionalism " has been applied mainly to the political differences that separate the united states from the " old world " : the striking absence of any serious american so... \\
+55 & 1811 & japan ' s worsening crisis at the fukushima nuclear plant following the march 11 earthquake and tsunami has reignited the debate about the safety of nuclear power. what has occurred at the fukushima n... \\
+74 & 3027 & more on : after this week ' s shangri - la dialogue in singapore, which featured the u. s. - china war of words that has come to characterize the security meeting, secretary of defense ashton carter t... \\
+75 & 3925 & more on : since 2000, the percent of state budgets devoted to higher education has fallen from 13 percent to 9. 5 percent. this decline in funding has strained public university finances, reduced pay ... \\
+81 & 3065 & more on : over the weekend, thailand ' s junta leader, prayuth chan - ocha, announced a firmer roadmap toward civilian rule than the army had previously revealed. prayuth went on thai television and a... \\
+90 & 1877 & in a day of stunning developments that revived the ruling effectively shaved last night, a leon county judge ruled that the recounts would begin as early as 8 a. m. today and must be finished by 2 p. ... \\
+94 & 1376 & more on : in conflict zones, some families view child marriage as a way to preserve their daughter ' s honor and protect her from the sexual assault and gender - based violence that commonly occurs in... \\
+97 & 1538 & more on : the credit risk of oil exporting countries such as venezuela and russia tends to move with the price of oil. as a country ' s oil export revenue improves, so does its ability to pay its debt... \\
+103 & 1958 & [ this is the 3rd in the series religion and science : a beautiful friendship ] it is not instruction but provocation that i can receive from another. - ralph waldo emerson upon detecting hypocrisy in... \\
+105 & 1868 & more on : there is a the sudanese yellow fever epidemic and the chinese response to it is a reminder of africa ' s disease burden. hiv / aids gets the most attention in the united states, and most of ... \\
+130 & 4011 & a quick follow up on one objection to highlighting thailand in the coming foreign exchange report is that the baht has appreciated this year, and, well, to be a really bad actor, you have to be interv... \\
+\end{longtable}
+
+\FloatBarrier
+
 \section{Kod źródłowy}\label{app:code}
 Kod źródłowy aplikacji wraz z notatnikiem pozwalającym na odtworzenie eksperymentów został dołączony osobno w pliku ZIP wraz z pracą dyplomową.
 
