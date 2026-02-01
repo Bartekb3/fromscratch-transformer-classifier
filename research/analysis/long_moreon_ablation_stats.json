@@ -1,0 +1,17 @@
+{
+  "seed": 123,
+  "sample_size": 50,
+  "prefix_long_total": 335,
+  "favor_changes_strip": 2,
+  "sdpa_changes_strip": 1,
+  "favor_changes_strip_trunc": 8,
+  "sdpa_changes_strip_trunc": 5,
+  "favor_1_to_0_strip": 1,
+  "favor_0_to_1_strip": 1,
+  "sdpa_1_to_0_strip": 1,
+  "sdpa_0_to_1_strip": 0,
+  "favor_1_to_0_strip_trunc": 7,
+  "favor_0_to_1_strip_trunc": 1,
+  "sdpa_1_to_0_strip_trunc": 5,
+  "sdpa_0_to_1_strip_trunc": 0
+}
